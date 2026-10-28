@@ -1,0 +1,20 @@
+[package]
+name = "originlm-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Evidence-backed, language-neutral OriginLM contracts"
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+bigdecimal.workspace = true
+
+[lints]
+workspace = true

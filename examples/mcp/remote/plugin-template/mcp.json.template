@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "kit-usage": {
+      "type": "streamable-http",
+      "url": "REPLACE_WITH_APPROVED_VERIFIED_HTTPS_USAGE_MCP_ENDPOINT",
+      "extensions": {"com.openai": {"auth": {"type": "api_key", "headerScheme": "bearer"}}}
+    }
+  }
+}

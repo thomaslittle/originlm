@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not paste tokens, API keys, account details, private prompts, session logs, or personal paths.** Redact them first. Security problems belong in a [private advisory](https://github.com/thomaslittle/originlm/security/advisories/new), not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Commands or code. Prefer a synthetic home (`scan --json --home /absolute/empty/dir`) or a fake client over real account data.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Output of `originlm --version`, or the commit you built.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows, Linux, macOS]
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and client version (if relevant)
+      description: For example "Codex 0.159, Windows". See the support matrix for what is supported.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted output or logs
+      render: shell

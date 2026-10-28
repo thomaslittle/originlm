@@ -1,0 +1,50 @@
+{
+  "name": "originlm",
+  "version": "0.1.0-alpha.20",
+  "private": true,
+  "type": "module",
+  "description": "Thin permission-aware OriginLM protocol client",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./node/index.d.mts",
+      "default": "./node/index.mjs"
+    },
+    "./mcp": {
+      "types": "./dist/cached-usage-mcp.d.ts",
+      "default": "./dist/cached-usage-mcp.js"
+    },
+    "./mcp/host": {
+      "types": "./dist/cached-usage-host.d.ts",
+      "default": "./dist/cached-usage-host.js"
+    },
+    "./mcp/remote": {
+      "types": "./dist/cached-usage-remote.d.ts",
+      "default": "./dist/cached-usage-remote.js"
+    },
+    "./mcp/node": {
+      "types": "./node/cached-usage-mcp.d.mts",
+      "default": "./node/cached-usage-mcp.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "node",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --experimental-strip-types --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=22.16"
+  },
+  "license": "MIT"
+}

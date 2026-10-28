@@ -1,0 +1,30 @@
+{
+  "name": "@originlm/react",
+  "version": "0.1.0-alpha.20",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "originlm": "0.1.0-alpha.20",
+    "@originlm/selector-core": "0.1.0-alpha.20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

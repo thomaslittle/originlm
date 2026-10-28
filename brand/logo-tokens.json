@@ -1,0 +1,17 @@
+{
+  "brand": "OriginLM",
+  "version": "1.0.0",
+  "approved_design": "single offset O; no stack; no pupil",
+  "colors": {
+    "amber": "#EBA31A",
+    "ink": "#111820",
+    "paper": "#FAF9F5",
+    "white": "#FFFFFF",
+    "ui_graphite_existing": "#231F20"
+  },
+  "lockup_aspect_ratio": 4.355769230769231,
+  "mark_aspect_ratio": 0.9855769230769231,
+  "clear_space_recommendation": "At least one quarter of the mark height around a standalone mark; preserve the supplied horizontal lockup spacing.",
+  "wordmark": "Outlined paths from the selected raster, not a live font.",
+  "theme_scope": "Logo asset colors only. Existing app theme/typeface must not be replaced globally."
+}

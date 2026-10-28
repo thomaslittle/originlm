@@ -1,0 +1,7 @@
+review/video/
+*.tmp.mjs
+
+.prerender/
+
+# Rendered film assets are staged from media/video/out for a release build.
+/public/media/

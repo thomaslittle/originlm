@@ -1,0 +1,232 @@
+{
+  "source": {
+    "repository": "pingdotgg/t3code",
+    "url": "https://github.com/pingdotgg/t3code",
+    "commit": "e9236274a3a6e0c731a7df4092db1e686f039068",
+    "commitSubject": "refactor(mobile): showcase capture runs as an app service, not a chain of effects (#25857)",
+    "branch": "main",
+    "nightlyBranch": null,
+    "nightlyTag": "v0.1.4-nightly.20261027.3770",
+    "nightlyCommit": "7c3b3b3605efa695e9948051b569937fc1482c0f",
+    "stableTag": "v0.1.3",
+    "stableCommit": "d2c440312e5f39d59827ed466838a623516454d6",
+    "license": "MIT",
+    "licenseCopyright": "Copyright (c) 2026 T3 Tools Inc."
+  },
+  "adopted": {
+    "pi": {
+      "commands": ["pi"],
+      "profileRelative": ".pi/agent",
+      "env": "PI_CODING_AGENT_DIR",
+      "sessionRelative": "sessions",
+      "sessionDirEnv": "PI_CODING_AGENT_SESSION_DIR",
+      "execution": false,
+      "source": "packages/provider-pi/src/server/usage.ts"
+    },
+    "opencodeNativeBin": {
+      "relative": ".opencode/bin",
+      "command": "opencode",
+      "source": "packages/provider-opencode/src/server/driver.ts"
+    },
+    "grokProbe": {
+      "env": "GROK_DISABLE_AUTOUPDATER",
+      "value": "1",
+      "appliesTo": ["grok models", "acp initialize"],
+      "textSessions": false,
+      "source": "packages/provider-grok/src/server/probeEnvironment.ts",
+      "commit": "2a7bd1673c7bdad4304b7771944e73c29ecd3c01"
+    },
+    "codexProbeTimeoutMs": {
+      "value": 20000,
+      "source": "apps/server/src/provider/CodexProvider.ts",
+      "commit": "cfafb4bb54d244e4612f5681aad3832ea64cb0fb",
+      "local": "crates/originlm-adapters/src/codex/launch.rs already waited 20 seconds"
+    },
+    "grokLoginRecheck": {
+      "when": "grok models reports logged out",
+      "attempts": 1,
+      "unknownRecheckKeepsLoggedOut": true,
+      "source": "packages/provider-grok/src/server/status.ts",
+      "commit": "a2157eced708fd25fab7b616f5a68cb65312eaed"
+    },
+    "codexCodeModeHost": {
+      "sibling": "codex-code-mode-host",
+      "launchersExempt": ["shebang", "volta-shim", "mise", "aqua-proxy", "windows-non-exe", "bunx", "shim"],
+      "source": "apps/server/src/provider/CodexInstallation.ts",
+      "commit": "348888a767433464dd47e723ec6509dc5a8282db"
+    },
+    "codexPlanLabels": {
+      "nativeIdPreserved": true,
+      "unknownOmitted": true,
+      "source": "apps/server/src/provider/CodexProvider.ts",
+      "commit": "33f1fe5ebe53fdd8d18b6a5d63dfd29c336ba5a9"
+    },
+    "codexConfiguredServiceTier": {
+      "method": "config/read",
+      "field": "config.service_tier",
+      "fastAlias": "priority",
+      "addsTiers": false,
+      "source": "apps/server/src/provider/CodexProvider.ts",
+      "commit": "3b844dab5ced7277ce4a2cf0e5e11d0f04e62241"
+    },
+    "codexIndividualCredits": {
+      "field": "individualLimit.remainingPercent",
+      "label": "Monthly credit limit",
+      "source": "apps/server/src/provider/codexUsageLimits.ts",
+      "commit": "4c18faf62cd1685b0243dcacc1a94e333c2b93ff"
+    },
+    "claudeMonthlySpend": {
+      "prefer": "enabled spend budget with matching currency and exponent",
+      "fallback": "enabled extra_usage amounts or utilization",
+      "source": "apps/server/src/provider/claudeUsageLimits.ts",
+      "commit": "fd8dd51654f855dbf4e23c457701f5088c59b689"
+    },
+    "fx": {
+      "commands": ["fx"],
+      "profileRelative": ".fx",
+      "execution": false,
+      "source": "packages/provider-fx/src/server/driver.ts",
+      "commit": "6df241d23a8b82ff786fe3253dfb08645933db26"
+    },
+    "acpSessionNotice": {
+      "sessionUpdate": "notice",
+      "capability": "session.notices",
+      "emptyTitleOmitted": true,
+      "malformedStaysUnknown": true,
+      "becomesAssistantText": false,
+      "source": "packages/provider-acp/src/server/runtimeModel.ts",
+      "commit": "323d9611ff49521357fdc205f667614602ec46b6"
+    },
+    "chatgpt": {
+      "issuer": "https://auth.openai.com",
+      "authorizationEndpoint": "https://auth.openai.com/api/accounts/authorize",
+      "tokenEndpoint": "https://auth.openai.com/api/accounts/oauth/token",
+      "revocationEndpoint": "https://auth.openai.com/api/accounts/oauth/revoke",
+      "resource": "https://api.openai.com/v1",
+      "scopes": "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
+      "requiredScope": "chatgpt.tokens.use.direct",
+      "algorithms": ["RS256", "ES256"],
+      "clockToleranceSeconds": 5,
+      "refreshSkewSeconds": 60,
+      "earliestRefreshAt": true,
+      "consentPromptWhenSharingDisabled": true,
+      "source": "apps/server/src/provider/CodexChatGptAuth.ts"
+    }
+  },
+  "reviewedNotAdopted": [
+    {
+      "area": "local-model-runtimes",
+      "finding": "T3 Code main at e9236274 still has no Ollama, LM Studio, or llama.cpp provider. OpenAI-compatible local endpoints appear only as configuration inside OpenCode or Pi, not as a scanner."
+    },
+    {
+      "area": "cloud-llm-apis",
+      "finding": "T3 Code does not ship first-class OpenAI, Anthropic, Gemini, or xAI HTTP adapters. Cloud model access is the signed-in CLI (ChatGPT plan, Claude, Grok, Cursor, OpenCode, Pi, Antigravity, ACP). apps/server/src/cloud is the T3 Connect relay, not an LLM provider."
+    },
+    {
+      "area": "acp-registry-install",
+      "finding": "The ACP Registry driver downloads third-party agents into a T3-owned tools directory. At cfafb4bb, Windows on ARM falls back to a windows-x86_64 archive when the agent publishes no windows-aarch64 binary (76cb251d). OriginLM does not download executables from a remote manifest. User-configured local ACP commands stay on the existing explicit native-profile path."
+    },
+    {
+      "area": "chatgpt-multi-account",
+      "finding": "T3 Code keeps many ChatGPT registrations and a primary-to-remote handoff. OriginLM keeps one managed registration per state directory and still rejects an identity change. Remote refresh-token transfer was not ported."
+    },
+    {
+      "area": "codex-shadow-home",
+      "finding": "T3 Code can link a shared CODEX_HOME into a shadow home so two accounts continue the same threads. That layout is a T3 session feature, not passive discovery."
+    },
+    {
+      "area": "cursor-sdk",
+      "finding": "T3 Code's current Cursor driver uses the bundled Cursor SDK and hides the CLI path. At cfafb4bb, Auto threads use Cursor's Auto-review (2d943723). At e9236274 the SDK pin moved to 1.0.38 so long-context tiers send Max Mode (850d1e7a6). OriginLM still only inventories cursor-agent and does not execute Cursor."
+    },
+    {
+      "area": "codex-managed-download",
+      "finding": "CodexInstallation.ts downloads a pinned Codex release archive into a T3-owned tools directory. At cfafb4bb, Windows extraction uses the system tar and retries a rename while Defender holds the new binary (364f5084). OriginLM inventories a Codex binary that is already installed and does not download executables."
+    },
+    {
+      "area": "gemini-cli",
+      "finding": "Gemini CLI is not a built-in T3 driver. The ACP Registry can install @google/gemini-cli. OriginLM already inventories gemini from PATH and GEMINI_CLI_HOME and does not download it."
+    },
+    {
+      "area": "claude-windows-shim",
+      "finding": "ClaudeExecutable.ts follows a Windows npm .cmd/.bat/.ps1 launcher to @anthropic-ai/claude-code bin/claude.exe or cli.js so the Claude Agent SDK can spawn it. OriginLM inventories the claude command and does not rewrite launcher shims."
+    },
+    {
+      "area": "claude-managed-mcp",
+      "finding": "ClaudeHome.ts notices an administrator managed-mcp.json so a session can drop --strict-mcp-config. That is execution isolation, not a discovery root."
+    },
+    {
+      "area": "antigravity-managed-install",
+      "finding": "AntigravityInstallation.ts installs a managed Antigravity build. At cfafb4bb, Windows ARM validation kills the PyInstaller tree before deleting the temp profile (895354e9). OriginLM inventories an already installed antigravity or agy binary and does not install one."
+    },
+    {
+      "area": "grok-billing-file",
+      "finding": "Grok usage limits read auth.json and call the Grok billing endpoint, including a zero-percent period when the percentage is omitted (79f2bae6). OriginLM does not read Grok credential files or export subscription tokens. Login state still comes from grok models."
+    },
+    {
+      "area": "muse-usage-home-spawn",
+      "finding": "MuseUsageHome starts a read-only Muse SDK host to learn museHome for session-history usage (c8933536). OriginLM already reads usage from the Muse session protocol and does not spawn Muse during passive discovery to locate a home."
+    },
+    {
+      "area": "codex-effort-override",
+      "finding": "T3 forces reasoning effort medium for the gpt-6-astra family even when the model reports another default (CodexProvider.ts codexDefaultReasoningEffortOverride). OriginLM keeps the effort the model catalog reports and does not add a hard-coded family override."
+    },
+    {
+      "area": "chatgpt-profile-key",
+      "finding": "T3 hashes client id, subject, and ID token into a profile key so a child session fails when the ChatGPT connection changes, and it records a hashed OpenAI user id for install telemetry. OriginLM already rejects an identity change for the one registration in a state directory. The profile key and telemetry owner id were not ported."
+    },
+    {
+      "area": "t3-release-ci",
+      "finding": ".github/workflows/release.yml moved macOS and Windows packaging between GitHub and Blacksmith runners and stopped publishing per-platform npm packages. At e9236274 it also boots the built web client and launch-checks desktop artifacts before publish. That is T3 Code's desktop release pipeline. OriginLM does not build or publish T3."
+    },
+    {
+      "area": "acp-malformed-session-update",
+      "finding": "effect-acp drops one schema-invalid session notification instead of ending the connection (559c4b1f). OriginLM's ACP client already continues on an unrecognized sessionUpdate and does not fail a turn when usage_update omits used. A notification with no sessionUpdate still ends the turn."
+    },
+    {
+      "area": "shell-resolution",
+      "finding": "T3's packages/shared/src/shell.ts and apps/desktop/src/shell/DesktopShellEnvironment.ts resolve login-shell PATH and platform environment for spawning desktop clients. Those files did not change between f0dd86f and e9236274. OriginLM keeps its own injected platform environment and never reads shell profiles or executes discovered commands during passive discovery; shell probing remains an explicitly authorized active-probe concern."
+    },
+    {
+      "area": "fx-execution",
+      "finding": "T3's fx driver runs fx --version, fx status --json, and fx models --json, then fx acp, and starts a thread at effort medium (6df241d23). OriginLM inventories the fx command and ~/.fx. It does not launch fx, read its login, download it, or hard-code an effort."
+    },
+    {
+      "area": "model-short-names",
+      "finding": "T3 shortens displayed model labels by family prefix (56695ae3, modelFamilies on provider clients). OriginLM shows the provider-reported name and does not rewrite it."
+    },
+    {
+      "area": "model-new-badge",
+      "finding": "T3 derives a seven-day new badge from releasedAt (0790e3891). OriginLM does not ship that bundled model manifest or a new-model badge."
+    }
+  ],
+  "watchedPaths": [
+    "apps/server/src/provider/builtInDrivers.ts",
+    "apps/server/src/provider/builtInProviderCatalog.ts",
+    "apps/server/src/provider/CodexChatGptAuth.ts",
+    "apps/server/src/provider/CodexChatGptHandoff.ts",
+    "apps/server/src/provider/CodexChatGptSessionLock.ts",
+    "apps/server/src/provider/CodexInstallation.ts",
+    "packages/shared/src/shell.ts",
+    "apps/desktop/src/shell/DesktopShellEnvironment.ts",
+    "apps/server/src/provider/CodexProvider.ts",
+    "apps/server/src/provider/AntigravityInstallation.ts",
+    "apps/server/src/provider/Drivers",
+    "apps/server/src/provider/Drivers/ClaudeHome.ts",
+    "apps/server/src/provider/Drivers/ClaudeExecutable.ts",
+    "apps/server/src/provider/providerInstallation.ts",
+    "apps/server/src/cloud",
+    "packages/provider-pi/src/server/usage.ts",
+    "packages/provider-pi/src/settings.ts",
+    "packages/provider-opencode/src/server/driver.ts",
+    "packages/provider-cursor/src/settings.ts",
+    "packages/provider-grok/src/server",
+    "packages/provider-muse/src/server",
+    "packages/provider-acp-registry/src/server",
+    "packages/provider-fx",
+    "packages/provider-acp/src/server",
+    "packages/effect-acp/src/client.ts",
+    "docs/internals/providers.md",
+    "docs/operations/release.md",
+    ".github/workflows/release.yml"
+  ]
+}

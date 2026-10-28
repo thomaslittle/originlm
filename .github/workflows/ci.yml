@@ -1,0 +1,87 @@
+name: Native SDK and package verification
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    # Cold macOS Intel builds compile debug/tests, clippy, then release artifacts.
+    # The measured debug + lint stages alone take about 36 minutes.
+    timeout-minutes: 75
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Free disk space (Linux runner)
+        if: runner.os == 'Linux'
+        run: |
+          # The debug test build plus the release bundle exceed the default runner disk.
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/swift /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+      - name: Install Linux desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libfontconfig1-dev libfreetype6-dev pkg-config \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libgl1-mesa-dev
+      - name: Install build-only dependencies
+        run: |
+          npm ci --ignore-scripts
+          python -m pip install -r scripts/requirements-build.txt
+          npx --no-install playwright install --with-deps chromium
+      - name: Full deterministic verification (no provider inference)
+        run: python scripts/verify.py --profile all
+      - name: Plain HTTP C# consumer
+        run: python scripts/test_dotnet.py
+      - name: Formatting and lint
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Build local artifacts and exercise clean consumers
+        run: |
+          python scripts/build_release.py --profile release
+          python scripts/package_smoke.py
+      - name: Preserve actual evidence and artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verification-${{ matrix.os }}
+          path: |
+            .verification/verify-last.json
+            .verification/package-smoke.json
+            .verification/adapter-conformance.json
+            dist/release/*.zip
+            dist/release/*.sha256
+            dist/release/latest.json
+          if-no-files-found: warn

@@ -1,0 +1,50 @@
+[
+  {
+    "providerId": "claude_code",
+    "nativeModelId": "claude-sonnet-4-6",
+    "inputUsdPerMillion": "3",
+    "outputUsdPerMillion": "15",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  {
+    "providerId": "claude_code",
+    "nativeModelId": "claude-sonnet-5-5",
+    "inputUsdPerMillion": "2",
+    "outputUsdPerMillion": "10",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  {
+    "providerId": "claude_code",
+    "nativeModelId": "claude-opus-5-5",
+    "inputUsdPerMillion": "4",
+    "outputUsdPerMillion": "20",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  {
+    "providerId": "anthropic_api",
+    "nativeModelId": "claude-sonnet-4-6",
+    "inputUsdPerMillion": "3",
+    "outputUsdPerMillion": "15",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  {
+    "providerId": "anthropic_api",
+    "nativeModelId": "claude-sonnet-5-5",
+    "inputUsdPerMillion": "2",
+    "outputUsdPerMillion": "10",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  },
+  {
+    "providerId": "anthropic_api",
+    "nativeModelId": "claude-opus-5-5",
+    "inputUsdPerMillion": "4",
+    "outputUsdPerMillion": "20",
+    "reviewedAt": "2026-10-28",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing"
+  }
+]

@@ -1,0 +1,34 @@
+[package]
+name = "originlm-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+os-notifications = ["dep:notify-rust"]
+
+[dependencies]
+originlm-runtime = { path = "../originlm-runtime" }
+originlm-contracts = { path = "../originlm-contracts" }
+originlm-core = { path = "../originlm-core" }
+originlm-discovery = { path = "../originlm-discovery" }
+originlm-platform = { path = "../originlm-platform" }
+originlm-chatgpt-auth = { path = "../originlm-chatgpt-auth" }
+originlm-store = { path = "../originlm-store" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+getrandom = "0.3"
+base64 = "0.22"
+ring = "0.17"
+notify-rust = { version = "4.18.2", optional = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1", features = ["test-util"] }

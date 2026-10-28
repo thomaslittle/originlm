@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement or a new provider
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: For a new provider, link the official client or protocol documentation and say what is observable without reading credentials or running inference.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: Trust model
+      description: See CONTRIBUTING.md for the ground rules.
+      options:
+        - label: This does not require reading browser cookies, exporting subscription tokens as API keys, or silently using paid fallback.
+          required: true

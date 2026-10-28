@@ -1,0 +1,24 @@
+[package]
+name = "originlm-desktop"
+version = "0.1.0-alpha.18"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "Native GPUI desktop manager for OriginLM"
+
+[[bin]]
+name = "originlm-desktop"
+path = "src/main.rs"
+
+[dependencies]
+gpui-kit = { version = "0.8.1", features = ["gpui-fast"] }
+originlm-control = { path = "../originlm-control", default-features = false }
+originlm-platform = { path = "../originlm-platform" }
+originlm-contracts = { path = "../originlm-contracts" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[lints.rust]
+unsafe_code = "forbid"

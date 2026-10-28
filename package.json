@@ -1,0 +1,48 @@
+{
+  "name": "originlm-workspace",
+  "private": true,
+  "version": "0.1.0-alpha.20",
+  "type": "module",
+  "workspaces": [
+    "packages/sdk-typescript",
+    "packages/sdk-web",
+    "packages/selector-core",
+    "packages/react",
+    "packages/ui-react",
+    "apps/demo"
+  ],
+  "engines": {
+    "node": ">=22.16"
+  },
+  "scripts": {
+    "build": "tsc -p packages/selector-core/tsconfig.json && tsc -p packages/sdk-typescript/tsconfig.json && tsc -p packages/sdk-web/tsconfig.json && tsc -p packages/react/tsconfig.json && tsc -p packages/ui-react/tsconfig.json && tsc -p apps/demo/tsconfig.json",
+    "test:unit": "python scripts/verify.py --profile javascript",
+    "test:sdk": "python scripts/verify.py --profile sdk-typescript",
+    "typecheck": "npm run build",
+    "check:generated": "python scripts/check_generated.py",
+    "test:react": "npm run build && node --test packages/react/tests/*.test.mjs packages/ui-react/tests/*.test.mjs",
+    "test": "python scripts/verify.py --profile all",
+    "test:ui": "python scripts/verify.py --profile ui",
+    "test:a11y": "npm run build && node --test scripts/test_accessibility.mjs scripts/test_component_accessibility.mjs",
+    "build:demo": "npm run build && node scripts/build_demo.mjs",
+    "dev": "npm run build && node scripts/dev_demo.mjs",
+    "doctor": "npm run doctor -w @originlm/demo"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "jsdom": "29.1.1",
+    "react": "19.3.0",
+    "react-doctor": "0.9.14",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2"
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6",
+    "source-map-js": "1.2.2"
+  }
+}

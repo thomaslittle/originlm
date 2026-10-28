@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "originlm-usage",
+  "version": "0.1.0",
+  "description": "Read selected cached provider quota windows. Deployment template only; no live connection or refresh/inference tools.",
+  "author": {"name": "OriginLM"}
+}

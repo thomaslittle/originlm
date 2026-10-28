@@ -1,0 +1,76 @@
+name: Prepare release artifacts
+
+# Preparation only: no registry, GitHub release, signing or deployment authority.
+# A tag cannot publish private preview packages. See docs/release/PUBLISHING.md.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/prepare_helper_archive.py'
+      - 'scripts/npm-*.mjs'
+      - 'scripts/stage_python_package.py'
+permissions:
+  contents: read
+concurrency:
+  group: release-prepare-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04, plat: linux_x86_64 }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm, plat: linux_aarch64 }
+          - { target: x86_64-apple-darwin, os: macos-15-intel, plat: macosx_15_0_x86_64 }
+          - { target: aarch64-apple-darwin, os: macos-15, plat: macosx_15_0_arm64 }
+          - { target: x86_64-pc-windows-msvc, os: windows-2025, plat: win_amd64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build native helper and SDK
+        shell: bash
+        run: |
+          cargo build --release --locked -p originlm-cli --bin originlm --target '${{ matrix.target }}'
+          npm ci --ignore-scripts
+          npm run build --workspace originlm
+          python -m pip install -r scripts/requirements-build.txt
+      - name: Stage exact target artifacts
+        shell: bash
+        run: |
+          binary='target/${{ matrix.target }}/release/originlm'
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/prepare_helper_archive.py --binary "$binary" --target '${{ matrix.target }}' --out prepared
+          node scripts/npm-platform-packages.mjs --binary "$binary" --target '${{ matrix.target }}' --out npm-out
+          node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk --preview
+          mkdir -p prepared/npm
+          for dir in npm-out/* npm-sdk; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
+          python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
+          (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
+      - name: Preserve unsigned preview artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: prepared-${{ matrix.target }}
+          path: prepared/
+          if-no-files-found: error
+      - name: State release boundaries
+        shell: bash
+        run: |
+          echo 'Unsigned preview artifacts only. No packages or releases were published.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'See docs/release/PUBLISHING.md for signing, compatibility and publication gates.' >> "$GITHUB_STEP_SUMMARY"

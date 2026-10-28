@@ -1,0 +1,32 @@
+{
+  "repository": "junhoyeo/tokscale",
+  "url": "https://github.com/junhoyeo/tokscale",
+  "commit": "1d9a9395418efc6952944b794097935d7d6fa1e8",
+  "version": "4.17.0",
+  "versionCommit": "dcf8d3656bbcecf05d112c6f35f9be328e4f66b7",
+  "versionNote": "Latest GitHub release at the time of the pin. Discovery knowledge was audited on main after that tag, not by tracking main at runtime.",
+  "checkedAt": "2026-09-29T04:05:00Z",
+  "license": "MIT",
+  "licenseCopyright": "Copyright (c) 2025 Junho Yeo",
+  "watchedPaths": [
+    "crates/tokscale-core/src/clients.rs",
+    "crates/tokscale-core/src/paths.rs",
+    "crates/tokscale-core/src/scanner.rs",
+    "crates/tokscale-core/src/cc_mirror.rs",
+    "crates/tokscale-core/src/sessions"
+  ],
+  "coverage": [
+    {"upstreamClient": "codex", "localAdapter": "codex", "status": "adopted"},
+    {"upstreamClient": "claude", "localAdapter": "claude_code", "status": "adopted"},
+    {"upstreamClient": "gemini", "localAdapter": "gemini_cli", "status": "adopted"},
+    {"upstreamClient": "antigravity-cli", "localAdapter": "antigravity", "status": "adopted"},
+    {"upstreamClient": "antigravity-extension", "localAdapter": "antigravity", "status": "adopted"},
+    {"upstreamClient": "antigravity", "localAdapter": "antigravity", "status": "excluded-tokscale-cache"},
+    {"upstreamClient": "opencode", "localAdapter": "opencode", "status": "adopted"},
+    {"upstreamClient": "cursor", "localAdapter": "cursor", "status": "intentionally-different"},
+    {"upstreamClient": "copilot", "localAdapter": "github_copilot", "status": "adopted"},
+    {"upstreamClient": "grok", "localAdapter": "grok", "status": "adopted"},
+    {"upstreamClient": "lmstudio", "localAdapter": "lmstudio", "status": "adopted"},
+    {"upstreamClient": null, "localAdapter": "ollama", "status": "local-only"}
+  ]
+}

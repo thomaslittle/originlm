@@ -1,0 +1,330 @@
+{
+  "records": [
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-0",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-27T21:29:25.890Z",
+        "inputTokens": "1800",
+        "outputTokens": "400",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0114",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-1",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-27T22:29:25.890Z",
+        "inputTokens": "2400",
+        "outputTokens": "650",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.01695",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-2",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-27T23:29:25.890Z",
+        "inputTokens": "1200",
+        "outputTokens": "320",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0084",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-3",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T00:29:25.890Z",
+        "inputTokens": "3200",
+        "outputTokens": "820",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0219",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-4",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T01:29:25.890Z",
+        "inputTokens": "4100",
+        "outputTokens": "1100",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0288",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-5",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T02:29:25.890Z",
+        "inputTokens": "2100",
+        "outputTokens": "600",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0153",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-6",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T03:29:25.890Z",
+        "inputTokens": "1800",
+        "outputTokens": "450",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.01215",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-7",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T04:29:25.890Z",
+        "inputTokens": "3600",
+        "outputTokens": "900",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0243",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-8",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T05:29:25.890Z",
+        "inputTokens": "2800",
+        "outputTokens": "700",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0189",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-9",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T06:29:25.890Z",
+        "inputTokens": "1600",
+        "outputTokens": "350",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.01005",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-10",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T07:29:25.890Z",
+        "inputTokens": "2200",
+        "outputTokens": "580",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0153",
+      "basis": "estimated"
+    },
+    {
+      "usage": {
+        "sessionId": "example-cost-session",
+        "turnId": "example-turn-11",
+        "connectionId": "opencode-api",
+        "routeId": "route-opencode-api",
+        "modelId": "model-opencode-api-0",
+        "observedAt": "2026-10-28T08:29:25.890Z",
+        "inputTokens": "3000",
+        "outputTokens": "740",
+        "reportedUsd": null,
+        "complete": true
+      },
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "price": {
+        "providerId": "opencode",
+        "nativeModelId": "fixture/balanced",
+        "inputUsdPerMillion": "3",
+        "outputUsdPerMillion": "15",
+        "reviewedAt": "2026-10-28",
+        "source": "Illustrative example rates; not a provider price claim"
+      },
+      "amountUsd": "0.0201",
+      "basis": "estimated"
+    }
+  ],
+  "prices": [
+    {
+      "providerId": "opencode",
+      "nativeModelId": "fixture/balanced",
+      "inputUsdPerMillion": "3",
+      "outputUsdPerMillion": "15",
+      "reviewedAt": "2026-10-28",
+      "source": "Illustrative example rates; not a provider price claim"
+    }
+  ],
+  "scope": "Illustrative token counts × example prices. No provider was called or charged.",
+  "canEditPrices": true,
+  "pricesPersisted": false,
+  "storageError": null
+}

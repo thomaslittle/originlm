@@ -1,0 +1,778 @@
+{
+  "repository": "junhoyeo/tokscale",
+  "commit": "1d9a9395418efc6952944b794097935d7d6fa1e8",
+  "clients": [
+    {
+      "enum": "OpenCode",
+      "index": 0,
+      "id": "opencode",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "opencode/storage/message",
+      "pattern": "*.json"
+    },
+    {
+      "enum": "Claude",
+      "index": 1,
+      "id": "claude",
+      "root": {
+        "kind": "env",
+        "var": "CLAUDE_CONFIG_DIR",
+        "fallback": ".claude"
+      },
+      "relative": "projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Codex",
+      "index": 2,
+      "id": "codex",
+      "root": {
+        "kind": "env",
+        "var": "CODEX_HOME",
+        "fallback": ".codex"
+      },
+      "relative": "sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Cursor",
+      "index": 3,
+      "id": "cursor",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".config/tokscale/cursor-cache",
+      "pattern": "usage*.json|usage*.csv"
+    },
+    {
+      "enum": "Gemini",
+      "index": 4,
+      "id": "gemini",
+      "root": {
+        "kind": "env",
+        "var": "GEMINI_CLI_HOME",
+        "fallback": ".gemini"
+      },
+      "relative": "tmp",
+      "pattern": "*.json|*.jsonl"
+    },
+    {
+      "enum": "Amp",
+      "index": 5,
+      "id": "amp",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "amp/threads",
+      "pattern": "T-*.json"
+    },
+    {
+      "enum": "Droid",
+      "index": 6,
+      "id": "droid",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".factory/sessions",
+      "pattern": "*.settings.json"
+    },
+    {
+      "enum": "OpenClaw",
+      "index": 7,
+      "id": "openclaw",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".openclaw/agents",
+      "pattern": "*.jsonl*"
+    },
+    {
+      "enum": "Pi",
+      "index": 8,
+      "id": "pi",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".pi/agent/sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Kimi",
+      "index": 9,
+      "id": "kimi",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".kimi/sessions",
+      "pattern": "wire.jsonl"
+    },
+    {
+      "enum": "Qwen",
+      "index": 10,
+      "id": "qwen",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".qwen/projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "RooCode",
+      "index": 11,
+      "id": "roocode",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".config/Code/User/globalStorage/rooveterinaryinc.roo-cline/tasks",
+      "pattern": "ui_messages.json"
+    },
+    {
+      "enum": "KiloCode",
+      "index": 12,
+      "id": "kilocode",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".config/Code/User/globalStorage/kilocode.kilo-code/tasks",
+      "pattern": "ui_messages.json"
+    },
+    {
+      "enum": "Mux",
+      "index": 13,
+      "id": "mux",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".mux/sessions",
+      "pattern": "session-usage.json"
+    },
+    {
+      "enum": "Kilo",
+      "index": 14,
+      "id": "kilo",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "kilo/kilo.db",
+      "pattern": "kilo.db"
+    },
+    {
+      "enum": "Crush",
+      "index": 15,
+      "id": "crush",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "crush/projects.json",
+      "pattern": "projects.json"
+    },
+    {
+      "enum": "Hermes",
+      "index": 16,
+      "id": "hermes",
+      "root": {
+        "kind": "env",
+        "var": "HERMES_HOME",
+        "fallback": ".hermes"
+      },
+      "relative": "state.db",
+      "pattern": "state.db"
+    },
+    {
+      "enum": "Copilot",
+      "index": 17,
+      "id": "copilot",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".copilot/otel",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Goose",
+      "index": 18,
+      "id": "goose",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "goose/sessions/sessions.db",
+      "pattern": "sessions.db"
+    },
+    {
+      "enum": "Codebuff",
+      "index": 19,
+      "id": "codebuff",
+      "root": {
+        "kind": "env",
+        "var": "CODEBUFF_DATA_DIR",
+        "fallback": ".config/manicode"
+      },
+      "relative": "projects",
+      "pattern": "chat-messages.json"
+    },
+    {
+      "enum": "Antigravity",
+      "index": 20,
+      "id": "antigravity",
+      "root": {
+        "kind": "config"
+      },
+      "relative": "antigravity-cache/sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Zed",
+      "index": 21,
+      "id": "zed",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "zed/threads/threads.db",
+      "pattern": "threads.db"
+    },
+    {
+      "enum": "Kiro",
+      "index": 22,
+      "id": "kiro",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".kiro/sessions/cli",
+      "pattern": "*.json"
+    },
+    {
+      "enum": "Trae",
+      "index": 23,
+      "id": "trae",
+      "root": {
+        "kind": "config"
+      },
+      "relative": "trae-cache/sessions",
+      "pattern": "*.json"
+    },
+    {
+      "enum": "Warp",
+      "index": 24,
+      "id": "warp",
+      "root": {
+        "kind": "config"
+      },
+      "relative": "warp-cache",
+      "pattern": "usage*.json"
+    },
+    {
+      "enum": "Cline",
+      "index": 25,
+      "id": "cline",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".config/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+      "pattern": "ui_messages.json"
+    },
+    {
+      "enum": "Gjc",
+      "index": 26,
+      "id": "gjc",
+      "root": {
+        "kind": "env",
+        "var": "GJC_CODING_AGENT_DIR",
+        "fallback": ".gjc/agent"
+      },
+      "relative": "sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Grok",
+      "index": 27,
+      "id": "grok",
+      "root": {
+        "kind": "env",
+        "var": "GROK_HOME",
+        "fallback": ".grok"
+      },
+      "relative": "sessions",
+      "pattern": "updates.jsonl"
+    },
+    {
+      "enum": "Jcode",
+      "index": 28,
+      "id": "jcode",
+      "root": {
+        "kind": "env",
+        "var": "JCODE_HOME",
+        "fallback": ".jcode"
+      },
+      "relative": "sessions",
+      "pattern": "session_*.json"
+    },
+    {
+      "enum": "CommandCode",
+      "index": 29,
+      "id": "commandcode",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".commandcode/projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "MiMoCode",
+      "index": 30,
+      "id": "micode",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "mimocode",
+      "pattern": "*.db"
+    },
+    {
+      "enum": "AntigravityCli",
+      "index": 31,
+      "id": "antigravity-cli",
+      "root": {
+        "kind": "env",
+        "var": "GEMINI_CLI_HOME",
+        "fallback": ".gemini"
+      },
+      "relative": "antigravity-cli/conversations",
+      "pattern": "*.db"
+    },
+    {
+      "enum": "Junie",
+      "index": 32,
+      "id": "junie",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".junie/sessions",
+      "pattern": "events.jsonl"
+    },
+    {
+      "enum": "Zcode",
+      "index": 33,
+      "id": "zcode",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".zcode/projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "OpenCodeReview",
+      "index": 34,
+      "id": "opencodereview",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".opencodereview/sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "CodeBuddy",
+      "index": 35,
+      "id": "codebuddy",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".codebuddy/projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "WorkBuddy",
+      "index": 36,
+      "id": "workbuddy",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".workbuddy",
+      "pattern": "workbuddy.db"
+    },
+    {
+      "enum": "DevinCli",
+      "index": 37,
+      "id": "devin-cli",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "devin/cli/sessions.db",
+      "pattern": "sessions.db"
+    },
+    {
+      "enum": "DevinDesktop",
+      "index": 38,
+      "id": "devin-desktop",
+      "root": {
+        "kind": "home"
+      },
+      "relative": "Library/Application Support/Devin/User/acp-events",
+      "pattern": "*.ndjson"
+    },
+    {
+      "enum": "Senpi",
+      "index": 39,
+      "id": "senpi",
+      "root": {
+        "kind": "env",
+        "var": "SENPI_CODING_AGENT_DIR",
+        "fallback": ".senpi/agent"
+      },
+      "relative": "sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Augment",
+      "index": 40,
+      "id": "augment",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".augment/sessions",
+      "pattern": "*.json"
+    },
+    {
+      "enum": "Kimchi",
+      "index": 41,
+      "id": "kimchi",
+      "root": {
+        "kind": "env",
+        "var": "KIMCHI_CODING_AGENT_DIR",
+        "fallback": ".config/kimchi/harness"
+      },
+      "relative": "sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Reasonix",
+      "index": 42,
+      "id": "reasonix",
+      "root": {
+        "kind": "reasonix"
+      },
+      "relative": "stats",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "PrimeAgent",
+      "index": 43,
+      "id": "prime-agent",
+      "root": {
+        "kind": "env",
+        "var": "PRIME_AGENT_CODING_AGENT_DIR",
+        "fallback": ".prime/agent"
+      },
+      "relative": "sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Freebuff",
+      "index": 44,
+      "id": "freebuff",
+      "root": {
+        "kind": "env",
+        "var": "FREEBUFF_DATA_DIR",
+        "fallback": ".config/manicode"
+      },
+      "relative": "projects",
+      "pattern": "chat-messages.json"
+    },
+    {
+      "enum": "CherryStudio",
+      "index": 45,
+      "id": "cherrystudio",
+      "root": {
+        "kind": "app-data"
+      },
+      "relative": "CherryStudio/.claude/projects",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Dsh",
+      "index": 46,
+      "id": "dsh",
+      "root": {
+        "kind": "env",
+        "var": "DSH_HOME",
+        "fallback": ".dsh"
+      },
+      "relative": "sessions",
+      "pattern": "dsh-session-log"
+    },
+    {
+      "enum": "Mcode",
+      "index": 47,
+      "id": "mcode",
+      "root": {
+        "kind": "config"
+      },
+      "relative": "headless/mcode",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "Fx",
+      "index": 48,
+      "id": "fx",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".fx/sessions",
+      "pattern": "usage-v2.json"
+    },
+    {
+      "enum": "Omp",
+      "index": 49,
+      "id": "omp",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".omp/agent/sessions",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "LmStudio",
+      "index": 50,
+      "id": "lmstudio",
+      "root": {
+        "kind": "env",
+        "var": "LM_STUDIO_HOME",
+        "fallback": ".lmstudio"
+      },
+      "relative": "server-logs",
+      "pattern": "*.log"
+    },
+    {
+      "enum": "Unsloth",
+      "index": 51,
+      "id": "unsloth",
+      "root": {
+        "kind": "env",
+        "var": "UNSLOTH_STUDIO_HOME",
+        "fallback": ".unsloth/studio"
+      },
+      "relative": "studio.db",
+      "pattern": "studio.db"
+    },
+    {
+      "enum": "Hindsight",
+      "index": 52,
+      "id": "hindsight",
+      "root": {
+        "kind": "env",
+        "var": "HINDSIGHT_HOME",
+        "fallback": ".hindsight"
+      },
+      "relative": "usage",
+      "pattern": "*.jsonl"
+    },
+    {
+      "enum": "MiMoDesktop",
+      "index": 53,
+      "id": "micode-desktop",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "mimocode",
+      "pattern": "*.db"
+    },
+    {
+      "enum": "Muse",
+      "index": 54,
+      "id": "muse",
+      "root": {
+        "kind": "xdg-data"
+      },
+      "relative": "muse/sessions",
+      "pattern": "session.jsonl"
+    },
+    {
+      "enum": "AntigravityExtension",
+      "index": 55,
+      "id": "antigravity-extension",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".gemini/antigravity/conversations",
+      "pattern": "*.db"
+    }
+  ],
+  "envVars": [
+    "APPDATA",
+    "CLAUDE_CONFIG_DIR",
+    "CODEBUFF_DATA_DIR",
+    "CODEX_HOME",
+    "COPILOT_OTEL_FILE_EXPORTER_PATH",
+    "CRUSH_GLOBAL_DATA",
+    "DSH_HOME",
+    "FREEBUFF_DATA_DIR",
+    "GEMINI_CLI_HOME",
+    "GJC_CODING_AGENT_DIR",
+    "GOOSE_PATH_ROOT",
+    "GROK_HOME",
+    "HERMES_HOME",
+    "HINDSIGHT_HOME",
+    "HOME",
+    "JCODE_HOME",
+    "KIMCHI_CODING_AGENT_DIR",
+    "KIMI_CODE_HOME",
+    "LM_STUDIO_HOME",
+    "LOCALAPPDATA",
+    "PRIME_AGENT_CODING_AGENT_DIR",
+    "PRIME_AGENT_CODING_AGENT_SESSION_DIR",
+    "PRIME_AGENT_SESSION_DIR",
+    "SENPI_CODING_AGENT_DIR",
+    "SENPI_CODING_AGENT_SESSION_DIR",
+    "TOKSCALE_CONFIG_DIR",
+    "TOKSCALE_EXTRA_DIRS",
+    "TOKSCALE_HEADLESS_DIR",
+    "UNSLOTH_STUDIO_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME"
+  ],
+  "pathLiterals": [
+    ".augment/sessions",
+    ".cache",
+    ".chat",
+    ".checkpoint.",
+    ".claude",
+    ".clawdbot/agents",
+    ".cline/data/sessions",
+    ".codebuddy/projects",
+    ".codex",
+    ".commandcode/projects",
+    ".config",
+    ".config/Code/User/globalStorage/kilocode.kilo-code/tasks",
+    ".config/Code/User/globalStorage/rooveterinaryinc.roo-cline/tasks",
+    ".config/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    ".config/Devin/User/acp-events",
+    ".config/devin/User/acp-events",
+    ".config/kimchi/harness",
+    ".config/manicode",
+    ".config/tokscale",
+    ".config/tokscale/cursor-cache",
+    ".config/tokscale/headless",
+    ".copilot/data.db",
+    ".copilot/otel",
+    ".copilot/session-store.db",
+    ".csv",
+    ".db",
+    ".dsh",
+    ".factory/sessions",
+    ".fx/sessions",
+    ".gemini",
+    ".gemini/antigravity/conversations",
+    ".gjc/agent",
+    ".gjc/agent/sessions",
+    ".grok",
+    ".hermes",
+    ".hindsight",
+    ".jcode",
+    ".json",
+    ".json.migrated",
+    ".jsonl",
+    ".jsonl.deleted.",
+    ".jsonl.reset.",
+    ".junie/sessions",
+    ".kimi-code",
+    ".kimi/sessions",
+    ".kiro/sessions",
+    ".kiro/sessions/cli",
+    ".lmstudio",
+    ".local/share",
+    ".local/share/kiro-cli/data.sqlite3",
+    ".log",
+    ".messages.json",
+    ".moldbot/agents",
+    ".moltbot/agents",
+    ".mux/sessions",
+    ".ndjson",
+    ".omo",
+    ".omp/agent/sessions",
+    ".openclaw/agents",
+    ".opencodereview/sessions",
+    ".pi/agent/sessions",
+    ".prime/agent",
+    ".prime/agent/settings.json",
+    ".qwen/projects",
+    ".reasonix",
+    ".senpi/agent",
+    ".settings.json",
+    ".tokscale",
+    ".unsloth/studio",
+    ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    ".workbuddy",
+    ".workbuddy-ai",
+    ".workbuddy-ai/projects",
+    ".workbuddy/projects",
+    ".zcode/cli/db/db.sqlite",
+    ".zcode/projects",
+    ".zst",
+    ".zstd",
+    "AppData/Local/Zed/threads/threads.db",
+    "AppData/Local/crush/projects.json",
+    "AppData/Local/hermes",
+    "AppData/Roaming",
+    "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "AppData/Roaming/Code/User/workspaceStorage",
+    "AppData/Roaming/Devin/User/acp-events",
+    "AppData/Roaming/devin/cli",
+    "AppData/Roaming/tokscale",
+    "AppData/Roaming/{KIMI_WORK_SUFFIX}",
+    "Asia/Seoul",
+    "CherryStudio/.claude/projects",
+    "Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "Code/User/workspaceStorage",
+    "Devin/User/acp-events",
+    "Kiro/User/globalStorage/kiro.kiroagent",
+    "Library/Application Support",
+    "Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "Library/Application Support/Devin/User/acp-events",
+    "Library/Application Support/tokscale/headless",
+    "Library/Application Support/{KIMI_WORK_SUFFIX}",
+    "Zed/threads/threads.db",
+    "agent/sessions",
+    "amp/threads",
+    "antigravity-cache/sessions",
+    "antigravity-cli/conversations",
+    "claude:/path/to/mac/sessions,openclaw:/other/path",
+    "crush/projects.json",
+    "daimon/runtime/kimi-code/home/sessions",
+    "data/sessions",
+    "data/sessions/sessions.db",
+    "devin/cli",
+    "devin/cli/sessions.db",
+    "gjc/sessions",
+    "goose/sessions/sessions.db",
+    "headless/mcode",
+    "kilo/kilo.db",
+    "kimi-desktop/daimon-share/daimon/runtime/kimi-code/home/sessions",
+    "kiro/User/globalStorage/kiro.kiroagent",
+    "muse/sessions",
+    "octofriend/sqlite.db",
+    "opencode/storage/message",
+    "trae-cache/sessions",
+    "zed/threads/threads.db",
+    "{channel}/projects",
+    "{root}/{relative}",
+    "{xdg_config_home}/tokscale",
+    "{}/.config/Code/User/workspaceStorage",
+    "{}/.config/Kiro/User/globalStorage/kiro.kiroagent",
+    "{}/.config/kiro/User/globalStorage/kiro.kiroagent",
+    "{}/.local/share/Block/goose/sessions/sessions.db",
+    "{}/.vscode-server/data/User/globalStorage/kilocode.kilo-code/tasks",
+    "{}/.vscode-server/data/User/globalStorage/rooveterinaryinc.roo-cline/tasks",
+    "{}/AppData/Roaming/Kiro/User/globalStorage/kiro.kiroagent",
+    "{}/AppData/Roaming/kiro/User/globalStorage/kiro.kiroagent",
+    "{}/Library/Application Support/Block/goose/sessions/sessions.db",
+    "{}/Library/Application Support/Code/User/workspaceStorage",
+    "{}/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent",
+    "{}/Library/Application Support/Zed/threads/threads.db",
+    "{}/Library/Application Support/goose/sessions/sessions.db",
+    "{}/Library/Application Support/kiro-cli/data.sqlite3",
+    "{}/Library/Application Support/kiro/User/globalStorage/kiro.kiroagent",
+    "{}/Library/Application Support/orca/mimocode-hooks/shared/data",
+    "~/"
+  ],
+  "extractedAt": "2026-09-29T04:11:45Z"
+}

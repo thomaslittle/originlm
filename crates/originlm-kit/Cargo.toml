@@ -1,0 +1,29 @@
+[package]
+name = "originlm-kit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+originlm-contracts = { path = "../originlm-contracts" }
+originlm-core = { path = "../originlm-core" }
+originlm-service = { path = "../originlm-service" }
+originlm-adapters = { path = "../originlm-adapters" }
+originlm-discovery = { path = "../originlm-discovery" }
+originlm-platform = { path = "../originlm-platform" }
+originlm-chatgpt-auth = { path = "../originlm-chatgpt-auth" }
+tempfile = "3"
+serde.workspace = true
+serde_json.workspace = true
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+axum = "0.8.9"
+originlm-runtime = { path = "../originlm-runtime" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,31 @@
+{
+  "name": "@originlm/web",
+  "version": "0.1.0-alpha.20",
+  "private": true,
+  "type": "module",
+  "description": "Browser bridge detection for OriginLM: extension first, pairing second",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=22.16"
+  },
+  "license": "MIT"
+}

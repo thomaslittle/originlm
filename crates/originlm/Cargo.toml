@@ -1,0 +1,29 @@
+[package]
+name = "originlm"
+description = "Dependency-first client for the local AI runtime: shared broker, private helper, or in-process"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "originlm"
+path = "src/lib.rs"
+
+[dependencies]
+originlm-platform = { path = "../originlm-platform" }
+originlm-contracts = { path = "../originlm-contracts" }
+originlm-control = { path = "../originlm-control", default-features = false }
+originlm-kit = { path = "../originlm-kit" }
+originlm-transports = { path = "../originlm-transports" }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

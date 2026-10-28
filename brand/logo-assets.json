@@ -1,0 +1,256 @@
+{
+  "archiveSha256": "96d91bdf6bfe92e5de7996745795ac9be3366abbb8f769c1c40dc6c9dfc52c55",
+  "design": "single offset O; supplied outlined wordmark",
+  "assets": [
+    {
+      "source": "logos/svg/originlm-horizontal-dark.svg",
+      "target": "apps/demo/src/assets/brand/originlm-horizontal-dark.svg",
+      "sha256": "cca71a38060c62cfb9cb8e4a36532516ec3c3bdfeee19b950a8f8599189ba281"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-light.svg",
+      "target": "apps/demo/src/assets/brand/originlm-horizontal-light.svg",
+      "sha256": "8718ded99d25f711ea74ce62a023467f8bd28be81e29ae736ba179072b75f139"
+    },
+    {
+      "source": "logos/svg/originlm-mark-amber.svg",
+      "target": "apps/demo/src/assets/brand/originlm-mark-amber.svg",
+      "sha256": "5fc1798d69aa6c2fcd14d19412313ef7c97820b5175a1947a1d49cf8e6a3f22b"
+    },
+    {
+      "source": "logos/svg/originlm-mark-ink.svg",
+      "target": "apps/demo/src/assets/brand/originlm-mark-ink.svg",
+      "sha256": "ce64292f065cc8f84f2d0ad197456524961d85b21e4151e8157516086f0d7332"
+    },
+    {
+      "source": "logos/svg/originlm-mark-white.svg",
+      "target": "apps/demo/src/assets/brand/originlm-mark-white.svg",
+      "sha256": "d23ac44654c4e8f9a794f932a60e32b735292b992b7f8636399e2e8bf3edeb29"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-dark.svg",
+      "target": "apps/site/src/assets/brand/originlm-horizontal-dark.svg",
+      "sha256": "cca71a38060c62cfb9cb8e4a36532516ec3c3bdfeee19b950a8f8599189ba281"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-light.svg",
+      "target": "apps/site/src/assets/brand/originlm-horizontal-light.svg",
+      "sha256": "8718ded99d25f711ea74ce62a023467f8bd28be81e29ae736ba179072b75f139"
+    },
+    {
+      "source": "logos/svg/originlm-mark-amber.svg",
+      "target": "apps/site/src/assets/brand/originlm-mark-amber.svg",
+      "sha256": "5fc1798d69aa6c2fcd14d19412313ef7c97820b5175a1947a1d49cf8e6a3f22b"
+    },
+    {
+      "source": "logos/svg/originlm-mark-ink.svg",
+      "target": "apps/site/src/assets/brand/originlm-mark-ink.svg",
+      "sha256": "ce64292f065cc8f84f2d0ad197456524961d85b21e4151e8157516086f0d7332"
+    },
+    {
+      "source": "logos/svg/originlm-mark-white.svg",
+      "target": "apps/site/src/assets/brand/originlm-mark-white.svg",
+      "sha256": "d23ac44654c4e8f9a794f932a60e32b735292b992b7f8636399e2e8bf3edeb29"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-dark.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-horizontal-dark.svg",
+      "sha256": "cca71a38060c62cfb9cb8e4a36532516ec3c3bdfeee19b950a8f8599189ba281"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-light.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-horizontal-light.svg",
+      "sha256": "8718ded99d25f711ea74ce62a023467f8bd28be81e29ae736ba179072b75f139"
+    },
+    {
+      "source": "logos/svg/originlm-mark-amber.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-mark-amber.svg",
+      "sha256": "5fc1798d69aa6c2fcd14d19412313ef7c97820b5175a1947a1d49cf8e6a3f22b"
+    },
+    {
+      "source": "logos/svg/originlm-mark-ink.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-mark-ink.svg",
+      "sha256": "ce64292f065cc8f84f2d0ad197456524961d85b21e4151e8157516086f0d7332"
+    },
+    {
+      "source": "logos/svg/originlm-mark-white.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-mark-white.svg",
+      "sha256": "d23ac44654c4e8f9a794f932a60e32b735292b992b7f8636399e2e8bf3edeb29"
+    },
+    {
+      "source": "integration/gpui-brand/originlm-app-256.png",
+      "target": "crates/originlm-desktop/assets/brand/originlm-app-256.png",
+      "sha256": "528a7196639206df5a7ae786ae9d1928eb16dc934b8c8eed34f1b8ca872ede92"
+    },
+    {
+      "source": "source/profiles/app-rounded.svg",
+      "target": "crates/originlm-desktop/assets/brand/originlm-app.svg",
+      "sha256": "de7349f11507b0d935f0e10503692e025c4205eeda324eaf15a5714cb92284d9"
+    },
+    {
+      "source": "native/linux/hicolor/256x256/apps/originlm.png",
+      "target": "apps/demo/src/assets/brand/originlm-app-256.png",
+      "sha256": "0abc6d931c6f82135b3c7a4c8463afef3507041ef4efb9b14266db7106e5aae6"
+    },
+    {
+      "source": "web/favicon.svg",
+      "target": "apps/demo/public/favicon.svg",
+      "sha256": "de7349f11507b0d935f0e10503692e025c4205eeda324eaf15a5714cb92284d9"
+    },
+    {
+      "source": "web/favicon.ico",
+      "target": "apps/demo/public/favicon.ico",
+      "sha256": "73a5a89bdcdad7d99afc56e84086621fa926769f0e9622cb0b66cf70391125d2"
+    },
+    {
+      "source": "web/apple-touch-icon.png",
+      "target": "apps/demo/public/apple-touch-icon.png",
+      "sha256": "d0a95fa74962db03eeb0fea7a62a6937aa0847eea85d019df92dec15b22333b3"
+    },
+    {
+      "source": "web/site.webmanifest",
+      "target": "apps/demo/public/site.webmanifest",
+      "sha256": "20135443e61cb43cf6e31a9830afae534ab1c829c27b6a2c5195333526600afe"
+    },
+    {
+      "source": "web/favicon-32x32.png",
+      "target": "apps/demo/public/favicon-32.png",
+      "sha256": "ca07187148279d7983335df667b75fb4c176dc1f727d62c523b9cd955c465747"
+    },
+    {
+      "source": "web/icons/icon-192.png",
+      "target": "apps/demo/public/icons/icon-192.png",
+      "sha256": "38656252e9b6a8334427c91b4c34be7021376eb6087f44d15b140711da539f51"
+    },
+    {
+      "source": "web/icons/icon-512.png",
+      "target": "apps/demo/public/icons/icon-512.png",
+      "sha256": "39d09f33305dff22b5f8cabee3984b883d3c4919f21e65849ad4f3ca2330653c"
+    },
+    {
+      "source": "web/icons/icon-maskable-512.png",
+      "target": "apps/demo/public/icons/icon-maskable-512.png",
+      "sha256": "3fed3b9e7f1e1cac3f28a58582f282de1c24fcfc977a71b91253dd9cde2c8c35"
+    },
+    {
+      "source": "web/favicon.svg",
+      "target": "apps/site/public/favicon.svg",
+      "sha256": "de7349f11507b0d935f0e10503692e025c4205eeda324eaf15a5714cb92284d9"
+    },
+    {
+      "source": "web/favicon.ico",
+      "target": "apps/site/public/favicon.ico",
+      "sha256": "73a5a89bdcdad7d99afc56e84086621fa926769f0e9622cb0b66cf70391125d2"
+    },
+    {
+      "source": "web/apple-touch-icon.png",
+      "target": "apps/site/public/apple-touch-icon.png",
+      "sha256": "d0a95fa74962db03eeb0fea7a62a6937aa0847eea85d019df92dec15b22333b3"
+    },
+    {
+      "source": "web/site.webmanifest",
+      "target": "apps/site/public/site.webmanifest",
+      "sha256": "20135443e61cb43cf6e31a9830afae534ab1c829c27b6a2c5195333526600afe"
+    },
+    {
+      "source": "web/favicon-32x32.png",
+      "target": "apps/site/public/favicon-32.png",
+      "sha256": "ca07187148279d7983335df667b75fb4c176dc1f727d62c523b9cd955c465747"
+    },
+    {
+      "source": "web/icons/icon-192.png",
+      "target": "apps/site/public/icons/icon-192.png",
+      "sha256": "38656252e9b6a8334427c91b4c34be7021376eb6087f44d15b140711da539f51"
+    },
+    {
+      "source": "web/icons/icon-512.png",
+      "target": "apps/site/public/icons/icon-512.png",
+      "sha256": "39d09f33305dff22b5f8cabee3984b883d3c4919f21e65849ad4f3ca2330653c"
+    },
+    {
+      "source": "web/icons/icon-maskable-512.png",
+      "target": "apps/site/public/icons/icon-maskable-512.png",
+      "sha256": "3fed3b9e7f1e1cac3f28a58582f282de1c24fcfc977a71b91253dd9cde2c8c35"
+    },
+    {
+      "source": "web/social/og-dark-1200x630.png",
+      "target": "apps/site/public/og-poster.png",
+      "sha256": "512597660cc439647bb2dfd0fceac08887e09092f964e8a6f27eb71077f02ffe"
+    },
+    {
+      "source": "logos/png/originlm-horizontal-white-2048.png",
+      "target": "media/video/media/originlm-white.png",
+      "sha256": "f2f96c294b999e23e796cbd33256efcd5a7c56e7ced01537a01396ff290454d4"
+    },
+    {
+      "source": "native/windows/originlm.ico",
+      "target": "brand/native/windows/originlm.ico",
+      "sha256": "6543e650d84f0ab87049c12e6bc182053ad6094b10403ca8b89628ed83042842"
+    },
+    {
+      "source": "native/macos/OriginLM.icns",
+      "target": "brand/native/macos/OriginLM.icns",
+      "sha256": "de47c7a3204f8a5962f13b577c97cfb3a1a8a99455cfd59a8be83930ecf3af88"
+    },
+    {
+      "source": "native/linux/hicolor/scalable/apps/originlm.svg",
+      "target": "brand/native/linux/hicolor/scalable/apps/originlm.svg",
+      "sha256": "de7349f11507b0d935f0e10503692e025c4205eeda324eaf15a5714cb92284d9"
+    },
+    {
+      "source": "native/linux/hicolor/256x256/apps/originlm.png",
+      "target": "brand/native/linux/hicolor/256x256/apps/originlm.png",
+      "sha256": "0abc6d931c6f82135b3c7a4c8463afef3507041ef4efb9b14266db7106e5aae6"
+    },
+    {
+      "source": "native/linux/hicolor/512x512/apps/originlm.png",
+      "target": "brand/native/linux/hicolor/512x512/apps/originlm.png",
+      "sha256": "20935e63861fd994b3567c9e1b6bddec04eeee72f096896e8b0ea0669c9f12d7"
+    },
+    {
+      "source": "native/tray/originlm-tray-ink.svg",
+      "target": "brand/native/tray/originlm-tray-ink.svg",
+      "sha256": "ce64292f065cc8f84f2d0ad197456524961d85b21e4151e8157516086f0d7332"
+    },
+    {
+      "source": "native/tray/originlm-tray-white.svg",
+      "target": "brand/native/tray/originlm-tray-white.svg",
+      "sha256": "d23ac44654c4e8f9a794f932a60e32b735292b992b7f8636399e2e8bf3edeb29"
+    },
+    {
+      "source": "source/geometry.json",
+      "target": "brand/logo-geometry.json",
+      "sha256": "edd8f02a1c7d78397006bf55827ea92f1bbd72e0d3e1cfbe141e4ed001b697ef"
+    },
+    {
+      "source": "tokens/brand.json",
+      "target": "brand/logo-tokens.json",
+      "sha256": "c2def3e3acbffcc6f98c0a03adfe7d543500eb68b04fde9151b353f8ca06d2e2"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-dark.svg",
+      "target": "brand/logos/originlm-horizontal-dark.svg",
+      "sha256": "cca71a38060c62cfb9cb8e4a36532516ec3c3bdfeee19b950a8f8599189ba281"
+    },
+    {
+      "source": "logos/svg/originlm-horizontal-light.svg",
+      "target": "brand/logos/originlm-horizontal-light.svg",
+      "sha256": "8718ded99d25f711ea74ce62a023467f8bd28be81e29ae736ba179072b75f139"
+    },
+    {
+      "source": "logos/svg/originlm-mark-amber.svg",
+      "target": "brand/logos/originlm-mark-amber.svg",
+      "sha256": "5fc1798d69aa6c2fcd14d19412313ef7c97820b5175a1947a1d49cf8e6a3f22b"
+    },
+    {
+      "source": "logos/svg/originlm-mark-ink.svg",
+      "target": "brand/logos/originlm-mark-ink.svg",
+      "sha256": "ce64292f065cc8f84f2d0ad197456524961d85b21e4151e8157516086f0d7332"
+    },
+    {
+      "source": "logos/svg/originlm-mark-white.svg",
+      "target": "brand/logos/originlm-mark-white.svg",
+      "sha256": "d23ac44654c4e8f9a794f932a60e32b735292b992b7f8636399e2e8bf3edeb29"
+    }
+  ]
+}

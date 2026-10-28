@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/thomaslittle/originlm/security/advisories/new
+    about: Report vulnerabilities privately. Do not open a public issue for them.
+  - name: Documentation
+    url: https://github.com/thomaslittle/originlm/blob/main/docs/README.md
+    about: Integration guides, the provider support matrix, and troubleshooting.

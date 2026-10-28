@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "originlm"
+version = "0.1.0a20"
+description = "Thin native-helper protocol client for OriginLM"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+classifiers = ["Private :: Do Not Upload"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+originlm = ["py.typed", "*.pyi"]

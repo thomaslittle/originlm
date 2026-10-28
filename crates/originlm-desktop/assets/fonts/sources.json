@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/RedHatOfficial/RedHatFont",
+  "commit": "6bb1048a6402b0076ea04f42951ec66263cd1437",
+  "files": [
+    {
+      "file": "RedHatDisplay-SemiBold.ttf",
+      "source": "https://raw.githubusercontent.com/RedHatOfficial/RedHatFont/6bb1048a6402b0076ea04f42951ec66263cd1437/fonts/Proportional/RedHatDisplay/ttf/RedHatDisplay-SemiBold.ttf",
+      "sha256": "df07d5b544d460dcaa9eeca322e6098e7c41806dda0371833a6bc2a31509e08f",
+      "bytes": 92272
+    },
+    {
+      "file": "RedHatDisplay-SemiBold.woff2",
+      "source": "https://raw.githubusercontent.com/RedHatOfficial/RedHatFont/6bb1048a6402b0076ea04f42951ec66263cd1437/fonts/Proportional/RedHatDisplay/webfonts/RedHatDisplay-SemiBold.woff2",
+      "sha256": "5ed4d4d4aa40abda2e2aafd0083e3ee109290c3e86392778e934755a4db67332",
+      "bytes": 32736
+    },
+    {
+      "file": "OFL.txt",
+      "source": "https://raw.githubusercontent.com/RedHatOfficial/RedHatFont/6bb1048a6402b0076ea04f42951ec66263cd1437/OFL.txt",
+      "sha256": "4f1417e27511207cd217656c964f1b0d8b0c4a30156a1a699cf16dc5eba0dff6",
+      "bytes": 4394
+    },
+    {
+      "file": "AUTHORS.txt",
+      "source": "https://raw.githubusercontent.com/RedHatOfficial/RedHatFont/6bb1048a6402b0076ea04f42951ec66263cd1437/AUTHORS.txt",
+      "sha256": "c408730c36beb2487d9a642de92885a2999e73ed156f85d5f555dffe63e9ec66",
+      "bytes": 291
+    }
+  ],
+  "styleName": "SemiBold",
+  "upstreamOS2WeightClass": 707,
+  "cssFaceMappingWeight": 600
+}

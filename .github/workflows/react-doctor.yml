@@ -1,0 +1,37 @@
+name: React Doctor
+# Required pull-request check for the React demo (apps/demo). It runs offline: no telemetry, no
+# score upload, and no supply-chain lookups leave the runner. The gate fails on warnings and errors.
+on:
+  pull_request:
+    paths:
+      - 'apps/demo/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/react-doctor.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/demo/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: react-doctor-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  react-doctor:
+    name: react-doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - name: Install (no lifecycle scripts)
+        run: npm ci --ignore-scripts
+      - name: Build workspace packages (typed SDK and selector core)
+        run: npm run build
+      - name: React Doctor (fails on warnings)
+        run: npm run doctor

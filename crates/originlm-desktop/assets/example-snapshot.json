@@ -1,0 +1,3163 @@
+{
+  "protocolVersion": "1.0",
+  "revision": "fixture-1",
+  "observedAt": "2026-10-28T08:15:54.737Z",
+  "mode": "synthetic",
+  "providers": [
+    {
+      "id": "codex",
+      "name": "Codex",
+      "kind": "synthetic_client"
+    },
+    {
+      "id": "antigravity",
+      "name": "Antigravity",
+      "kind": "synthetic_client"
+    },
+    {
+      "id": "grok",
+      "name": "Grok",
+      "kind": "synthetic_client"
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "kind": "synthetic_client"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "kind": "synthetic_client"
+    },
+    {
+      "id": "local",
+      "name": "Local runtime",
+      "kind": "synthetic_client"
+    }
+  ],
+  "installations": [
+    {
+      "id": "install-codex-personal",
+      "providerId": "codex",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-codex-work",
+      "providerId": "codex",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-antigravity-personal",
+      "providerId": "antigravity",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-grok-personal",
+      "providerId": "grok",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-opencode-linked",
+      "providerId": "opencode",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-opencode-api",
+      "providerId": "opencode",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-claude-expired",
+      "providerId": "claude",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "install-local-machine",
+      "providerId": "local",
+      "environmentId": "synthetic-host",
+      "locationHint": "Synthetic installation (no file was inspected)",
+      "version": {
+        "state": "known",
+        "value": "fixture-1.0",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "profile-codex-personal",
+      "installationId": "install-codex-personal",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-codex-work",
+      "installationId": "install-codex-work",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-antigravity-personal",
+      "installationId": "install-antigravity-personal",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-grok-personal",
+      "installationId": "install-grok-personal",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-opencode-linked",
+      "installationId": "install-opencode-linked",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-opencode-api",
+      "installationId": "install-opencode-api",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-claude-expired",
+      "installationId": "install-claude-expired",
+      "label": "Example profile"
+    },
+    {
+      "id": "profile-local-machine",
+      "installationId": "install-local-machine",
+      "label": "Example profile"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "account-codex-personal",
+      "providerId": "codex",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/codex-personal",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-codex-work",
+      "providerId": "codex",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/codex-work",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-antigravity-personal",
+      "providerId": "antigravity",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/antigravity-personal",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-grok-personal",
+      "providerId": "grok",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/grok-personal",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-opencode-linked",
+      "providerId": "opencode",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/opencode-linked",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-opencode-api",
+      "providerId": "opencode",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/opencode-api",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-claude-expired",
+      "providerId": "claude",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/claude-expired",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "account-local-machine",
+      "providerId": "local",
+      "displayLabel": {
+        "state": "known",
+        "value": "Example account",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "identitySource": {
+        "state": "known",
+        "value": "synthetic/local-machine",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "codex-personal",
+      "providerId": "codex",
+      "displayName": "Personal workspace",
+      "installationId": "install-codex-personal",
+      "profileId": "profile-codex-personal",
+      "accountId": "account-codex-personal",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-subscription",
+          "label": "Example included plan"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "codex-work",
+      "providerId": "codex",
+      "displayName": "Work workspace",
+      "installationId": "install-codex-work",
+      "profileId": "profile-codex-work",
+      "accountId": "account-codex-work",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "stale",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-subscription",
+          "label": "Example included plan"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "antigravity-personal",
+      "providerId": "antigravity",
+      "displayName": "Google workspace",
+      "installationId": "install-antigravity-personal",
+      "profileId": "profile-antigravity-personal",
+      "accountId": "account-antigravity-personal",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-subscription",
+          "label": "Example included plan"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "grok-personal",
+      "providerId": "grok",
+      "displayName": "Grok workspace",
+      "installationId": "install-grok-personal",
+      "profileId": "profile-grok-personal",
+      "accountId": "account-grok-personal",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-subscription",
+          "label": "Example included plan"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "opencode-linked",
+      "providerId": "opencode",
+      "displayName": "Linked account",
+      "installationId": "install-opencode-linked",
+      "profileId": "profile-opencode-linked",
+      "accountId": "account-opencode-linked",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-subscription",
+          "label": "Example included plan"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "opencode-api",
+      "providerId": "opencode",
+      "displayName": "API-key route",
+      "installationId": "install-opencode-api",
+      "profileId": "profile-opencode-api",
+      "accountId": "account-opencode-api",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-api_metered",
+          "label": "Example metered access"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    },
+    {
+      "id": "claude-expired",
+      "providerId": "claude",
+      "displayName": "Expired sign-in",
+      "installationId": "install-claude-expired",
+      "profileId": "profile-claude-expired",
+      "accountId": "account-claude-expired",
+      "auth": {
+        "state": "known",
+        "value": "expired",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "unknown",
+        "reason": "PLAN_NOT_REPORTED"
+      },
+      "status": "needs_auth",
+      "diagnostics": [
+        "SYNTHETIC_EXPIRED_LOGIN"
+      ]
+    },
+    {
+      "id": "local-machine",
+      "providerId": "local",
+      "displayName": "On this device",
+      "installationId": "install-local-machine",
+      "profileId": "profile-local-machine",
+      "accountId": "account-local-machine",
+      "auth": {
+        "state": "known",
+        "value": "authenticated",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "plan": {
+        "state": "known",
+        "value": {
+          "nativeId": "fixture-local",
+          "label": "Local compute"
+        },
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "status": "ok",
+      "diagnostics": []
+    }
+  ],
+  "routes": [
+    {
+      "id": "route-codex-personal",
+      "connectionId": "codex-personal",
+      "providerId": "codex",
+      "displayName": "Personal workspace",
+      "billing": {
+        "state": "known",
+        "value": "subscription",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-codex-work",
+      "connectionId": "codex-work",
+      "providerId": "codex",
+      "displayName": "Work workspace",
+      "billing": {
+        "state": "known",
+        "value": "subscription",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-antigravity-personal",
+      "connectionId": "antigravity-personal",
+      "providerId": "antigravity",
+      "displayName": "Google workspace",
+      "billing": {
+        "state": "known",
+        "value": "subscription",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-grok-personal",
+      "connectionId": "grok-personal",
+      "providerId": "grok",
+      "displayName": "Grok workspace",
+      "billing": {
+        "state": "known",
+        "value": "subscription",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-opencode-linked",
+      "connectionId": "opencode-linked",
+      "providerId": "opencode",
+      "displayName": "Linked account",
+      "billing": {
+        "state": "known",
+        "value": "subscription",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-opencode-api",
+      "connectionId": "opencode-api",
+      "providerId": "opencode",
+      "displayName": "API-key route",
+      "billing": {
+        "state": "known",
+        "value": "api_metered",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-claude-expired",
+      "connectionId": "claude-expired",
+      "providerId": "claude",
+      "displayName": "Expired sign-in",
+      "billing": {
+        "state": "unknown",
+        "reason": "BILLING_NOT_REPORTED"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    },
+    {
+      "id": "route-local-machine",
+      "connectionId": "local-machine",
+      "providerId": "local",
+      "displayName": "On this device",
+      "billing": {
+        "state": "known",
+        "value": "local",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      },
+      "capabilities": [],
+      "catalogRevision": "fixture-1"
+    }
+  ],
+  "models": [
+    {
+      "id": "model-codex-personal-0",
+      "routeId": "route-codex-personal",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "label": "Reasoning effort",
+          "scope": "turn",
+          "revision": "fixture-1",
+          "category": "thought_level",
+          "source": {
+            "kind": "synthetic",
+            "adapterId": "synthetic",
+            "adapterVersion": "0.1.0-alpha.1",
+            "reference": "bundled demonstration scenarios"
+          },
+          "control": {
+            "type": "select",
+            "choices": [
+              {
+                "value": "low",
+                "label": "Low"
+              },
+              {
+                "value": "medium",
+                "label": "Medium"
+              },
+              {
+                "value": "high",
+                "label": "High"
+              },
+              {
+                "value": "cosmic",
+                "label": "Cosmic"
+              }
+            ],
+            "defaultValue": "medium"
+          }
+        }
+      ],
+      "contextWindow": {
+        "state": "known",
+        "value": "128000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-codex-personal-1",
+      "routeId": "route-codex-personal",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "200000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-codex-work-0",
+      "routeId": "route-codex-work",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "label": "Reasoning effort",
+          "scope": "turn",
+          "revision": "fixture-1",
+          "category": "thought_level",
+          "source": {
+            "kind": "synthetic",
+            "adapterId": "synthetic",
+            "adapterVersion": "0.1.0-alpha.1",
+            "reference": "bundled demonstration scenarios"
+          },
+          "control": {
+            "type": "select",
+            "choices": [
+              {
+                "value": "low",
+                "label": "Low"
+              },
+              {
+                "value": "medium",
+                "label": "Medium"
+              },
+              {
+                "value": "high",
+                "label": "High"
+              },
+              {
+                "value": "cosmic",
+                "label": "Cosmic"
+              }
+            ],
+            "defaultValue": "medium"
+          }
+        }
+      ],
+      "contextWindow": {
+        "state": "known",
+        "value": "128000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-codex-work-1",
+      "routeId": "route-codex-work",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "200000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-antigravity-personal-0",
+      "routeId": "route-antigravity-personal",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [
+        {
+          "id": "thinkingBudget",
+          "label": "Thinking budget",
+          "scope": "turn",
+          "revision": "fixture-1",
+          "category": "thought_level",
+          "source": {
+            "kind": "synthetic",
+            "adapterId": "synthetic",
+            "adapterVersion": "0.1.0-alpha.1",
+            "reference": "bundled demonstration scenarios"
+          },
+          "control": {
+            "type": "number",
+            "min": 0,
+            "max": 16384,
+            "step": 1024
+          }
+        }
+      ],
+      "contextWindow": {
+        "state": "known",
+        "value": "1000000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-antigravity-personal-1",
+      "routeId": "route-antigravity-personal",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "2000000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-grok-personal-0",
+      "routeId": "route-grok-personal",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "unsupported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [
+        {
+          "id": "serviceTier",
+          "label": "Service tier",
+          "scope": "session",
+          "revision": "fixture-1",
+          "category": "service_tier",
+          "billingSensitive": true,
+          "source": {
+            "kind": "synthetic",
+            "adapterId": "synthetic",
+            "adapterVersion": "0.1.0-alpha.1",
+            "reference": "bundled demonstration scenarios"
+          },
+          "control": {
+            "type": "select",
+            "choices": [
+              {
+                "value": "standard",
+                "label": "Standard"
+              },
+              {
+                "value": "priority",
+                "label": "Priority"
+              }
+            ],
+            "defaultValue": "standard"
+          }
+        }
+      ],
+      "contextWindow": {
+        "state": "known",
+        "value": "256000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-grok-personal-1",
+      "routeId": "route-grok-personal",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "256000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-opencode-linked-0",
+      "routeId": "route-opencode-linked",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "128000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-opencode-linked-1",
+      "routeId": "route-opencode-linked",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "200000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-opencode-api-0",
+      "routeId": "route-opencode-api",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "128000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-opencode-api-1",
+      "routeId": "route-opencode-api",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "200000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-claude-expired-0",
+      "routeId": "route-claude-expired",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "200000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-claude-expired-1",
+      "routeId": "route-claude-expired",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "1000000",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-local-machine-0",
+      "routeId": "route-local-machine",
+      "nativeId": "fixture/balanced",
+      "name": "Example Balanced",
+      "revision": "fixture-1",
+      "isDefault": true,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "unsupported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "json_mode"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "offline",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "32768",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    },
+    {
+      "id": "model-local-machine-1",
+      "routeId": "route-local-machine",
+      "nativeId": "fixture/precise",
+      "name": "Example Precise",
+      "revision": "fixture-1",
+      "isDefault": false,
+      "capabilities": [
+        {
+          "id": "generation.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.text",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "input.image",
+          "support": "unsupported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "structured.output",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "tools",
+          "support": "conditional",
+          "origin": "model",
+          "conditions": [
+            "tool_approval"
+          ],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        },
+        {
+          "id": "offline",
+          "support": "supported",
+          "origin": "model",
+          "conditions": [],
+          "evidence": {
+            "state": "known",
+            "value": "Illustrative fixture only",
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          }
+        }
+      ],
+      "options": [],
+      "contextWindow": {
+        "state": "known",
+        "value": "65536",
+        "source": {
+          "kind": "synthetic",
+          "adapterId": "synthetic",
+          "adapterVersion": "0.1.0-alpha.1",
+          "reference": "bundled demonstration scenarios"
+        },
+        "observedAt": "2026-10-28T08:15:54.737Z",
+        "freshness": "fresh",
+        "verification": "reported"
+      }
+    }
+  ],
+  "quotaPools": [
+    {
+      "id": "pool-shared-personal",
+      "accountId": "account-codex-personal",
+      "connectionIds": [
+        "codex-personal",
+        "opencode-linked"
+      ],
+      "routeIds": [
+        "route-codex-personal",
+        "route-opencode-linked"
+      ],
+      "sharing": "verified",
+      "windows": [
+        {
+          "id": "example-session",
+          "label": "Example session window",
+          "reading": {
+            "state": "known",
+            "value": {
+              "unit": "credits",
+              "used": "25",
+              "limit": "100",
+              "remaining": "75",
+              "usedFraction": 0.25
+            },
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          },
+          "durationSeconds": 18000,
+          "resetsAt": "2026-10-28T09:15:54.738Z"
+        }
+      ]
+    },
+    {
+      "id": "pool-work",
+      "accountId": "account-codex-work",
+      "connectionIds": [
+        "codex-work"
+      ],
+      "routeIds": [
+        "route-codex-work"
+      ],
+      "sharing": "unknown",
+      "windows": [
+        {
+          "id": "example-week",
+          "label": "Example weekly window",
+          "reading": {
+            "state": "known",
+            "value": {
+              "unit": "credits",
+              "used": "70",
+              "limit": "100",
+              "remaining": "30",
+              "usedFraction": 0.7
+            },
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "stale",
+            "verification": "reported"
+          },
+          "durationSeconds": 604800,
+          "resetsAt": null
+        }
+      ]
+    },
+    {
+      "id": "pool-unknown-total",
+      "accountId": "account-antigravity-personal",
+      "connectionIds": [
+        "antigravity-personal"
+      ],
+      "routeIds": [
+        "route-antigravity-personal"
+      ],
+      "sharing": "unknown",
+      "windows": [
+        {
+          "id": "example-count",
+          "label": "Count without a published total",
+          "reading": {
+            "state": "known",
+            "value": {
+              "unit": "requests",
+              "used": "17",
+              "limit": null,
+              "remaining": null,
+              "usedFraction": null
+            },
+            "source": {
+              "kind": "synthetic",
+              "adapterId": "synthetic",
+              "adapterVersion": "0.1.0-alpha.1",
+              "reference": "bundled demonstration scenarios"
+            },
+            "observedAt": "2026-10-28T08:15:54.737Z",
+            "freshness": "fresh",
+            "verification": "reported"
+          },
+          "durationSeconds": 86400,
+          "resetsAt": null
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    "All records are synthetic examples. No installed clients, accounts, or credentials have been inspected."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "publicOrigin": "REPLACE_WITH_APPROVED_VERIFIED_HTTPS_ORIGIN",
+  "path": "/mcp/kit-usage",
+  "principalId": "REPLACE_WITH_APPROVED_USAGE_ONLY_PRINCIPAL",
+  "requiredScope": "kit.usage.cached.read",
+  "databasePath": "REPLACE_WITH_APPROVED_ABSOLUTE_EXISTING_KIT_CACHE_PATH",
+  "ownerApprovedCacheRead": false,
+  "scope": {"connectionIds": [], "accountIds": []},
+  "mappings": [],
+  "allowedBrowserOrigins": []
+}

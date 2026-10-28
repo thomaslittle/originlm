@@ -1,0 +1,18 @@
+/target
+out.mp4
+*.mp4
+!media/*.mp4
+frames/
+strip.png
+onion.png
+*.wav
+!media/*.wav
+test_render/
+
+originlm-promo/out/
+originlm-promo/frames/
+originlm-promo/strip.png
+# Offline studio footage is regenerated, not committed.
+media/studio.mp4
+
+/out/

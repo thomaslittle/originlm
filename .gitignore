@@ -1,0 +1,56 @@
+# Build output and dependencies
+/target/
+**/target/
+node_modules/
+.pnpm-store/
+.next/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+*.egg-info/
+# Secrets and local runtime data (never commit real accounts)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+/.originlm/
+/.lai/
+/private-fixtures/
+*.local.json
+# Editor/OS scratch files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Local verification and isolated worktrees
+.verification/
+.worktrees/
+.superpowers/
+
+# Optional example/toolchain build products
+examples/**/bin/
+examples/**/obj/
+.venv-build/
+
+# Browser automation scratch output
+.playwright-mcp/
+
+# Rendered media (reproducible from media/video source)
+/media/video/out/
+/media/video/frames/
+/media/video/strip.png
+
+# Synthetic JWT signing key used only by deterministic verifier fixtures.
+!crates/originlm-chatgpt-auth/tests/fixtures/test-rsa.pem

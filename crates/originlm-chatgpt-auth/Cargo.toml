@@ -1,0 +1,31 @@
+[package]
+name = "originlm-chatgpt-auth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+base64 = "0.22"
+getrandom = "0.3"
+fs4 = "0.13"
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+ring = "0.17"
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio = { version = "1", features = ["net", "io-util", "sync", "time", "rt", "macros"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3.27.0"
+
+[target.'cfg(windows)'.dependencies]
+# Upstream's checked-in x86-64 assembly fallback keeps NASM optional on Windows.
+aws-lc-rs = { version = "1.18.2", features = ["prebuilt-nasm"] }
+keyring = { version = "3", features = ["windows-native"] }
+
+[lints]
+workspace = true

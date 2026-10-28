@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "description": "How a Tokscale client relates to a OriginLM discovery adapter. contained means Tokscale's session path must stay inside a OriginLM profile root. intentionally-different means adopting Tokscale's path would solve Tokscale's usage problem rather than OriginLM's access problem.",
+  "clients": {
+    "codex": {
+      "localAdapter": "codex",
+      "parity": "contained",
+      "note": "Profile home is CODEX_HOME or ~/.codex. Tokscale reads sessions/ under that home."
+    },
+    "claude": {
+      "localAdapter": "claude_code",
+      "parity": "contained",
+      "note": "CLAUDE_CONFIG_DIR or ~/.claude. CLAUDE_SECURESTORAGE_CONFIG_DIR is local knowledge and wins when set."
+    },
+    "gemini": {
+      "localAdapter": "gemini_cli",
+      "parity": "contained",
+      "note": "GEMINI_CLI_HOME or ~/.gemini. Tokscale session files live in tmp/."
+    },
+    "antigravity-cli": {
+      "localAdapter": "antigravity",
+      "parity": "contained",
+      "note": "CLI conversations live under <gemini home>/antigravity-cli and follow GEMINI_CLI_HOME."
+    },
+    "antigravity-extension": {
+      "localAdapter": "antigravity",
+      "parity": "contained",
+      "note": "Extension databases stay under ~/.gemini/antigravity even when GEMINI_CLI_HOME is set."
+    },
+    "antigravity": {
+      "localAdapter": "antigravity",
+      "parity": "intentionally-different",
+      "note": "This Tokscale client reads Tokscale's own antigravity-cache, not the installed Antigravity profile."
+    },
+    "opencode": {
+      "localAdapter": "opencode",
+      "parity": "contained",
+      "note": "Tokscale reads XDG data opencode/storage. OriginLM identifies the data directory. OPENCODE_CONFIG_DIR is an additional local override."
+    },
+    "cursor": {
+      "localAdapter": "cursor",
+      "parity": "intentionally-different",
+      "note": "Tokscale's cursor root is ~/.config/tokscale/cursor-cache. OriginLM discovers the Cursor installation directory."
+    },
+    "copilot": {
+      "localAdapter": "github_copilot",
+      "parity": "contained",
+      "note": "Passive profile is ~/.copilot. Session databases are not opened. VS Code workspaceStorage chats are not separate installations."
+    },
+    "grok": {
+      "localAdapter": "grok",
+      "parity": "contained",
+      "note": "GROK_HOME or ~/.grok. Tokscale reads sessions/ and logs/unified.jsonl."
+    },
+    "lmstudio": {
+      "localAdapter": "lmstudio",
+      "parity": "contained",
+      "note": "LM_STUDIO_HOME or ~/.lmstudio. Tokscale reads server-logs/ for usage; OriginLM only locates the home."
+    }
+  },
+  "localOnly": [
+    {
+      "localAdapter": "ollama",
+      "relative": ".ollama",
+      "note": "Tokscale has no Ollama client. OriginLM keeps its own ~/.ollama profile."
+    }
+  ]
+}

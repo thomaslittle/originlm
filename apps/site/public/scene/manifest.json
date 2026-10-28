@@ -1,0 +1,10 @@
+{
+  "source": "apps/demo /overview, example mode",
+  "width": 1440,
+  "height": 1000,
+  "dpr": 2,
+  "focus": {
+    "u": 0.225,
+    "v": 0.657
+  }
+}

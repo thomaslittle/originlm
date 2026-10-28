@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "description": "Upstream discovery-knowledge sources. OriginLM normalizes adopted rules into its own adapters. Released builds do not download or execute these projects.",
+  "sources": [
+    {
+      "id": "tokscale",
+      "status": "pinned",
+      "kind": "oss-discovery",
+      "repository": "junhoyeo/tokscale",
+      "license": "MIT",
+      "lock": "upstream/tokscale/lock.json",
+      "consumes": [
+        "client config and session locations",
+        "environment-variable overrides",
+        "platform path edge cases"
+      ],
+      "doesNotConsume": [
+        "pricing",
+        "token aggregation",
+        "dashboards",
+        "submission and leaderboard infrastructure",
+        "TUI"
+      ]
+    },
+    {
+      "id": "t3code",
+      "status": "pinned",
+      "kind": "oss-provider",
+      "repository": "pingdotgg/t3code",
+      "license": "MIT",
+      "lock": "upstream/t3code/NOTICE.md",
+      "syncState": "UPSTREAM_T3CODE.md",
+      "consumes": [
+        "passive CLI locations for providers T3 Code actually scans",
+        "ChatGPT OAuth refresh and identity-token rules",
+        "Grok health-probe environment that disables the CLI updater",
+        "one Grok login recheck, Codex code-mode host, plan labels, configured service tier, individual credits, and Claude monthly spend",
+        "passive fx command and ~/.fx inventory",
+        "ACP session notices kept out of assistant text",
+        "the distinction between local model servers, cloud CLIs, and the T3 Connect relay"
+      ],
+      "doesNotConsume": [
+        "ACP Registry downloads",
+        "ChatGPT multi-account handoff",
+        "Codex shadow homes",
+        "the bundled Cursor SDK",
+        "fx execution, login probes, and a hard-coded effort",
+        "rewritten model short names and seven-day new badges",
+        "T3 product UI, orchestration, and release signing"
+      ]
+    },
+    {
+      "id": "openusage",
+      "status": "planned",
+      "kind": "oss-discovery",
+      "repository": null,
+      "note": "Add a lock, snapshot, and mapping beside Tokscale. Do not special-case the sync tool around one project."
+    },
+    {
+      "id": "agentmanager",
+      "status": "planned",
+      "kind": "oss-discovery",
+      "repository": null,
+      "note": "Same manifest shape as Tokscale. Official client repositories can use kind official-client when a path rule should outrank OSS evidence."
+    }
+  ]
+}

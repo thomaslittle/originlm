@@ -1,0 +1,5702 @@
+{
+  "components": {
+    "schemas": {
+      "AccessRoute": {
+        "additionalProperties": false,
+        "properties": {
+          "billing": {
+            "$ref": "#/components/schemas/Observation4"
+          },
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array"
+          },
+          "catalogRevision": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "connectionId",
+          "providerId",
+          "displayName",
+          "billing",
+          "capabilities",
+          "catalogRevision"
+        ],
+        "type": "object"
+      },
+      "Account": {
+        "additionalProperties": false,
+        "properties": {
+          "displayLabel": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "id": {
+            "type": "string"
+          },
+          "identitySource": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "scopes": {
+            "default": [],
+            "description": "Organization/project/region scope. Accounts with different verified\nscopes are never merged, pooled, or silently switched between.",
+            "items": {
+              "$ref": "#/components/schemas/AccountScope"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "providerId",
+          "displayLabel",
+          "identitySource"
+        ],
+        "type": "object"
+      },
+      "AccountScope": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "kind": {
+            "description": "`organization`, `workspace`, `project`, `region`, or a provider-native kind.",
+            "type": "string"
+          },
+          "label": {
+            "$ref": "#/components/schemas/Observation"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "label"
+        ],
+        "type": "object"
+      },
+      "AdapterDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "cancellation": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "integration": {
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "metadata": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nativeToolApproval": {
+            "type": "boolean"
+          },
+          "passiveDiscovery": {
+            "type": "boolean"
+          },
+          "persistentResumption": {
+            "type": "boolean"
+          },
+          "qualification": {
+            "description": "Static implementation scope, not proof this machine/account has been qualified.",
+            "type": "string"
+          },
+          "textSessions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "integration",
+          "passiveDiscovery",
+          "metadata",
+          "textSessions",
+          "nativeToolApproval",
+          "cancellation",
+          "persistentResumption",
+          "qualification",
+          "limitations"
+        ],
+        "type": "object"
+      },
+      "AppRevokeParams": {
+        "additionalProperties": false,
+        "properties": {
+          "targetClientId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetClientId"
+        ],
+        "type": "object"
+      },
+      "ApprovalParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allow": {
+            "type": "boolean"
+          },
+          "approvalId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalId",
+          "allow"
+        ],
+        "type": "object"
+      },
+      "ArtifactChunk": {
+        "additionalProperties": false,
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "dataBase64": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "eof": {
+            "type": "boolean"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "nextOffset": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "totalBytes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifactId",
+          "sessionId",
+          "displayName",
+          "mediaType",
+          "totalBytes",
+          "offset",
+          "nextOffset",
+          "dataBase64",
+          "eof"
+        ],
+        "type": "object"
+      },
+      "ArtifactReadParams": {
+        "additionalProperties": false,
+        "description": "Owned in-memory result. No public method accepts a filesystem path.",
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "maxBytes": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "offset": {
+            "default": "",
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "artifactId",
+          "maxBytes"
+        ],
+        "type": "object"
+      },
+      "AuthState": {
+        "enum": [
+          "authenticated",
+          "unauthenticated",
+          "expired",
+          "unchecked"
+        ],
+        "type": "string"
+      },
+      "BillingMode": {
+        "enum": [
+          "subscription",
+          "api_metered",
+          "prepaid_credits",
+          "local",
+          "mixed",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "Candidate": {
+        "properties": {
+          "connectionId": {
+            "type": "string"
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection"
+          }
+        },
+        "required": [
+          "selection",
+          "connectionId",
+          "eligible",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "Capability": {
+        "additionalProperties": false,
+        "properties": {
+          "conditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CapabilityOrigin"
+          },
+          "support": {
+            "$ref": "#/components/schemas/Support"
+          }
+        },
+        "required": [
+          "id",
+          "support",
+          "origin",
+          "evidence",
+          "conditions"
+        ],
+        "type": "object"
+      },
+      "CapabilityOrigin": {
+        "enum": [
+          "model",
+          "agent_tool",
+          "runtime",
+          "transport"
+        ],
+        "type": "string"
+      },
+      "ChatgptAuthStart": {
+        "properties": {
+          "authUrl": {
+            "type": "string"
+          },
+          "loginId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loginId",
+          "authUrl"
+        ],
+        "type": "object"
+      },
+      "ChatgptAuthState": {
+        "enum": [
+          "signed_out",
+          "pending",
+          "connected",
+          "error"
+        ],
+        "type": "string"
+      },
+      "ChatgptAuthStatus": {
+        "properties": {
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loginId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ChatgptAuthState"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      },
+      "ChatgptCancelParams": {
+        "additionalProperties": false,
+        "properties": {
+          "loginId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "loginId"
+        ],
+        "type": "object"
+      },
+      "Choice": {
+        "additionalProperties": false,
+        "properties": {
+          "disabledReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "type": "object"
+      },
+      "Connection": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "auth": {
+            "$ref": "#/components/schemas/Observation2"
+          },
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installationId": {
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/Observation3"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "providerId",
+          "installationId",
+          "profileId",
+          "displayName",
+          "auth",
+          "plan",
+          "status",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "ConnectionMetadata": {
+        "additionalProperties": false,
+        "description": "Allowlisted adapter output. The service projects this into authorized snapshots.\nThis record never contains native credential material or private filesystem paths.",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Account"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "additionalRoutes": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AccessRoute"
+            },
+            "type": "array"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/Observation2"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/Observation4"
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "includedUsageAllowed": {
+            "$ref": "#/components/schemas/Observation6"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            },
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/Observation3"
+          },
+          "providers": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            },
+            "type": "array"
+          },
+          "quotaPools": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaPool"
+            },
+            "type": "array"
+          },
+          "routeId": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Observation"
+          }
+        },
+        "required": [
+          "connectionId",
+          "routeId",
+          "version",
+          "auth",
+          "plan",
+          "billing",
+          "models",
+          "quotaPools",
+          "includedUsageAllowed",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "ConnectionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "connectionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "connectionId"
+        ],
+        "type": "object"
+      },
+      "CostRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "amountUsd": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when either token count or a matching price is missing."
+          },
+          "basis": {
+            "description": "provider_reported, estimated, or unknown. Never an invoice total.",
+            "type": "string"
+          },
+          "nativeModelId": {
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelPrice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CostUsage"
+          }
+        },
+        "required": [
+          "usage",
+          "providerId",
+          "nativeModelId",
+          "basis"
+        ],
+        "type": "object"
+      },
+      "CostReport": {
+        "additionalProperties": false,
+        "properties": {
+          "canEditPrices": {
+            "type": "boolean"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPrice"
+            },
+            "type": "array"
+          },
+          "pricesPersisted": {
+            "type": "boolean"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/CostRecord"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "storageError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "records",
+          "prices",
+          "scope",
+          "canEditPrices",
+          "pricesPersisted"
+        ],
+        "type": "object"
+      },
+      "CostUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "observedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "outputTokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reportedUsd": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "routeId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "turnId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "turnId",
+          "connectionId",
+          "routeId",
+          "modelId",
+          "observedAt",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "DataMode": {
+        "enum": [
+          "live",
+          "synthetic"
+        ],
+        "type": "string"
+      },
+      "DecimalString": {
+        "description": "Nonnegative, finite decimal, represented losslessly across all SDKs.",
+        "type": "string"
+      },
+      "DiscoveryParams": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "DiscoveryResult": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/DataMode"
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "DiscoveryWatchParams": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "DomainError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryAfterMs": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "type": "object"
+      },
+      "EmptyParams": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "ErrorCode": {
+        "oneOf": [
+          {
+            "enum": [
+              "INVALID_REQUEST",
+              "LOCAL_ACCESS_DENIED",
+              "AUTH_REQUIRED",
+              "KEYRING_LOCKED",
+              "RUNTIME_MISSING",
+              "INTEGRATION_RESTRICTED",
+              "PROTOCOL_INCOMPATIBLE",
+              "CAPABILITY_UNKNOWN",
+              "CAPABILITY_UNSUPPORTED",
+              "OPTION_UNSUPPORTED",
+              "SELECTION_STALE",
+              "RATE_LIMITED",
+              "BILLING_CONSENT_REQUIRED",
+              "APPROVAL_REQUIRED",
+              "SESSION_ROUTE_MISMATCH",
+              "EVENT_GAP",
+              "PROVIDER_UNAVAILABLE",
+              "STORAGE_UNAVAILABLE",
+              "TIMEOUT",
+              "CANCELLED",
+              "CONFLICT",
+              "FRAME_TOO_LARGE",
+              "NOT_FOUND",
+              "NOT_IMPLEMENTED"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "RESUME_UNAVAILABLE",
+            "description": "A suspended conversation cannot be continued (identity, route, model,\nworkspace or native history changed or is gone). Never replaced by a\nfresh conversation; the host decides whether to start over.",
+            "type": "string"
+          }
+        ]
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "adapterId": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/EventPayload"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "turnId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sessionId",
+          "sequence",
+          "timestamp",
+          "adapterId",
+          "schemaVersion",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "EventPage": {
+        "properties": {
+          "cursor": {
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "events",
+          "cursor"
+        ],
+        "type": "object"
+      },
+      "EventPayload": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "$ref": "#/components/schemas/SessionState"
+              },
+              "type": {
+                "const": "state",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "text_delta",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "type": {
+                "const": "reasoning_summary",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "approvalId": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "type": {
+                "const": "approval_request",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "approvalId",
+              "action",
+              "detail"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "allowed": {
+                "type": "boolean"
+              },
+              "approvalId": {
+                "type": "string"
+              },
+              "type": {
+                "const": "approval_resolved",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "approvalId",
+              "allowed"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "type": {
+                "const": "tool",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "name",
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "usage",
+                "type": "string"
+              },
+              "unit": {
+                "type": "string"
+              },
+              "used": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "unit",
+              "used"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "type": {
+                "const": "artifact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "artifactId",
+              "mediaType",
+              "size"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "revision": {
+                "type": "string"
+              },
+              "type": {
+                "const": "options_changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "revision"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "type": {
+                "const": "warning",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "type": {
+                "const": "error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "type": {
+                "const": "final",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "data": true,
+              "namespace": {
+                "type": "string"
+              },
+              "type": {
+                "const": "extension",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "namespace",
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "EventsParams": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessionId": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "EvidenceKind": {
+        "enum": [
+          "official_protocol",
+          "official_api",
+          "local_config",
+          "local_log",
+          "community_endpoint",
+          "user_supplied",
+          "derived",
+          "synthetic"
+        ],
+        "type": "string"
+      },
+      "EvidenceSource": {
+        "additionalProperties": false,
+        "properties": {
+          "adapterId": {
+            "type": "string"
+          },
+          "adapterVersion": {
+            "type": "string"
+          },
+          "clientVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EvidenceKind"
+          },
+          "reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "adapterId",
+          "adapterVersion"
+        ],
+        "type": "object"
+      },
+      "Freshness": {
+        "enum": [
+          "fresh",
+          "stale"
+        ],
+        "type": "string"
+      },
+      "GrantParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaid": {
+            "default": false,
+            "type": "boolean"
+          },
+          "connectionIds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "HandshakeParams": {
+        "additionalProperties": false,
+        "properties": {
+          "clientName": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "protocolVersion": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "HandshakeResult": {
+        "properties": {
+          "capabilities": {
+            "default": [],
+            "description": "Runtime-level features such as `turn.input.image` or `session.host_mcp`. Model and adapter support is still per selection.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "methods": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocolVersion": {
+            "type": "string"
+          },
+          "runtimeVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "protocolVersion",
+          "runtimeVersion",
+          "methods"
+        ],
+        "type": "object"
+      },
+      "HealthStatus": {
+        "enum": [
+          "healthy",
+          "degraded",
+          "unavailable",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "HealthSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "checkedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hydrated": {
+            "description": "True when the summary is built from persisted state that has not yet been reverified.",
+            "type": "boolean"
+          },
+          "openIssues": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "worstSeverity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IssueSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "openIssues",
+          "hydrated"
+        ],
+        "type": "object"
+      },
+      "HealthView": {
+        "properties": {
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/HealthSummary"
+          }
+        },
+        "required": [
+          "summary",
+          "issues"
+        ],
+        "type": "object"
+      },
+      "HostMcpServer": {
+        "additionalProperties": false,
+        "description": "A loopback streamable-HTTP MCP server run by the host application.\n\n`url` must be `http://127.0.0.1:<port>/...` or `http://[::1]:<port>/...`.\nThe bearer token is a host secret: it is never logged, echoed, or placed on\na command line, and `Debug` redacts it.",
+        "properties": {
+          "allowedTools": {
+            "description": "Tool names (`^[a-z][a-z0-9_]{0,63}$`) the agent may call on this server.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bearerToken": {
+            "description": "32-512 printable ASCII characters.",
+            "type": "string"
+          },
+          "name": {
+            "description": "`^[a-z][a-z0-9_]{0,31}$`",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "bearerToken",
+          "allowedTools"
+        ],
+        "type": "object"
+      },
+      "InputMediaType": {
+        "enum": [
+          "image/jpeg",
+          "image/png"
+        ],
+        "type": "string"
+      },
+      "InputPutParams": {
+        "additionalProperties": false,
+        "properties": {
+          "dataBase64": {
+            "type": "string"
+          },
+          "displayName": {
+            "default": null,
+            "description": "Host-side label only; validated and never forwarded to a provider.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mediaType": {
+            "$ref": "#/components/schemas/InputMediaType"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "mediaType",
+          "dataBase64"
+        ],
+        "type": "object"
+      },
+      "InputPutResult": {
+        "properties": {
+          "byteLength": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "height": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "inputId": {
+            "type": "string"
+          },
+          "width": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inputId",
+          "byteLength",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "Installation": {
+        "additionalProperties": false,
+        "properties": {
+          "environmentId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "locationHint": {
+            "type": "string"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Observation"
+          }
+        },
+        "required": [
+          "id",
+          "providerId",
+          "environmentId",
+          "locationHint",
+          "version"
+        ],
+        "type": "object"
+      },
+      "InventoryChange": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceChange"
+            },
+            "type": "array"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "issuesChanged": {
+            "description": "True when the affected issues changed. Issue text is available from\n`issues.list`, which applies the caller's permission projection.",
+            "type": "boolean"
+          },
+          "observedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "previousRevision": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "cursor",
+          "revision",
+          "previousRevision",
+          "observedAt",
+          "reason",
+          "changes",
+          "issuesChanged"
+        ],
+        "type": "object"
+      },
+      "Issue": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connectionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/IssueEvidence"
+            },
+            "type": "array"
+          },
+          "fingerprint": {
+            "description": "Additional non-secret grouping material. Never a provider token or email.",
+            "type": "string"
+          },
+          "firstSeenAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "id": {
+            "description": "Stable across restarts for the same resource and cause.",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/IssueKind"
+          },
+          "lastObservation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Observation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last known observation while a person decides what to do. Display-only."
+          },
+          "lastSeenAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "occurrences": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "poolId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "providerId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "remediation": {
+            "items": {
+              "$ref": "#/components/schemas/Remediation"
+            },
+            "type": "array"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "routeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "severity": {
+            "$ref": "#/components/schemas/IssueSeverity"
+          },
+          "snoozedUntil": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/IssueState"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "windowId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "fingerprint",
+          "kind",
+          "severity",
+          "state",
+          "title",
+          "summary",
+          "firstSeenAt",
+          "lastSeenAt",
+          "occurrences",
+          "evidence",
+          "remediation"
+        ],
+        "type": "object"
+      },
+      "IssueEvidence": {
+        "additionalProperties": false,
+        "description": "A bounded, sanitized fact supporting an issue. It never contains credentials.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "observedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "IssueKind": {
+        "enum": [
+          "auth_required",
+          "auth_expired",
+          "keyring_locked",
+          "unsupported_client",
+          "usage_unavailable",
+          "quota_exhausted",
+          "rate_limited",
+          "adapter_failure",
+          "storage_unavailable",
+          "permission_denied",
+          "service_unavailable",
+          "configuration_invalid",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "IssueSeverity": {
+        "enum": [
+          "info",
+          "warning",
+          "error",
+          "critical"
+        ],
+        "type": "string"
+      },
+      "IssueState": {
+        "oneOf": [
+          {
+            "const": "open",
+            "description": "Still observed or not yet verified as recovered.",
+            "type": "string"
+          },
+          {
+            "const": "acknowledged",
+            "description": "The user has seen it; it is still unhealthy.",
+            "type": "string"
+          },
+          {
+            "const": "snoozed",
+            "description": "Notifications are suppressed until this time. The issue is still open.",
+            "type": "string"
+          },
+          {
+            "const": "resolved",
+            "description": "A later observation verified recovery. Dismissal alone never sets this.",
+            "type": "string"
+          }
+        ]
+      },
+      "IssueUpdateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "issueId": {
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO-8601 time until which notifications are suppressed. Only for `snooze`."
+          }
+        },
+        "required": [
+          "issueId"
+        ],
+        "type": "object"
+      },
+      "IssueUpdateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "issue": {
+            "$ref": "#/components/schemas/Issue"
+          }
+        },
+        "required": [
+          "issue"
+        ],
+        "type": "object"
+      },
+      "MethodInputs": {
+        "additionalProperties": false,
+        "description": "This is the superset of compiled public methods, not a grant or an assertion of live provider support.",
+        "properties": {
+          "adapters.list": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "approvals.respond": {
+            "$ref": "#/components/schemas/ApprovalParams"
+          },
+          "apps.list": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "apps.revoke": {
+            "$ref": "#/components/schemas/AppRevokeParams"
+          },
+          "artifacts.read": {
+            "$ref": "#/components/schemas/ArtifactReadParams"
+          },
+          "auth.chatgpt.cancel": {
+            "$ref": "#/components/schemas/ChatgptCancelParams"
+          },
+          "auth.chatgpt.disconnect": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "auth.chatgpt.start": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "auth.chatgpt.status": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "capabilities.read": {
+            "$ref": "#/components/schemas/ModelParams"
+          },
+          "connections.list": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "connections.probe": {
+            "$ref": "#/components/schemas/ConnectionParams"
+          },
+          "costs.read": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "costs.setPrices": {
+            "$ref": "#/components/schemas/SetPricesParams"
+          },
+          "diagnostics.report": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "discovery.refresh": {
+            "$ref": "#/components/schemas/DiscoveryParams"
+          },
+          "discovery.watch": {
+            "$ref": "#/components/schemas/DiscoveryWatchParams"
+          },
+          "events.read": {
+            "$ref": "#/components/schemas/EventsParams"
+          },
+          "events.subscribe": {
+            "$ref": "#/components/schemas/EventsParams"
+          },
+          "events.unsubscribe": {
+            "$ref": "#/components/schemas/SubscriptionParams"
+          },
+          "grants.list": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "grants.request": {
+            "$ref": "#/components/schemas/GrantParams"
+          },
+          "grants.revoke": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "health.get": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "inputs.put": {
+            "$ref": "#/components/schemas/InputPutParams"
+          },
+          "issues.acknowledge": {
+            "$ref": "#/components/schemas/IssueUpdateParams"
+          },
+          "issues.list": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "issues.snooze": {
+            "$ref": "#/components/schemas/IssueUpdateParams"
+          },
+          "models.list": {
+            "$ref": "#/components/schemas/ModelsParams"
+          },
+          "models.page": {
+            "$ref": "#/components/schemas/ModelPageParams"
+          },
+          "notifications.ack": {
+            "$ref": "#/components/schemas/NotificationAckParams"
+          },
+          "notifications.configure": {
+            "$ref": "#/components/schemas/NotificationPreferences"
+          },
+          "notifications.poll": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "runtime.closeClient": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "runtime.handshake": {
+            "$ref": "#/components/schemas/HandshakeParams"
+          },
+          "runtime.health": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "selection.resolve": {
+            "$ref": "#/components/schemas/Requirements"
+          },
+          "selection.validate": {
+            "$ref": "#/components/schemas/SelectionParams"
+          },
+          "sessions.close": {
+            "$ref": "#/components/schemas/SessionParams"
+          },
+          "sessions.create": {
+            "$ref": "#/components/schemas/SessionCreateParams"
+          },
+          "sessions.get": {
+            "$ref": "#/components/schemas/SessionParams"
+          },
+          "sessions.resume": {
+            "$ref": "#/components/schemas/SessionResumeParams"
+          },
+          "sessions.suspend": {
+            "$ref": "#/components/schemas/SessionParams"
+          },
+          "sessions.updateOptions": {
+            "$ref": "#/components/schemas/SessionOptionsParams"
+          },
+          "snapshot.get": {
+            "$ref": "#/components/schemas/SnapshotParams"
+          },
+          "turns.cancel": {
+            "$ref": "#/components/schemas/TurnParams"
+          },
+          "turns.start": {
+            "$ref": "#/components/schemas/TurnStartParams"
+          },
+          "usage.read": {
+            "$ref": "#/components/schemas/EmptyParams"
+          }
+        },
+        "required": [
+          "auth.chatgpt.status",
+          "auth.chatgpt.start",
+          "auth.chatgpt.cancel",
+          "auth.chatgpt.disconnect",
+          "runtime.closeClient",
+          "artifacts.read",
+          "runtime.handshake",
+          "runtime.health",
+          "snapshot.get",
+          "discovery.refresh",
+          "discovery.watch",
+          "connections.list",
+          "connections.probe",
+          "models.list",
+          "models.page",
+          "usage.read",
+          "costs.read",
+          "costs.setPrices",
+          "capabilities.read",
+          "selection.resolve",
+          "selection.validate",
+          "grants.request",
+          "grants.list",
+          "grants.revoke",
+          "sessions.create",
+          "sessions.get",
+          "sessions.suspend",
+          "sessions.resume",
+          "sessions.close",
+          "sessions.updateOptions",
+          "inputs.put",
+          "turns.start",
+          "turns.cancel",
+          "approvals.respond",
+          "events.read",
+          "events.subscribe",
+          "events.unsubscribe",
+          "adapters.list",
+          "diagnostics.report",
+          "health.get",
+          "issues.list",
+          "issues.acknowledge",
+          "issues.snooze",
+          "notifications.poll",
+          "notifications.configure",
+          "notifications.ack",
+          "apps.list",
+          "apps.revoke"
+        ],
+        "type": "object"
+      },
+      "MethodOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "adapters.list": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterDescriptor"
+            },
+            "type": "array"
+          },
+          "approvals.respond": true,
+          "apps.list": true,
+          "apps.revoke": true,
+          "artifacts.read": {
+            "$ref": "#/components/schemas/ArtifactChunk"
+          },
+          "auth.chatgpt.cancel": true,
+          "auth.chatgpt.disconnect": true,
+          "auth.chatgpt.start": {
+            "$ref": "#/components/schemas/ChatgptAuthStart"
+          },
+          "auth.chatgpt.status": {
+            "$ref": "#/components/schemas/ChatgptAuthStatus"
+          },
+          "capabilities.read": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array"
+          },
+          "connections.list": {
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            },
+            "type": "array"
+          },
+          "connections.probe": true,
+          "costs.read": {
+            "$ref": "#/components/schemas/CostReport"
+          },
+          "costs.setPrices": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPrice"
+            },
+            "type": "array"
+          },
+          "diagnostics.report": true,
+          "discovery.refresh": {
+            "$ref": "#/components/schemas/DiscoveryResult"
+          },
+          "discovery.watch": true,
+          "events.read": {
+            "$ref": "#/components/schemas/EventPage"
+          },
+          "events.subscribe": true,
+          "events.unsubscribe": true,
+          "grants.list": true,
+          "grants.request": true,
+          "grants.revoke": true,
+          "health.get": {
+            "$ref": "#/components/schemas/HealthView"
+          },
+          "inputs.put": {
+            "$ref": "#/components/schemas/InputPutResult"
+          },
+          "issues.acknowledge": {
+            "$ref": "#/components/schemas/IssueUpdateResult"
+          },
+          "issues.list": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array"
+          },
+          "issues.snooze": {
+            "$ref": "#/components/schemas/IssueUpdateResult"
+          },
+          "models.list": {
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            },
+            "type": "array"
+          },
+          "models.page": {
+            "$ref": "#/components/schemas/ModelPage"
+          },
+          "notifications.ack": true,
+          "notifications.configure": {
+            "$ref": "#/components/schemas/NotificationPreferences"
+          },
+          "notifications.poll": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationDecision"
+            },
+            "type": "array"
+          },
+          "runtime.closeClient": true,
+          "runtime.handshake": {
+            "$ref": "#/components/schemas/HandshakeResult"
+          },
+          "runtime.health": {
+            "$ref": "#/components/schemas/RuntimeHealth"
+          },
+          "selection.resolve": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "type": "array"
+          },
+          "selection.validate": {
+            "$ref": "#/components/schemas/ValidationResult"
+          },
+          "sessions.close": true,
+          "sessions.create": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "sessions.get": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "sessions.resume": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "sessions.suspend": {
+            "$ref": "#/components/schemas/SessionSuspendResult"
+          },
+          "sessions.updateOptions": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "snapshot.get": {
+            "$ref": "#/components/schemas/Snapshot"
+          },
+          "turns.cancel": true,
+          "turns.start": {
+            "$ref": "#/components/schemas/TurnStarted"
+          },
+          "usage.read": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaPool"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "auth.chatgpt.status",
+          "auth.chatgpt.start",
+          "auth.chatgpt.cancel",
+          "auth.chatgpt.disconnect",
+          "runtime.closeClient",
+          "artifacts.read",
+          "runtime.handshake",
+          "runtime.health",
+          "snapshot.get",
+          "discovery.refresh",
+          "discovery.watch",
+          "connections.list",
+          "connections.probe",
+          "models.list",
+          "models.page",
+          "usage.read",
+          "costs.read",
+          "costs.setPrices",
+          "capabilities.read",
+          "selection.resolve",
+          "selection.validate",
+          "grants.request",
+          "grants.list",
+          "grants.revoke",
+          "sessions.create",
+          "sessions.get",
+          "sessions.suspend",
+          "sessions.resume",
+          "sessions.close",
+          "sessions.updateOptions",
+          "inputs.put",
+          "turns.start",
+          "turns.cancel",
+          "approvals.respond",
+          "events.read",
+          "events.subscribe",
+          "events.unsubscribe",
+          "adapters.list",
+          "diagnostics.report",
+          "health.get",
+          "issues.list",
+          "issues.acknowledge",
+          "issues.snooze",
+          "notifications.poll",
+          "notifications.configure",
+          "notifications.ack",
+          "apps.list",
+          "apps.revoke"
+        ],
+        "type": "object"
+      },
+      "Model": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array"
+          },
+          "contextWindow": {
+            "$ref": "#/components/schemas/Observation"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nativeId": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionDescriptor"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "routeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "routeId",
+          "nativeId",
+          "name",
+          "revision",
+          "isDefault",
+          "capabilities",
+          "options",
+          "contextWindow"
+        ],
+        "type": "object"
+      },
+      "ModelPage": {
+        "additionalProperties": false,
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "models"
+        ],
+        "type": "object"
+      },
+      "ModelPageParams": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "default": null,
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "routeId": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ModelParams": {
+        "additionalProperties": false,
+        "properties": {
+          "modelId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "modelId"
+        ],
+        "type": "object"
+      },
+      "ModelPrice": {
+        "additionalProperties": false,
+        "properties": {
+          "inputUsdPerMillion": {
+            "$ref": "#/components/schemas/DecimalString"
+          },
+          "nativeModelId": {
+            "type": "string"
+          },
+          "outputUsdPerMillion": {
+            "$ref": "#/components/schemas/DecimalString"
+          },
+          "providerId": {
+            "type": "string"
+          },
+          "reviewedAt": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId",
+          "nativeModelId",
+          "inputUsdPerMillion",
+          "outputUsdPerMillion",
+          "reviewedAt",
+          "source"
+        ],
+        "type": "object"
+      },
+      "ModelsParams": {
+        "additionalProperties": false,
+        "properties": {
+          "routeId": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "NotificationAckParams": {
+        "additionalProperties": false,
+        "properties": {
+          "dedupeKey": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId",
+          "dedupeKey"
+        ],
+        "type": "object"
+      },
+      "NotificationDecision": {
+        "additionalProperties": false,
+        "description": "A deduplicated OS-notification decision. Delivery state is persisted by the\nbroker so multiple consumers do not each emit the same alert.",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "dedupeKey": {
+            "type": "string"
+          },
+          "issueId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/IssueSeverity"
+          },
+          "shouldNotify": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issueId",
+          "severity",
+          "title",
+          "body",
+          "shouldNotify",
+          "reason",
+          "dedupeKey"
+        ],
+        "type": "object"
+      },
+      "NotificationPreferences": {
+        "additionalProperties": false,
+        "description": "Per-install notification preference. Quiet hours use local wall-clock\nminutes since midnight and never contain a provider identity.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "type": "boolean"
+          },
+          "minimumSeverity": {
+            "$ref": "#/components/schemas/IssueSeverity",
+            "default": "warning"
+          },
+          "privateContent": {
+            "default": false,
+            "description": "Suppress issue text in the OS notification; consumers show it inline.",
+            "type": "boolean"
+          },
+          "quietHoursEndMinute": {
+            "default": null,
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "quietHoursStartMinute": {
+            "default": null,
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reminderAfterSeconds": {
+            "default": 86400,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Observation": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Observation2": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/AuthState"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Observation3": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/Plan"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Observation4": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/BillingMode"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Observation5": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/components/schemas/UsageReading"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Observation6": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "freshness": {
+                "$ref": "#/components/schemas/Freshness"
+              },
+              "observedAt": {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              "source": {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              "state": {
+                "const": "known",
+                "type": "string"
+              },
+              "value": {
+                "type": "boolean"
+              },
+              "verification": {
+                "$ref": "#/components/schemas/Verification"
+              }
+            },
+            "required": [
+              "state",
+              "value",
+              "source",
+              "observedAt",
+              "freshness",
+              "verification"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "checkedAt": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "OptionControl": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/components/schemas/Choice"
+                },
+                "type": "array"
+              },
+              "defaultValue": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "const": "select",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "choices"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "max": {
+                "format": "double",
+                "type": "number"
+              },
+              "min": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              },
+              "type": {
+                "const": "number",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "min",
+              "max",
+              "step"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "maxLength": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": {
+                "const": "text",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "maxLength"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "nativeType": {
+                "type": "string"
+              },
+              "type": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "nativeType"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "OptionDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "billingSensitive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "control": {
+            "$ref": "#/components/schemas/OptionControl"
+          },
+          "currentValue": true,
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "permissionSensitive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/OptionScope"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "scope",
+          "revision",
+          "control"
+        ],
+        "type": "object"
+      },
+      "OptionScope": {
+        "enum": [
+          "model",
+          "session",
+          "turn"
+        ],
+        "type": "string"
+      },
+      "Plan": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "nativeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nativeId",
+          "label"
+        ],
+        "type": "object"
+      },
+      "Profile": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "installationId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "installationId",
+          "label"
+        ],
+        "type": "object"
+      },
+      "Provider": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "QuotaPool": {
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connectionIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "routeIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sharing": {
+            "type": "string"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/UsageWindow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "connectionIds",
+          "routeIds",
+          "sharing",
+          "windows"
+        ],
+        "type": "object"
+      },
+      "Remediation": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RemediationKind"
+          },
+          "label": {
+            "type": "string"
+          },
+          "requiresUserAction": {
+            "description": "True when the runtime cannot safely perform this action on the user's behalf.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "description",
+          "requiresUserAction"
+        ],
+        "type": "object"
+      },
+      "RemediationKind": {
+        "enum": [
+          "refresh",
+          "sign_in",
+          "unlock_keyring",
+          "update_client",
+          "open_settings",
+          "retry_later",
+          "restart_service",
+          "free_storage",
+          "contact_support",
+          "none"
+        ],
+        "type": "string"
+      },
+      "Requirements": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaidFallback": {
+            "default": false,
+            "type": "boolean"
+          },
+          "billingPreference": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eligibleOnly": {
+            "default": false,
+            "type": "boolean"
+          },
+          "query": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requiredCapabilities": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ResourceChange": {
+        "additionalProperties": false,
+        "description": "A bounded description of what changed. The full authoritative state remains\n`snapshot.get`; consumers that cannot replay must resynchronize.",
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/ResourceChangeKind"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource": {
+            "description": "`connection`, `route`, `model`, `quota_pool`, `account`, `issue`, or `health`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "id",
+          "change"
+        ],
+        "type": "object"
+      },
+      "ResourceChangeKind": {
+        "enum": [
+          "added",
+          "updated",
+          "removed"
+        ],
+        "type": "string"
+      },
+      "RuntimeHealth": {
+        "properties": {
+          "executionAvailable": {
+            "type": "boolean"
+          },
+          "metadataAvailable": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "mode",
+          "executionAvailable",
+          "metadataAvailable"
+        ],
+        "type": "object"
+      },
+      "Selection": {
+        "additionalProperties": false,
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "default": {},
+            "type": "object"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "routeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "routeId",
+          "modelId",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "SelectionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaid": {
+            "default": false,
+            "type": "boolean"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection"
+          }
+        },
+        "required": [
+          "selection"
+        ],
+        "type": "object"
+      },
+      "Session": {
+        "additionalProperties": false,
+        "properties": {
+          "connectionId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nativeResumption": {
+            "type": "boolean"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionState"
+          }
+        },
+        "required": [
+          "id",
+          "connectionId",
+          "selection",
+          "state",
+          "createdAt",
+          "nativeResumption"
+        ],
+        "type": "object"
+      },
+      "SessionCreateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaid": {
+            "default": false,
+            "type": "boolean"
+          },
+          "hostMcpServers": {
+            "description": "Host-owned loopback MCP servers attached to a native-client session.\nIn the default read-only mode, only these listed tools may be called.\nThe separately granted `native_policy` mode also enables the native\nclient's own tools and policy.",
+            "items": {
+              "$ref": "#/components/schemas/HostMcpServer"
+            },
+            "type": "array"
+          },
+          "permissionMode": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "persistent": {
+            "description": "Keep the native conversation in the client's own history so a\n`sessions.suspend` token can resume it after the helper restarts.\nRequires the route capability `session.resume.persistent`.",
+            "type": "boolean"
+          },
+          "reviewRequests": {
+            "default": false,
+            "type": "boolean"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "selection",
+          "workspaceId"
+        ],
+        "type": "object"
+      },
+      "SessionOptionsParams": {
+        "additionalProperties": false,
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "options"
+        ],
+        "type": "object"
+      },
+      "SessionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "SessionResumeParams": {
+        "additionalProperties": false,
+        "properties": {
+          "hostMcpServers": {
+            "description": "Host MCP servers for the resumed session. Tokens never carry the\nservers' bearer tokens, so a host re-supplies them here.",
+            "items": {
+              "$ref": "#/components/schemas/HostMcpServer"
+            },
+            "type": "array"
+          },
+          "resumeToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "resumeToken"
+        ],
+        "type": "object"
+      },
+      "SessionState": {
+        "enum": [
+          "ready",
+          "running",
+          "awaiting_approval",
+          "completed",
+          "error",
+          "cancelled",
+          "closed"
+        ],
+        "type": "string"
+      },
+      "SessionSuspendResult": {
+        "additionalProperties": false,
+        "properties": {
+          "resumeToken": {
+            "description": "Opaque, host-storable token. With `session.resume.persistent` it is\nsealed with a per-install key, carries no credentials, and survives\nhelper restarts; otherwise it lives only as long as the helper.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resumeToken"
+        ],
+        "type": "object"
+      },
+      "SetPricesParams": {
+        "additionalProperties": false,
+        "properties": {
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPrice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "prices"
+        ],
+        "type": "object"
+      },
+      "Snapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/Account"
+            },
+            "type": "array"
+          },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            },
+            "type": "array"
+          },
+          "cursor": {
+            "default": "",
+            "description": "Opaque journal cursor at the committed revision. Subscribe with this\nvalue to obtain every inventory change committed after the snapshot.",
+            "type": "string"
+          },
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/components/schemas/HealthSummary",
+            "default": {
+              "hydrated": false,
+              "openIssues": 0,
+              "status": "unknown"
+            }
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/Installation"
+            },
+            "type": "array"
+          },
+          "issues": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/DataMode"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/Model"
+            },
+            "type": "array"
+          },
+          "observedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/Profile"
+            },
+            "type": "array"
+          },
+          "protocolVersion": {
+            "type": "string"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            },
+            "type": "array"
+          },
+          "quotaPools": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaPool"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/AccessRoute"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "protocolVersion",
+          "revision",
+          "observedAt",
+          "mode",
+          "providers",
+          "installations",
+          "profiles",
+          "accounts",
+          "connections",
+          "routes",
+          "models",
+          "quotaPools",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "SnapshotParams": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "default": null,
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "SubscriptionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "subscriptionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscriptionId"
+        ],
+        "type": "object"
+      },
+      "Support": {
+        "enum": [
+          "supported",
+          "unsupported",
+          "conditional",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "Timestamp": {
+        "description": "Validated RFC 3339 timestamp, kept as text on the wire.",
+        "type": "string"
+      },
+      "TurnInputRef": {
+        "additionalProperties": false,
+        "properties": {
+          "inputId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "inputId"
+        ],
+        "type": "object"
+      },
+      "TurnParams": {
+        "additionalProperties": false,
+        "properties": {
+          "turnId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "turnId"
+        ],
+        "type": "object"
+      },
+      "TurnStartParams": {
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "description": "Staged `inputs.put` references. Each input is consumed by the turn that starts with it.",
+            "items": {
+              "$ref": "#/components/schemas/TurnInputRef"
+            },
+            "type": "array"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "prompt",
+          "requestId"
+        ],
+        "type": "object"
+      },
+      "TurnStarted": {
+        "properties": {
+          "turnId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "turnId"
+        ],
+        "type": "object"
+      },
+      "UsageReading": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecimalString"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "used": {
+            "$ref": "#/components/schemas/DecimalString"
+          },
+          "usedFraction": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "unit",
+          "used"
+        ],
+        "type": "object"
+      },
+      "UsageWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "durationSeconds": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "reading": {
+            "$ref": "#/components/schemas/Observation5"
+          },
+          "resetsAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "reading"
+        ],
+        "type": "object"
+      },
+      "ValidationResult": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/DataMode"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "Verification": {
+        "enum": [
+          "reported",
+          "observed",
+          "inferred"
+        ],
+        "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "localBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Generated from Rust method/domain contracts. The local runtime is paired, user-scoped, and never a public credential proxy.",
+    "title": "OriginLM local runtime",
+    "version": "1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/runtime/info": {
+      "get": {
+        "operationId": "runtimeInfo",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Public protocol and pairing requirement only; no account data"
+          }
+        },
+        "security": []
+      }
+    },
+    "/runtime/pairing-code": {
+      "get": {
+        "description": "Read the active loopback pairing code without consuming it. Same-origin only; no-store. Expires after five minutes and becomes unavailable after redemption or ten failed attempts.",
+        "operationId": "getPairingCode",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "pattern": "^[a-f0-9]{12}$",
+                      "type": "string"
+                    },
+                    "expiresInSeconds": {
+                      "maximum": 300,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "expiresInSeconds"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Pairing code unavailable or request origin denied"
+          }
+        },
+        "security": []
+      },
+      "post": {
+        "description": "Explicitly issue a fresh single-use loopback pairing code. Replaces the current unused code without revoking already paired clients. Same-origin only; no-store.",
+        "operationId": "issuePairingCode",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "pattern": "^[a-f0-9]{12}$",
+                      "type": "string"
+                    },
+                    "expiresInSeconds": {
+                      "const": 300
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "expiresInSeconds"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Request origin denied"
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/connections": {
+      "get": {
+        "description": "Same permission-scoped data as connections.list; no implicit enrichment.",
+        "operationId": "connections",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Connection"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication and handshake required"
+          }
+        }
+      }
+    },
+    "/v1/diagnostics": {
+      "get": {
+        "description": "Same permission-scoped data as diagnostics.report; no implicit enrichment.",
+        "operationId": "diagnostics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication and handshake required"
+          }
+        }
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "description": "Authorized server-sent events. Explicit event-gap errors; reconnecting never re-runs a turn.",
+        "operationId": "events",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sessionId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE update/gap events"
+          }
+        }
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "description": "Same permission-scoped data as models.list; no implicit enrichment.",
+        "operationId": "models",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Model"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication and handshake required"
+          }
+        }
+      }
+    },
+    "/v1/pair": {
+      "post": {
+        "description": "Redeem a host-issued single-use code. Does not widen host grants. Codes expire after five minutes.",
+        "operationId": "pair",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "maxLength": 12,
+                    "minLength": 12,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "expiresInSeconds": {
+                      "type": "integer"
+                    },
+                    "protocolVersion": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Pairing denied"
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/rpc": {
+      "post": {
+        "description": "JSON-RPC 2.0. Negotiate runtime.handshake first. Only advertised and authorized methods may be invoked.",
+        "operationId": "rpc",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "adapters.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "approvals.respond"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ApprovalParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "apps.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "apps.revoke"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/AppRevokeParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "artifacts.read"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ArtifactReadParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "auth.chatgpt.cancel"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ChatgptCancelParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "auth.chatgpt.disconnect"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "auth.chatgpt.start"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "auth.chatgpt.status"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "capabilities.read"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ModelParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "connections.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "connections.probe"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ConnectionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "costs.read"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "costs.setPrices"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SetPricesParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "diagnostics.report"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "discovery.refresh"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/DiscoveryParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "discovery.watch"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/DiscoveryWatchParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "events.read"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EventsParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "events.subscribe"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EventsParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "events.unsubscribe"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SubscriptionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "grants.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "grants.request"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/GrantParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "grants.revoke"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "health.get"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "inputs.put"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/InputPutParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "issues.acknowledge"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/IssueUpdateParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "issues.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "issues.snooze"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/IssueUpdateParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "models.list"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ModelsParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "models.page"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/ModelPageParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "notifications.ack"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/NotificationAckParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "notifications.configure"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/NotificationPreferences"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "notifications.poll"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "runtime.closeClient"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "runtime.handshake"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/HandshakeParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "runtime.health"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "selection.resolve"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/Requirements"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "selection.validate"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SelectionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.close"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.create"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionCreateParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.get"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.resume"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionResumeParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.suspend"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.updateOptions"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionOptionsParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "snapshot.get"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SnapshotParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "turns.cancel"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/TurnParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "turns.start"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/TurnStartParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "usage.read"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "not": {
+                        "required": [
+                          "error"
+                        ]
+                      },
+                      "required": [
+                        "result"
+                      ]
+                    },
+                    {
+                      "not": {
+                        "required": [
+                          "result"
+                        ]
+                      },
+                      "required": [
+                        "error"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "error": {
+                      "properties": {
+                        "code": {
+                          "type": "integer"
+                        },
+                        "data": {
+                          "$ref": "#/components/schemas/DomainError"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "type": "object"
+                    },
+                    "id": {
+                      "type": [
+                        "integer",
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "jsonrpc": {
+                      "const": "2.0"
+                    },
+                    "result": {}
+                  },
+                  "required": [
+                    "jsonrpc",
+                    "id"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/snapshot": {
+      "get": {
+        "description": "Same permission-scoped data as snapshot.get; no implicit enrichment.",
+        "operationId": "snapshot",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication and handshake required"
+          }
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "description": "Same permission-scoped data as usage.read; no implicit enrichment.",
+        "operationId": "usage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuotaPool"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Authentication and handshake required"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "localBearer": []
+    }
+  ]
+}
