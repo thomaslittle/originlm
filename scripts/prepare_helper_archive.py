@@ -212,7 +212,7 @@ def _update_sums(out, name, digest):
     )
 
 
-def prepare(binary, target, out, root, source_commit=None, allow_dirty=False):
+def prepare(binary, target, out, root, source_commit=None, allow_dirty=False, metadata_out=None):
     root = pathlib.Path(root).resolve()
     out = pathlib.Path(out).resolve()
     binary = pathlib.Path(binary).resolve()
@@ -299,6 +299,14 @@ def prepare(binary, target, out, root, source_commit=None, allow_dirty=False):
         (stage / 'manifest.json').write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8'
         )
+        if metadata_out:
+            metadata_out = pathlib.Path(metadata_out)
+            if metadata_out.exists():
+                shutil.rmtree(metadata_out)
+            metadata_out.mkdir(parents=True)
+            for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json', 'manifest.json'):
+                shutil.copy2(stage / name, metadata_out / name)
+            shutil.copytree(stage / 'licenses', metadata_out / 'licenses')
 
         name = archive_name(target)
         archive = out / name
@@ -341,8 +349,9 @@ def main():
     parser.add_argument('--root', type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
     parser.add_argument('--source-commit', default=os.environ.get('GITHUB_SHA'))
     parser.add_argument('--allow-dirty', action='store_true', help='local development only')
+    parser.add_argument('--metadata-out', type=pathlib.Path, help='copy archive license/SBOM/manifest metadata here')
     args = parser.parse_args()
-    print(json.dumps(prepare(args.binary, args.target, args.out, args.root, args.source_commit, args.allow_dirty), indent=2))
+    print(json.dumps(prepare(args.binary, args.target, args.out, args.root, args.source_commit, args.allow_dirty, args.metadata_out), indent=2))
 
 
 if __name__ == '__main__':

@@ -129,7 +129,7 @@ input. For repeated use, retain the owned client in host state and close it on e
 Install the same local tarballs in your existing Electron app. Run the Node example
 from a trusted main-process Connect handler after `app.whenReady()`. Expose only a
 narrow snapshot command through preload; keep context isolation enabled. Include
-`node_modules/@originlm/cli-*/bin/**` in the packager's `asarUnpack`. The helper must
+`node_modules/originlm-cli-*/bin/**` in the packager's `asarUnpack`. The helper must
 be a real executable outside the asar archive. The SDK resolves Electron’s
 `.asar.unpacked` path; `HELPER_NOT_UNPACKED` means the binary was not unpacked.
 Close the client when its owner exits.

@@ -115,10 +115,29 @@ The final release assets must all come from the same candidate SHA. The existing
 x64 CI bundles are useful evidence but are not final release assets if their SHA
 differs.
 
-This first alpha does **not** publish npm, crates.io or PyPI packages. The SDK's
-`private: true`, staged preview flag and `publish = false` Rust crates remain in
-place. Registry publication, consumer-repository pin changes and signing
-credentials are separate maintainer operations.
+## Official package staging
+
+The preparation workflow stages one **canonical universal** `originlm` npm
+tarball, built once on Linux x64. Its `optionalDependencies` are exactly the five
+supported `originlm-cli-<platform>` packages at the same exact version. Each
+native target produces only its own platform tarball; the aggregate job verifies
+the canonical SDK and every platform package's native manifest, helper, license
+and SBOM hashes.
+
+A post-aggregate consumer matrix then installs only `originlm` on Linux x64,
+Linux ARM64, macOS Intel, macOS Apple silicon and Windows x64 using a temporary
+local registry. It proves normal optional-dependency resolution, `createLocalAI()`
+with an empty home, empty `PATH`, no checkout and no `LAI_*` overrides, a private
+child helper, zero provider inference and no persistent service. An Ubuntu-only
+aggregate check is not treated as all-platform consumer proof.
+
+Actual npm/crates.io/PyPI publication is a separate authorized registry operation.
+No registry credential or GitHub environment currently exists in this repository,
+and the preparation workflow has read-only permissions. The workspace SDK keeps
+`private: true` (release staging removes it only in the publishable copy), and Rust
+crates keep `publish = false` until the registry closure and order are approved.
+Consumer-repository pin changes, signing credentials and public package ownership
+remain maintainer/root-release-worker operations.
 
 ## Maintainer gates for a signed/stable release
 
