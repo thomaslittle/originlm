@@ -19,8 +19,11 @@ Nothing here publishes a crate. ``--package`` only runs ``cargo package
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -262,7 +265,7 @@ def msrv_report(packages: dict[str, WorkspacePackage], selected: Iterable[str]) 
     )
 
 
-def package_in_order(order: list[str], packages: dict[str, WorkspacePackage]) -> None:
+def package_in_order(order: list[str], packages: dict[str, WorkspacePackage], package_dir: Path | None = None) -> None:
     """Package every publishable crate as if its predecessors were published.
 
     ``cargo package`` resolves intra-workspace versions against crates.io. The
@@ -291,6 +294,42 @@ def package_in_order(order: list[str], packages: dict[str, WorkspacePackage]) ->
                 ]
             )
         subprocess.run(command, cwd=ROOT, check=True)
+    if package_dir is not None:
+        target = Path(os.environ.get('CARGO_TARGET_DIR', ROOT / 'target'))
+        if not target.is_absolute():
+            target = ROOT / target
+        package_dir.mkdir(parents=True, exist_ok=True)
+        records = []
+        for name in order:
+            crate = target / 'package' / f'{name}-{packages[name].version}.crate'
+            if not crate.is_file():
+                raise PublishOrderError(f'packaged crate is missing: {crate}')
+            destination = package_dir / crate.name
+            shutil.copy2(crate, destination)
+            records.append({
+                'name': name,
+                'version': packages[name].version,
+                'file': destination.name,
+                'bytes': destination.stat().st_size,
+                'sha256': hashlib.sha256(destination.read_bytes()).hexdigest(),
+            })
+        commit = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=ROOT, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        (package_dir / 'SHA256SUMS').write_text(
+            ''.join(f'{record["sha256"]}  {record["file"]}\n' for record in records),
+            encoding='utf-8',
+        )
+        (package_dir / 'manifest.json').write_text(
+            json.dumps({
+                'schemaVersion': 1,
+                'kind': 'originlm-crate-release-set',
+                'sourceCommit': commit,
+                'order': order,
+                'packages': records,
+            }, indent=2, sort_keys=True) + '\n',
+            encoding='utf-8',
+        )
 
 
 def _transitive_dependencies(
@@ -319,6 +358,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="run cargo package --no-verify for every crate in order",
     )
+    parser.add_argument(
+        "--package-dir",
+        type=Path,
+        help="copy the packaged .crate files and a hashed manifest to this directory",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -329,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
             print("\n".join(order))
             print(msrv_report(packages, order), file=sys.stderr)
         if args.package:
-            package_in_order(order, packages)
+            package_in_order(order, packages, args.package_dir)
     except (PublishOrderError, subprocess.CalledProcessError) as error:
         print(f"publish-order check failed: {error}", file=sys.stderr)
         return 1
