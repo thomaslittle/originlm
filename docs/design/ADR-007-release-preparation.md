@@ -77,3 +77,17 @@ only the unpacked packages, and consumed by a fresh manifest whose only public
 dependency is `originlm`. The declared MSRV toolchain is used for this packaged
 check. Evidence is attached to the crate artifact and publisher gate; no
 registry upload, credential or provider action is involved.
+
+## Amendment: five-platform Python wheel qualification (2026-10-29)
+
+A separate read-only workflow (`.github/workflows/python-wheels.yml`) produces the
+five publishable wheels. Linux x86_64/ARM64 compile the helper inside the official
+`quay.io/pypa/manylinux_2_28_*` images and build
+`py3-none-manylinux_2_28_<arch>` wheels there; Ubuntu-built host wheels keep
+`linux_<arch>` and are never retagged. macOS Intel/Apple-silicon and Windows x64
+build native `macosx_15_0_<arch>` and `win_amd64` wheels on their own runners.
+Publishable staging requires an explicit `--release` flag and the
+license/SBOM/provenance metadata from the helper archive. Every wheel passes
+native helper smoke, format/architecture checks, `twine check`, and a fresh
+empty-home `Client.auto()` consumer proof; Linux additionally passes `auditwheel
+show`. No publication, signing or registry credential is added.
