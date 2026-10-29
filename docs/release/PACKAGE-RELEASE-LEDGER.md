@@ -14,6 +14,48 @@ does not claim registry publication or consumer migration before those happen.
 Actual publication must use maintainer/root-worker credentials in a protected
 environment. No credential was created, read or exposed.
 
+## Exact safe publication setup still required
+
+Do not paste secrets into chat or commit them. Use the registry's own login flow
+on a maintainer-controlled machine, or add repository/environment secrets for a
+protected release environment. The preparation workflow itself must remain
+read-only.
+
+### npm
+
+1. Confirm the intended npm account owns the unscoped `originlm` name and the
+   `@originlm` scope, or is authorized to claim them.
+2. Authenticate with `npm login` (interactive, 2FA) or create a granular
+   automation token with publish permission for `originlm` and `@originlm/*`.
+   Store it only as `NPM_TOKEN` in the protected release environment.
+3. Publish platform packages first, then the universal SDK:
+   `npm publish <platform.tgz> --access public` for each
+   `@originlm/cli-*`, then `npm publish originlm-<version>.tgz --access public`.
+4. Verify with `npm view originlm@<version> optionalDependencies` and a clean
+   `npm install originlm@<version>` consumer on each platform.
+
+### crates.io
+
+1. Confirm the intended crates.io account owns `originlm` and the 13-crate
+   publishable closure, or is authorized to claim the names.
+2. Authenticate interactively with `cargo login`, or use a scoped API token in
+   `CARGO_REGISTRY_TOKEN` in the protected release environment. Do not commit
+   `~/.cargo/credentials.toml`.
+3. Run `python3 scripts/publish_order.py --check` and a dry run, then publish in
+   the emitted order. Registry ownership must be checked before the first upload.
+4. Verify each version is visible and that `cargo add originlm@<version>` resolves
+   without path or git patches.
+
+### PyPI
+
+1. Confirm the intended PyPI account/project ownership for `originlm`.
+2. Authenticate with an API token as `TWINE_USERNAME=__token__` and
+   `TWINE_PASSWORD=<token>` in the protected release environment. Do not commit
+   `.pypirc`.
+3. Upload only the manylinux-qualified wheel after `auditwheel show` and
+   `twine check`; verify with a clean `pip install originlm==<version>` and
+   `Client.auto()` proof.
+
 ## npm universal SDK
 
 - Branch: `release/full-official-packages`
