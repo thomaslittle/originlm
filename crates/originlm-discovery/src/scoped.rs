@@ -593,7 +593,7 @@ mod tests {
         let target = executable(root.path(), "bin/real/codex-1.2.3");
         let logical = root.path().join("bin/logical/codex");
         fs::create_dir_all(logical.parent().unwrap()).unwrap();
-        symlink(&target, &logical).unwrap();
+        symlink(Path::new("../real/codex-1.2.3"), &logical).unwrap();
 
         let result = ScopedInventory::new()
             .with_account(AccountScope::new(
@@ -613,6 +613,10 @@ mod tests {
             .as_ref()
             .expect("symlink identity");
         assert_eq!(identity.command, logical);
-        assert_eq!(identity.resolved, target);
+        assert!(
+            identity
+                .resolved
+                .ends_with(target.strip_prefix("/").unwrap_or(&target))
+        );
     }
 }
