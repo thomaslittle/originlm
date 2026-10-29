@@ -75,7 +75,7 @@ read-only.
 
 - Branch: `t3/python-wheel-qualification`
 - PR: [#15](https://github.com/thomaslittle/originlm/pull/15)
-- Head: `05319ccc87eea5dc46ccfd3c0197ca34ccf1d4e4` (stacked on PR14)
+- Head: `2e06a594f316c5dfe4962628bc9d93596fabcd87` (stacked on PR14)
 - Adds a read-only manylinux_2_28 x86_64/aarch64 workflow using official
   `quay.io/pypa/manylinux_2_28_*` images, explicit `--release` staging that
   removes the private upload classifier only for publishable wheels, embedded
@@ -86,8 +86,9 @@ read-only.
 - Local evidence: 57 packaging tests, 40 SDK Python tests, 11 generation tests,
   `check_project.py` pass; host-tagged wheel built and smoke-tested. The real
   manylinux_2_28 build is being run in CI; it is not claimed until that job passes.
-- The first manylinux aarch64 run failed on a Rust shim conflict before building;
-  isolated `RUSTUP_HOME`/`CARGO_HOME` now fix that and reruns are queued.
+- The first manylinux aarch64 run failed on a Rust shim conflict before building.
+  Isolated `RUSTUP_HOME`/`CARGO_HOME` and per-step exports now avoid the image
+  shims; the follow-up workflow run is the authoritative manylinux proof.
 
 ## Cargo closure and Rust facade
 
