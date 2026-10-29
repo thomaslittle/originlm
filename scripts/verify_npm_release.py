@@ -147,8 +147,11 @@ def verify(packages, version, source_commit=None, require_all=False):
     if require_all and seen != set(PLATFORM_PACKAGES):
         missing = sorted(set(PLATFORM_PACKAGES) - seen)
         raise VerifyNpmError(f'missing platform packages: {missing}')
+    targets = sorted({item['nativeTarget'] for item in report})
     return {
         'status': 'pass',
+        'target': targets[0] if len(targets) == 1 else None,
+        'targets': targets,
         'version': version,
         'sdk': sdk[0].name,
         'sdkSha256': _hash(sdk[0].read_bytes()),

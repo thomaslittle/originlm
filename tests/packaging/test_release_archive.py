@@ -142,6 +142,8 @@ class NpmReleaseShape(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             evidence = npm_release.verify(self.build(directory), self.version, 'a' * 40)
             self.assertEqual(evidence['status'], 'pass')
+            self.assertEqual(evidence['target'], 'x86_64-unknown-linux-gnu')
+            self.assertEqual(evidence['targets'], ['x86_64-unknown-linux-gnu'])
             self.assertEqual(len(evidence['optionalDependencies']), 5)
 
     def test_a_partial_platform_set_is_rejected(self):
@@ -166,14 +168,23 @@ class NpmPackaging(unittest.TestCase):
             (package / 'dist').mkdir(parents=True)
             (package / 'package.json').write_text(json.dumps({
                 'name': 'originlm', 'version': '0.1.0-alpha.20',
+                'files': ['dist', 'LICENSE'],
             }), encoding='utf-8')
             (package / 'dist' / 'index.js').write_text('export {};\n', encoding='utf-8')
-            first = npm_pack.pack(package, pathlib.Path(directory) / 'one')
-            second = npm_pack.pack(package, pathlib.Path(directory) / 'two')
+            (package / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+            (package / 'src').mkdir()
+            (package / 'src' / 'secret.ts').write_text('secret\n', encoding='utf-8')
+            (package / 'tests').mkdir()
+            (package / 'tests' / 'x.test.mjs').write_text('test\n', encoding='utf-8')
+            (package / 'tsconfig.json').write_text('{}\n', encoding='utf-8')
+            first = npm_pack.pack(package, pathlib.Path(directory) / 'one', require=['dist/index.js', 'LICENSE'])
+            second = npm_pack.pack(package, pathlib.Path(directory) / 'two', require=['dist/index.js', 'LICENSE'])
             self.assertEqual(first.read_bytes(), second.read_bytes())
             with tarfile.open(first, 'r:gz') as archive:
-                self.assertEqual(sorted(archive.getnames()), ['package/dist/index.js', 'package/package.json'])
+                self.assertEqual(sorted(archive.getnames()), ['package/LICENSE', 'package/dist/index.js', 'package/package.json'])
                 self.assertTrue(all(member.mtime == 0 for member in archive.getmembers()))
+            with self.assertRaises(npm_pack.PackError):
+                npm_pack.pack(package, pathlib.Path(directory) / 'three', require=['src/secret.ts'])
 
 
 class ArchiveValidation(unittest.TestCase):

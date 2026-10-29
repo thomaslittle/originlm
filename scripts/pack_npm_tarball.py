@@ -9,6 +9,7 @@ owners/modes, which makes the universal SDK byte-identical across all targets.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import gzip
 import json
 import pathlib
@@ -20,7 +21,32 @@ class PackError(RuntimeError):
     pass
 
 
-def pack(package, out, name=None):
+AUTO_FILES = (
+    'README', 'README.md', 'README.txt', 'LICENSE', 'LICENSE.md', 'LICENSE.txt',
+    'LICENCE', 'LICENCE.md', 'LICENCE.txt', 'NOTICE', 'NOTICE.md', 'NOTICE.txt',
+    'CHANGELOG', 'CHANGELOG.md', 'CHANGELOG.txt',
+)
+EXCLUDED_DIRS = {'.git', 'node_modules'}
+
+
+def _included(relative, patterns):
+    if any(part in EXCLUDED_DIRS for part in relative.parts[:-1]):
+        return False
+    if relative.as_posix() == 'package.json' or relative.name in AUTO_FILES:
+        return True
+    text = relative.as_posix()
+    for pattern in patterns:
+        pattern = str(pattern).strip().lstrip('./').rstrip('/')
+        if not pattern:
+            continue
+        if text == pattern or text.startswith(pattern + '/'):
+            return True
+        if fnmatch.fnmatch(text, pattern):
+            return True
+    return False
+
+
+def pack(package, out, name=None, require=()):
     package = pathlib.Path(package).resolve()
     manifest_path = package / 'package.json'
     if package.is_symlink() or not manifest_path.is_file():
@@ -30,6 +56,9 @@ def pack(package, out, name=None):
     version = manifest.get('version')
     if not isinstance(package_name, str) or not package_name or not isinstance(version, str) or not version:
         raise PackError('package.json must declare name and version')
+    patterns = manifest.get('files')
+    if not isinstance(patterns, list) or not patterns or not all(isinstance(item, str) and item for item in patterns):
+        raise PackError('package.json must declare a non-empty files allowlist')
     if name:
         filename = name
     else:
@@ -38,7 +67,11 @@ def pack(package, out, name=None):
     out.mkdir(parents=True, exist_ok=True)
     destination = out / (filename if filename.endswith('.tgz') else filename + '.tgz')
     files = []
+    included = set()
     for path in sorted(package.rglob('*')):
+        relative = path.relative_to(package)
+        if not _included(relative, patterns):
+            continue
         if path.is_symlink():
             raise PackError(f'package member cannot be a symlink: {path}')
         if path.is_dir():
@@ -46,6 +79,10 @@ def pack(package, out, name=None):
         if not path.is_file():
             raise PackError(f'package member must be a regular file: {path}')
         files.append(path)
+        included.add(relative.as_posix())
+    missing = sorted(set(require) - included)
+    if missing:
+        raise PackError(f'required publishable files are missing: {missing}')
     with destination.open('wb') as raw:
         with gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0, compresslevel=9) as compressed:
             with tarfile.open(fileobj=compressed, mode='w', format=tarfile.USTAR_FORMAT) as archive:
@@ -69,8 +106,9 @@ def main():
     parser.add_argument('--package', type=pathlib.Path, required=True)
     parser.add_argument('--out', type=pathlib.Path, required=True)
     parser.add_argument('--name')
+    parser.add_argument('--require', action='append', default=[])
     args = parser.parse_args()
-    print(pack(args.package, args.out, args.name))
+    print(pack(args.package, args.out, args.name, args.require))
 
 
 if __name__ == '__main__':

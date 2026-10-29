@@ -87,7 +87,8 @@ jobs:
             --release --all-platforms
           mkdir -p prepared/npm
           for dir in npm-out/*; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
-          python scripts/pack_npm_tarball.py --package npm-sdk --out prepared/npm
+          python scripts/pack_npm_tarball.py --package npm-sdk --out prepared/npm \
+            --require dist/index.js --require node/auto.mjs --require LICENSE --require THIRD_PARTY_NOTICES.md
           python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
           (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
       - name: Verify packaged npm release and fresh consumer
