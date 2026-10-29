@@ -8,6 +8,10 @@ use std::{
 };
 use tokio::{task::JoinSet, time::Instant};
 
+/// Must stay below `cache::USAGE_FRESHNESS_TTL`; 45s leaves margin for the
+/// bounded provider probe before a 60s observation expires.
+const USAGE_REFRESH_PERIOD: Duration = Duration::from_secs(45);
+
 impl NativeService {
     fn interested_clients(&self) -> bool {
         let Ok(clients) = self.clients.read() else {
@@ -66,7 +70,11 @@ impl NativeService {
             // Targeted invalidation/unknown metadata is checked every tick;
             // expiry and usage have independent, interest-sensitive deadlines.
             let metadata_period = Duration::from_secs(if active { 900 } else { 3600 });
-            let usage_period = Duration::from_secs(if active { 60 } else { 300 });
+            // Usage windows are marked stale at USAGE_FRESHNESS_TTL (60s). Poll
+            // faster than that even without client interest: a monitor waking
+            // after an idle period must not read an already-expired window while
+            // the next probe is still waiting for a slower cadence.
+            let usage_period = USAGE_REFRESH_PERIOD;
             let metadata = self
                 .cache
                 .due_probes(&providers, 64, metadata_period, &metadata_after)
@@ -117,5 +125,13 @@ impl NativeService {
             }
         }
         // Dropping the JoinSets aborts only this supervisor's async work.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn usage_polling_stays_ahead_of_the_freshness_threshold() {
+        assert!(super::USAGE_REFRESH_PERIOD < crate::cache::USAGE_FRESHNESS_TTL);
     }
 }

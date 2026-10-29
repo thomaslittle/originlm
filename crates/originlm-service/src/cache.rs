@@ -24,7 +24,7 @@ const METADATA_PROBE_CACHE_TTL: Duration = Duration::from_secs(60);
 const METADATA_FRESHNESS_TTL: Duration = Duration::from_secs(15 * 60);
 /// Authoritative usage/reset observations are polled on their own, faster
 /// cadence. This never advances a reset; it only re-reads provider evidence.
-const USAGE_FRESHNESS_TTL: Duration = Duration::from_secs(60);
+pub(crate) const USAGE_FRESHNESS_TTL: Duration = Duration::from_secs(60);
 const JOURNAL_LIMIT: usize = 2048;
 const JOURNAL_PAGE: usize = 256;
 

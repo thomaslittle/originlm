@@ -29,6 +29,8 @@ The toolkit does **not** infer quota, token cost, or plan access merely because 
 
 Connection probes remain single-flight per connection. Successful metadata is cached and field evidence becomes stale rather than silently refreshed in the background.
 
+Usage and reset observations are polled on a cadence shorter than their 60-second freshness window, including while no client interest is active. Interest changes metadata/inventory cadence only; it cannot let a monitor wake to an expired usage window while waiting for a slower idle poll.
+
 Retryable failures use bounded exponential backoff starting near 250 ms, capped at 30 seconds, with deterministic per-connection jitter. An upstream `Retry-After` value takes precedence and is bounded to 24 hours. Nonretryable failures retain a short negative cache to prevent tight loops.
 
 Only safe retry information crosses the public API:
