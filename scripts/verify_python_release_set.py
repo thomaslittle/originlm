@@ -15,6 +15,7 @@ import json
 import pathlib
 import shutil
 import sys
+import zipfile
 
 import verify_python_wheel
 from release_targets import TARGETS
@@ -24,16 +25,21 @@ class PublishSetError(RuntimeError):
     pass
 
 
-EXPECTED = {
-    target: info for target, info in TARGETS.items()
-    if target in {
-        'x86_64-unknown-linux-gnu',
-        'aarch64-unknown-linux-gnu',
-        'x86_64-apple-darwin',
-        'aarch64-apple-darwin',
-        'x86_64-pc-windows-msvc',
-    }
-}
+EXPECTED_TARGETS = (
+    'x86_64-unknown-linux-gnu',
+    'aarch64-unknown-linux-gnu',
+    'x86_64-apple-darwin',
+    'aarch64-apple-darwin',
+    'x86_64-pc-windows-msvc',
+)
+EXPECTED = {}
+for _target in EXPECTED_TARGETS:
+    if _target not in TARGETS:
+        raise PublishSetError(f'target info is missing for {_target}')
+    _info = TARGETS[_target]
+    if not _info.get('releaseWheelPlatform') or not _info.get('releaseWheelKind'):
+        raise PublishSetError(f'target info for {_target} lacks release wheel fields')
+    EXPECTED[_target] = _info
 
 
 def _evidence(path):
@@ -45,7 +51,8 @@ def _evidence(path):
         raise PublishSetError(f'invalid evidence: {path}') from error
 
 
-def validate_evidence(target, wheel_sha256, wheel_evidence, consumer_evidence,
+def validate_evidence(target, wheel_sha256, helper_sha256, helper_bytes,
+                      wheel_evidence, helper_evidence, consumer_evidence,
                       version, source_commit):
     info = EXPECTED[target]
     platform = info['releaseWheelPlatform']
@@ -59,6 +66,8 @@ def validate_evidence(target, wheel_sha256, wheel_evidence, consumer_evidence,
         problems.append('wheel source mismatch')
     if wheel_evidence.get('version') != version:
         problems.append('wheel version mismatch')
+    if wheel_evidence.get('sha256') != wheel_sha256:
+        problems.append('wheel evidence hash mismatch')
     if wheel_evidence.get('platform') != platform:
         problems.append(f'wheel platform is not {platform}')
     if wheel_evidence.get('release') is not True or wheel_evidence.get('uploadGuard') != 'removed':
@@ -77,6 +86,25 @@ def validate_evidence(target, wheel_sha256, wheel_evidence, consumer_evidence,
             problems.append(f'native {expected_format} binary proof is missing')
     if not (wheel_evidence.get('twine') or {}).get('passed'):
         problems.append('twine check is missing')
+    if helper_evidence.get('status') != 'pass':
+        problems.append('helper smoke evidence is not pass')
+    if helper_evidence.get('target') != target:
+        problems.append('helper smoke target mismatch')
+    if helper_evidence.get('version') != version:
+        problems.append('helper smoke version mismatch')
+    if helper_evidence.get('versionOutput') != f'originlm {version}':
+        problems.append('helper smoke version output mismatch')
+    if helper_evidence.get('helperBytes') != helper_bytes or helper_bytes <= 0:
+        problems.append('helper smoke byte length does not match the packaged helper')
+    if helper_evidence.get('inferenceRequests') != 0:
+        problems.append('helper smoke performed inference')
+    for phase in ('passiveScan', 'stdio'):
+        values = helper_evidence.get(phase)
+        if not isinstance(values, dict):
+            problems.append(f'helper smoke lacks {phase} evidence')
+            continue
+        if values.get('connections') != 0 or values.get('models') != 0 or values.get('accounts') != 0:
+            problems.append(f'helper smoke {phase} observed provider data')
     if consumer_evidence.get('status') != 'pass':
         problems.append('consumer evidence is not pass')
     if consumer_evidence.get('target') != target:
@@ -87,10 +115,18 @@ def validate_evidence(target, wheel_sha256, wheel_evidence, consumer_evidence,
         problems.append('consumer version mismatch')
     if consumer_evidence.get('wheelSha256') != wheel_sha256:
         problems.append('consumer wheel hash mismatch')
+    for field in ('helperThroughPackageData', 'emptyHome', 'emptyPath', 'noOverrides', 'noCheckout'):
+        if consumer_evidence.get(field) is not True:
+            problems.append(f'consumer safety field {field} is not true')
+    if consumer_evidence.get('sharedGrant') is not False:
+        problems.append('consumer sharedGrant is not false')
+    if consumer_evidence.get('persistentServices') != 0:
+        problems.append('consumer persistentServices is not zero')
     if consumer_evidence.get('mode') != 'child':
         problems.append('consumer did not use the packaged private helper')
-    if consumer_evidence.get('connections') or consumer_evidence.get('models') or consumer_evidence.get('accounts'):
-        problems.append('consumer observed provider data in an empty home')
+    for field in ('connections', 'models', 'accounts'):
+        if consumer_evidence.get(field) != 0:
+            problems.append(f'consumer {field} is not explicitly zero')
     if consumer_evidence.get('inferenceRequests') != 0:
         problems.append('consumer performed inference')
     if problems:
@@ -100,6 +136,8 @@ def validate_evidence(target, wheel_sha256, wheel_evidence, consumer_evidence,
         'platform': platform,
         'kind': kind,
         'wheelSha256': wheel_sha256,
+        'helperSha256': helper_sha256,
+        'helperBytes': helper_bytes,
     }
 
 
@@ -129,9 +167,20 @@ def verify_set(artifacts, version, source_commit, dist, reports):
             raise PublishSetError(f'{target}: wheel is not a regular file')
         wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()
         wheel_evidence = _evidence(directory / 'prepared' / 'evidence' / f'python-wheel-{target}.json')
+        helper_evidence = _evidence(directory / 'prepared' / 'evidence' / f'helper-binary-{target}.json')
         consumer_evidence = _evidence(directory / 'prepared' / 'evidence' / f'python-consumer-{target}.json')
+        with zipfile.ZipFile(wheel) as archive:
+            executable = 'originlm.exe' if target.endswith('windows-msvc') else 'originlm'
+            helper_path = f'originlm/_bin/{executable}'
+            helper_data = archive.read(helper_path)
+            native_manifest = json.loads(archive.read('originlm/manifest.json').decode('utf-8'))
+        helper_sha256 = hashlib.sha256(helper_data).hexdigest()
+        helper_record = (native_manifest.get('members') or {}).get(f'helper-{target}/{executable}')
+        if not isinstance(helper_record, dict) or helper_record.get('sha256') != helper_sha256 or helper_record.get('bytes') != len(helper_data):
+            raise PublishSetError(f'{target}: packaged helper differs from native manifest')
         record = validate_evidence(
-            target, wheel_sha256, wheel_evidence, consumer_evidence, version, source_commit
+            target, wheel_sha256, helper_sha256, len(helper_data),
+            wheel_evidence, helper_evidence, consumer_evidence, version, source_commit
         )
         verified = verify_python_wheel.verify(
             wheel, version, target=target,

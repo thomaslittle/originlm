@@ -1,8 +1,8 @@
 name: Publish Python wheels
 
 # Manual, protected publisher. Defaults to dry-run; an actual publish requires
-# the release-pypi environment approval and confirm=PUBLISH. Only manylinux
-# wheels that passed the qualification workflow are uploaded.
+# the release-pypi environment approval and confirm=PUBLISH. Exactly the five
+# qualified platform wheels that passed the qualification workflow are uploaded.
 on:
   workflow_dispatch:
     inputs:

@@ -60,24 +60,49 @@ class PublisherWorkflows(unittest.TestCase):
             'status': 'pass', 'target': 'x86_64-pc-windows-msvc',
             'sourceCommit': source, 'version': version, 'wheelSha256': wheel_sha,
             'mode': 'child', 'connections': 0, 'models': 0, 'accounts': 0,
+            'helperThroughPackageData': True, 'emptyHome': True, 'emptyPath': True,
+            'noOverrides': True, 'noCheckout': True, 'sharedGrant': False,
+            'persistentServices': 0, 'inferenceRequests': 0,
+        }
+        helper = {
+            'status': 'pass', 'target': 'x86_64-pc-windows-msvc', 'version': version,
+            'versionOutput': f'originlm {version}', 'helperBytes': 123,
             'inferenceRequests': 0,
+            'passiveScan': {'connections': 0, 'models': 0, 'accounts': 0},
+            'stdio': {'connections': 0, 'models': 0, 'accounts': 0},
         }
         wheel = {
             'status': 'pass', 'target': 'x86_64-pc-windows-msvc',
             'sourceCommit': source, 'version': version, 'platform': 'win_amd64',
-            'release': True, 'uploadGuard': 'removed', 'manylinux': False,
+            'sha256': wheel_sha, 'release': True, 'uploadGuard': 'removed',
+            'manylinux': False,
             'nativeBinary': {'format': 'pe', 'passed': True},
             'twine': {'passed': True},
         }
         result = module.validate_evidence(
-            'x86_64-pc-windows-msvc', wheel_sha, wheel, consumer, version, source
+            'x86_64-pc-windows-msvc', wheel_sha, 'c' * 64, 123,
+            wheel, helper, consumer, version, source,
         )
         self.assertEqual(result['kind'], 'windows')
+        for changed, field in ((dict(wheel, sha256='d' * 64), 'wheel hash'),):
+            with self.assertRaises(module.PublishSetError):
+                module.validate_evidence(
+                    'x86_64-pc-windows-msvc', wheel_sha, 'c' * 64, 123,
+                    changed, helper, consumer, version, source,
+                )
         broken = dict(wheel)
         broken['nativeBinary'] = {'format': 'pe', 'passed': False}
         with self.assertRaises(module.PublishSetError):
             module.validate_evidence(
-                'x86_64-pc-windows-msvc', wheel_sha, broken, consumer, version, source
+                'x86_64-pc-windows-msvc', wheel_sha, 'c' * 64, 123,
+                broken, helper, consumer, version, source,
+            )
+        missing_safety = dict(consumer)
+        del missing_safety['emptyHome']
+        with self.assertRaises(module.PublishSetError):
+            module.validate_evidence(
+                'x86_64-pc-windows-msvc', wheel_sha, 'c' * 64, 123,
+                wheel, helper, missing_safety, version, source,
             )
 
     def test_crate_preparation_fetches_before_offline_packaging(self):
