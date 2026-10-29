@@ -56,7 +56,12 @@
 //! rejected instead of silently scanning a broader machine home. The facade
 //! re-exports [`ScanResult`], [`LocatedClient`], [`ExecutableIdentity`],
 //! [`NativeProfile`] and [`NativeProvider`] so a consumer can build synthetic
-//! inventory and scoped native configuration with only this crate.
+//! inventory and scoped native configuration with only this crate. Exact
+//! Codex, Claude Code and OpenCode accounts use [`ScopedInventory`],
+//! [`AccountScope`] and [`ScopedProvider`] with [`scoped_inventory_source`]; the
+//! official scanner derives account/connection identities and Unix symlink
+//! identity per exact home and logical executable, and one failed account does
+//! not suppress the others.
 //!
 //! [`LocalAi::close`] cooperatively cancels in-process background lanes and the
 //! active inventory refresh, then waits at most
@@ -106,8 +111,9 @@ pub use originlm_contracts::{
 };
 use originlm_control::{BrokerClient, DEFAULT_CALL_TIMEOUT};
 pub use originlm_kit::{
-    ClientPolicy, ExecutableIdentity, ExecutionGrant, InventorySource, LocatedClient,
-    NativeClientRegistry, NativeProfile, NativeProvider, ScanResult,
+    AccountScope, ClientPolicy, ExecutableIdentity, ExecutionGrant, InventorySource, LocatedClient,
+    NativeClientRegistry, NativeProfile, NativeProvider, ScanResult, ScopedInventory,
+    ScopedProvider, scoped_inventory_source,
 };
 use originlm_kit::{EmbeddedClient, Kit};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -1284,6 +1290,15 @@ impl LocalAi {
     }
 }
 
+impl Drop for LocalAi {
+    fn drop(&mut self) {
+        // RAII must use the same bounded, cooperative shutdown as an explicit
+        // close; otherwise unwinding can wait indefinitely on a blocking
+        // inventory callback.
+        self.close();
+    }
+}
+
 /// Cursor-based event subscription returned by [`LocalAi::subscribe_events`].
 ///
 /// No background work runs while this value exists. Call [`Self::poll`] from
@@ -2004,6 +2019,38 @@ mod tests {
         assert!(
             close_elapsed < Duration::from_millis(500),
             "cooperative inventory should finish inside the close bound: {close_elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn dropping_embedded_runtime_uses_the_bounded_close_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut ai = LocalAi::start_with(StartOptions {
+            required_mode: Some(Mode::InProcess),
+            home: Some(directory.path().to_path_buf()),
+            inventory: Some(inventory(fixture(), Duration::from_millis(1500))),
+            close_timeout: Duration::from_millis(100),
+            ..StartOptions::default()
+        })
+        .unwrap();
+        let cancel = CancelToken::new();
+        let signal = cancel.clone();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            signal.cancel();
+        });
+        let error = ai
+            .call_cancellable("discovery.refresh", json!({"level":"passive"}), &cancel)
+            .unwrap_err();
+        stopper.join().unwrap();
+        assert_eq!(error.code, ErrorCode::Cancelled);
+
+        let drop_started = Instant::now();
+        drop(ai);
+        let drop_elapsed = drop_started.elapsed();
+        assert!(
+            drop_elapsed < Duration::from_millis(700),
+            "ordinary Drop must not wait for non-cooperative inventory: {drop_elapsed:?}"
         );
     }
 
