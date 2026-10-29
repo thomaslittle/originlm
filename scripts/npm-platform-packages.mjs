@@ -5,14 +5,12 @@
  *   node scripts/npm-platform-packages.mjs \
  *     --binary target/release/originlm \
  *     --target x86_64-unknown-linux-gnu \
- *     --out npm-out
+ *     --out npm-out --metadata prepared/metadata/<target>
  *
- * Each package contains exactly one binary and a manifest with `os`/`cpu` and a
- * `bin` entry. The SDK resolves `originlm-cli-<platform>/package.json` and
- * the binary next to it (esbuild/Biome shape), so no postinstall script or
- * download is involved. The release workflow adds these names to the SDK's
- * `optionalDependencies` before publishing; the workspace copy stays free of
- * platform-specific dependencies so `npm ci` is identical everywhere.
+ * Each package contains exactly one binary, a manifest with `os`/`cpu` and a
+ * `bin` entry, plus the qualified native manifest/SBOM/notices/license texts.
+ * The SDK resolves `originlm-cli-<platform>/package.json` and the binary next to
+ * it, so no postinstall script or download is involved.
  */
 import {copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';

@@ -8,7 +8,7 @@
  *
  * The workspace package.json deliberately has no platform dependencies so
  * `npm ci` is identical on every machine. Release staging is the single
- * universal `originlm` tarball: it declares all five exact-version
+ * universal `originlm` tarball: it declares all five exact-version unscoped
  * `originlm-cli-<platform>` packages as optionalDependencies. All release jobs
  * produce the same universal manifest; only the built platform package differs.
  */
