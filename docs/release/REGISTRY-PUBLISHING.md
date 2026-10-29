@@ -128,9 +128,12 @@ Create a pending trusted publisher for the `originlm` project:
 - Environment name: `release-pypi`
 
 No API token is needed. The workflow requests `id-token: write` and uses
-`pypa/gh-action-pypi-publish@release/v1`; it refuses to upload unless both
-manylinux_2_28 wheels and their `python-wheel`/`python-consumer` evidence are
-present and pass `auditwheel show` and `twine check`.
+`pypa/gh-action-pypi-publish@release/v1`; it refuses to upload unless exactly the
+five supported targets are present with matching `python-wheel` and
+`python-consumer` evidence. Linux x86_64/ARM64 require `auditwheel show`
+manylinux_2_28 proof; macOS Intel/Apple-silicon and Windows x64 require native
+PE/Mach-O binary, platform-tag and `twine check` proof. Reports stay outside the
+upload directory; only wheel files reach PyPI.
 
 Official reference: <https://docs.pypi.org/trusted-publishers/using-a-publisher/>.
 

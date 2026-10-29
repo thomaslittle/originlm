@@ -2,11 +2,13 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import sys
 import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / '.github' / 'workflows'
+sys.path.insert(0, str(ROOT / 'scripts'))
 
 
 def load(name):
@@ -17,23 +19,66 @@ def load(name):
 
 
 class PublisherWorkflows(unittest.TestCase):
-    def test_pypi_uses_qualified_manylinux_platform(self):
+    def test_pypi_uses_qualified_platform_set(self):
         workflow = (WORKFLOWS / 'publish-pypi.yml').read_text(encoding='utf-8')
-        self.assertIn("target_info('$target')['manylinuxPlatform']", workflow)
-        self.assertNotIn("['wheelPlatform']", workflow)
-        self.assertIn("*linux-gnu)", workflow)
+        self.assertIn('verify_python_release_set.py', workflow)
+        self.assertIn('--dist dist --reports reports', workflow)
+        self.assertNotIn("*linux-gnu)", workflow)
+        module = load('verify_python_release_set')
+        self.assertEqual(set(module.EXPECTED), {
+            'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
+            'x86_64-apple-darwin', 'aarch64-apple-darwin',
+            'x86_64-pc-windows-msvc',
+        })
+        self.assertEqual(
+            {target: info['releaseWheelPlatform'] for target, info in module.EXPECTED.items()},
+            {
+                'x86_64-unknown-linux-gnu': 'manylinux_2_28_x86_64',
+                'aarch64-unknown-linux-gnu': 'manylinux_2_28_aarch64',
+                'x86_64-apple-darwin': 'macosx_15_0_x86_64',
+                'aarch64-apple-darwin': 'macosx_15_0_arm64',
+                'x86_64-pc-windows-msvc': 'win_amd64',
+            },
+        )
 
     def test_pypi_upload_directory_contains_only_wheels(self):
         workflow = (WORKFLOWS / 'publish-pypi.yml').read_text(encoding='utf-8')
-        self.assertIn('mkdir -p dist reports', workflow)
-        self.assertIn('--out "reports/python-wheel-$target.json"', workflow)
-        self.assertIn('cp "$wheel" dist/', workflow)
+        self.assertIn('verify_python_release_set.py', workflow)
         self.assertIn('packages-dir: dist', workflow)
-        self.assertIn('name: python-wheel-verification-reports', workflow)
-        self.assertIn('sha256sum dist/*.whl > python-wheel-SHA256SUMS', workflow)
         self.assertIn("find dist -type f ! -name '*.whl'", workflow)
-        upload = workflow.split('Publish to PyPI with trusted publishing', 1)[1]
-        self.assertNotIn('python-wheel-SHA256SUMS', upload.split('packages-dir:', 1)[0])
+        self.assertIn('name: python-wheel-verification-reports', workflow)
+        script = (ROOT / 'scripts/verify_python_release_set.py').read_text(encoding='utf-8')
+        self.assertIn("sums = reports / 'python-wheel-SHA256SUMS'", script)
+        self.assertIn('shutil.copy2(wheel, dist / wheel.name)', script)
+
+    def test_python_release_evidence_requires_native_and_manylinux_proofs(self):
+        module = load('verify_python_release_set')
+        version = '0.1.0-alpha.20'
+        source = 'a' * 40
+        wheel_sha = 'b' * 64
+        consumer = {
+            'status': 'pass', 'target': 'x86_64-pc-windows-msvc',
+            'sourceCommit': source, 'version': version, 'wheelSha256': wheel_sha,
+            'mode': 'child', 'connections': 0, 'models': 0, 'accounts': 0,
+            'inferenceRequests': 0,
+        }
+        wheel = {
+            'status': 'pass', 'target': 'x86_64-pc-windows-msvc',
+            'sourceCommit': source, 'version': version, 'platform': 'win_amd64',
+            'release': True, 'uploadGuard': 'removed', 'manylinux': False,
+            'nativeBinary': {'format': 'pe', 'passed': True},
+            'twine': {'passed': True},
+        }
+        result = module.validate_evidence(
+            'x86_64-pc-windows-msvc', wheel_sha, wheel, consumer, version, source
+        )
+        self.assertEqual(result['kind'], 'windows')
+        broken = dict(wheel)
+        broken['nativeBinary'] = {'format': 'pe', 'passed': False}
+        with self.assertRaises(module.PublishSetError):
+            module.validate_evidence(
+                'x86_64-pc-windows-msvc', wheel_sha, broken, consumer, version, source
+            )
 
     def test_crate_preparation_fetches_before_offline_packaging(self):
         workflow = (WORKFLOWS / 'prepare-crates.yml').read_text(encoding='utf-8')
