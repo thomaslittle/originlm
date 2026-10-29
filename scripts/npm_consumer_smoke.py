@@ -106,7 +106,7 @@ def _clean_env(home):
     return env
 
 
-def smoke(sdk, platform, version, timeout=180):
+def smoke(sdk, platform, version, target, timeout=180):
     sdk = pathlib.Path(sdk).resolve()
     platform = pathlib.Path(platform).resolve()
     for path in (sdk, platform):
@@ -145,6 +145,7 @@ def smoke(sdk, platform, version, timeout=180):
         raise ConsumerError('consumer observed provider data in an empty home')
     return {
         'status': 'pass',
+        'target': target,
         'sdk': sdk.name,
         'platformPackage': platform.name,
         'version': version,
@@ -164,10 +165,11 @@ def main():
     parser.add_argument('--sdk', type=pathlib.Path, required=True)
     parser.add_argument('--platform', type=pathlib.Path, required=True)
     parser.add_argument('--version', required=True)
+    parser.add_argument('--target', required=True)
     parser.add_argument('--out', type=pathlib.Path)
     parser.add_argument('--timeout', type=int, default=180)
     args = parser.parse_args()
-    evidence = smoke(args.sdk, args.platform, args.version, args.timeout)
+    evidence = smoke(args.sdk, args.platform, args.version, args.target, args.timeout)
     text = json.dumps(evidence, indent=2, sort_keys=True) + '\n'
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
