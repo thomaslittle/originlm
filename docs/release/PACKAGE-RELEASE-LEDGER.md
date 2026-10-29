@@ -94,7 +94,7 @@ read-only.
 
 - Branch: `t3/publish-facade-execution-api`
 - PR: [#16](https://github.com/thomaslittle/originlm/pull/16)
-- Head: `2bed31f81f6635b874101c935e4924dc380e3e12` (stacked on PR14; includes the npm evidence target fix and MSRV evidence gate)
+- Head: `71c03abf525eac7aaa82520eac7538f8f183c407` (stacked on PR14; includes the npm evidence target fix, MSRV evidence gate, and evidence snapshot)
 - 13 publishable crates; `originlm-cli`, `originlm-desktop` and `originlm-update`
   remain private.
 - All intra-workspace dependencies in publishable crates use workspace version +
@@ -104,10 +104,15 @@ read-only.
   close, turn start/cancel, cursor event reads/subscriptions, approval response,
   explicit `authorize_execution`, and idempotent `close`. Registration is not a
   grant; shared/child modes cannot be granted through the facade.
-- Actual declared MSRV: `cargo +1.88.0 check --workspace --exclude
-  originlm-desktop --all-targets --locked` passed locally (rustc 1.88.0). The
-  worker's earlier caveat is resolved by this independent check.
-- CI: checks in progress.
+- Actual declared MSRV evidence is durable in workflow `Verify declared MSRV`
+  (run `40911954983`, artifact `msrv-1.88-evidence`) for code head `2bed31f`;
+  the artifact tested GitHub PR merge SHA `61dcb65d` with rustc/cargo 1.88.0,
+  exit 0 and the exact command `cargo +1.88.0 check --workspace --exclude
+  originlm-desktop --all-targets --locked`. A snapshot is committed at
+  `docs/release/evidence/msrv-1.88.json`.
+- Current head `71c03ab` adds only documentation/evidence-snapshot files; its
+  MSRV rerun `40913002077` is still pending. Do not claim the current head passed
+  until that exact evidence exists.
 
 ## Consumer targets
 
