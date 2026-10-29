@@ -8,19 +8,19 @@
  *
  * The workspace package.json deliberately has no platform dependencies so
  * `npm ci` is identical on every machine. Release staging is the single
- * universal `originlm` tarball: it declares all five exact-version
- * `@originlm/cli-<platform>` packages as optionalDependencies. All release jobs
+ * universal `originlm` tarball: it declares all five exact-version unscoped
+ * `originlm-cli-<platform>` packages as optionalDependencies. All release jobs
  * produce the same universal manifest; only the built platform package differs.
  */
 import {cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 
 const PLATFORM_PACKAGES = [
-  '@originlm/cli-linux-x64',
-  '@originlm/cli-linux-arm64',
-  '@originlm/cli-darwin-arm64',
-  '@originlm/cli-darwin-x64',
-  '@originlm/cli-win32-x64',
+  'originlm-cli-linux-x64',
+  'originlm-cli-linux-arm64',
+  'originlm-cli-darwin-arm64',
+  'originlm-cli-darwin-x64',
+  'originlm-cli-win32-x64',
 ];
 
 function argument(name) {
@@ -54,7 +54,7 @@ for (const directory of readdirSync(packages).sort()) {
   const path = join(packages, directory, 'package.json');
   if (!existsSync(path)) continue;
   const platform = JSON.parse(readFileSync(path, 'utf8'));
-  if (typeof platform.name !== 'string' || !platform.name.startsWith('@originlm/cli-')) continue;
+  if (typeof platform.name !== 'string' || !platform.name.startsWith('originlm-cli-')) continue;
   if (platform.version !== manifest.version) {
     throw new Error(`Platform package ${platform.name} version ${platform.version} does not match SDK ${manifest.version}`);
   }

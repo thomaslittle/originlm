@@ -5,14 +5,12 @@
  *   node scripts/npm-platform-packages.mjs \
  *     --binary target/release/originlm \
  *     --target x86_64-unknown-linux-gnu \
- *     --out npm-out
+ *     --out npm-out --metadata prepared/metadata/<target>
  *
- * Each package contains exactly one binary and a manifest with `os`/`cpu` and a
- * `bin` entry. The SDK resolves `@originlm/cli-<platform>/package.json` and
- * the binary next to it (esbuild/Biome shape), so no postinstall script or
- * download is involved. The release workflow adds these names to the SDK's
- * `optionalDependencies` before publishing; the workspace copy stays free of
- * platform-specific dependencies so `npm ci` is identical everywhere.
+ * Each package contains exactly one binary, a manifest with `os`/`cpu` and a
+ * `bin` entry, plus the qualified native manifest/SBOM/notices/license texts.
+ * The SDK resolves `originlm-cli-<platform>/package.json` and the binary next to
+ * it, so no postinstall script or download is involved.
  */
 import {copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -60,7 +58,7 @@ mkdirSync(join(directory, 'bin'), {recursive: true});
 const executable = spec.os === 'win32' ? 'originlm.exe' : 'originlm';
 copyFileSync(binary, join(directory, 'bin', executable));
 const manifest = {
-  name: `@originlm/cli-${spec.name}`,
+  name: `originlm-cli-${spec.name}`,
   version,
   description: `OriginLM helper for ${spec.os}/${spec.cpu}`,
   os: [spec.os],
@@ -73,7 +71,7 @@ const manifest = {
 writeFileSync(join(directory, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 writeFileSync(
   join(directory, 'README.md'),
-  `# @originlm/cli-${spec.name}\n\nThe OriginLM helper for ${spec.os}/${spec.cpu}. ` +
+  `# originlm-cli-${spec.name}\n\nThe OriginLM helper for ${spec.os}/${spec.cpu}. ` +
     `Installed automatically as an optional dependency of \`originlm\`; ` +
     `it contains one binary and runs no install scripts.\n`,
 );

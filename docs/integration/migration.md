@@ -11,7 +11,7 @@ This repository is a fresh source distribution of the integrated Local AI Kit wo
 | React hooks | `@originlm/react` |
 | Framework independent selection | `@originlm/selector-core` |
 | React selectors | `@originlm/ui-react` |
-| Native helper npm packages | `@originlm/cli-linux-x64`, `@originlm/cli-linux-arm64`, `@originlm/cli-darwin-x64`, `@originlm/cli-darwin-arm64`, `@originlm/cli-win32-x64` |
+| Native helper npm packages | `originlm-cli-linux-x64`, `originlm-cli-linux-arm64`, `originlm-cli-darwin-x64`, `originlm-cli-darwin-arm64`, `originlm-cli-win32-x64` |
 | Python distribution and import | `originlm` / `import originlm` |
 | Public Rust facade | `originlm` / `use originlm::LocalAi` |
 | Rust implementation crates | `originlm-adapters`, `originlm-chatgpt-auth`, `originlm-cli`, `originlm-contracts`, `originlm-control`, `originlm-core`, `originlm-desktop`, `originlm-discovery`, `originlm-kit`, `originlm-platform`, `originlm-runtime`, `originlm-service`, `originlm-store`, `originlm-transports`, `originlm-update` |
