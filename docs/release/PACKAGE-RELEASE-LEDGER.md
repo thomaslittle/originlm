@@ -75,7 +75,7 @@ read-only.
 
 - Branch: `t3/python-wheel-qualification`
 - PR: [#15](https://github.com/thomaslittle/originlm/pull/15)
-- Head: `2e06a594f316c5dfe4962628bc9d93596fabcd87` (stacked on PR14)
+- Head: `2be1b03e77e7ca3e09a4f78d22297436a3b5d5aa` (stacked on PR14)
 - Adds a read-only manylinux_2_28 x86_64/aarch64 workflow using official
   `quay.io/pypa/manylinux_2_28_*` images, explicit `--release` staging that
   removes the private upload classifier only for publishable wheels, embedded
