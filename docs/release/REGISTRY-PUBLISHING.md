@@ -104,10 +104,12 @@ originlm
 The preparation job runs `cargo fetch --locked` before offline packaging, so a
 cold runner has the complete locked dependency set. The publisher verifies
 `crates-release/SHA256SUMS`, the source commit, the exact 13-crate order, and
-that a fresh `cargo package` reproduces every prepared `.crate` hash before
-publishing. After upload it downloads each published `.crate` from crates.io
-and compares its SHA-256 to the same manifest, so bytes rebuilt after the
-initial check cannot silently diverge. Unrelated private crates
+that a fresh `cargo package` reproduces every prepared `.crate` hash. For each
+crate it then runs `cargo publish --dry-run` and checks the exact archive Cargo
+produced in `<target-dir>/package/tmp-crate/` against that hash before the real
+upload. After upload it downloads each published `.crate` from crates.io and
+compares its SHA-256 to the same manifest, so bytes rebuilt after the initial
+check cannot silently diverge. Unrelated private crates
 (`originlm-cli`, `originlm-desktop`, `originlm-update`) are not in the artifact.
 
 Official references: <https://crates.io/docs/trusted-publishing> and the

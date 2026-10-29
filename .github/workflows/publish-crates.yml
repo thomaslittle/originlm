@@ -104,6 +104,8 @@ jobs:
               raise SystemExit('crate release set is not the reviewed 13-crate closure')
           print('\\n'.join(manifest['order']))
           PY
+      - name: Fetch locked dependencies for offline repackaging
+        run: cargo fetch --locked
       - name: Repackage from source and compare immutable payload hashes
         run: |
           python scripts/publish_order.py --check --package --package-dir repacked
@@ -133,15 +135,22 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ inputs.auth_mode == 'trusted' && steps.crates-auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          python - <<'PY' > order.txt
+          python - <<'PY' > order.tsv
           import json
-          print('\n'.join(json.load(open('crates-release/manifest.json'))['order']))
+          for item in json.load(open('crates-release/manifest.json'))['packages']:
+              print(item['name'], item['version'], item['sha256'], sep='\t')
           PY
-          while read -r name; do
+          while IFS=$'\t' read -r name version sha; do
             test -n "$name"
+            echo "checking cargo publish payload for $name"
+            target="$RUNNER_TEMP/cargo-publish-$name"
+            rm -rf "$target"
+            CARGO_TARGET_DIR="$target" cargo publish --dry-run --package "$name" --locked --no-verify
+            python scripts/verify_cargo_publish_payload.py --target-dir "$target" \
+              --name "$name" --version "$version" --expected-sha256 "$sha"
             echo "publishing $name"
             cargo publish --package "$name" --locked --no-verify
-          done < order.txt
+          done < order.tsv
       - name: Verify the exact published crate bytes
         if: ${{ !inputs.dry_run }}
         run: |
