@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -66,6 +67,42 @@ class PublisherWorkflows(unittest.TestCase):
             self.assertEqual(evidence['status'], 'pass')
             with self.assertRaises(module.PayloadError):
                 module.verify(directory, 'originlm-contracts', '0.1.0-alpha.20', '0' * 64)
+
+    def test_npm_publisher_requires_five_consumer_artifacts(self):
+        workflow = (WORKFLOWS / 'publish-npm.yml').read_text(encoding='utf-8')
+        self.assertIn("--pattern 'npm-*'", workflow)
+        self.assertIn('verify_npm_consumer_matrix.py', workflow)
+        self.assertNotIn('registry-consumer.json', workflow)
+
+    def test_npm_consumer_matrix_requires_every_platform_and_matching_sdk(self):
+        module = load('verify_npm_consumer_matrix')
+        version = '0.1.0-alpha.20'
+        source = 'a' * 40
+        sdk_sha = 'b' * 64
+        optional = {name: version for name in module.LABELS.values()}
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = pathlib.Path(directory)
+            release = artifacts / 'npm-release'
+            release.mkdir()
+            (release / 'manifest.json').write_text(json.dumps({
+                'version': version, 'sourceCommit': source,
+                'sdk': {'sha256': sdk_sha}, 'optionalDependencies': optional,
+            }), encoding='utf-8')
+            for label, package in module.LABELS.items():
+                evidence_dir = artifacts / f'npm-consumer-{label}'
+                evidence_dir.mkdir()
+                (evidence_dir / f'npm-consumer-{label}.json').write_text(json.dumps({
+                    'status': 'pass', 'install': 'single-universal-package',
+                    'version': version, 'sourceCommit': source, 'sdkSha256': sdk_sha,
+                    'resolvedPlatformPackage': package, 'optionalDependencies': optional,
+                    'mode': 'child', 'connections': 0, 'models': 0, 'accounts': 0,
+                    'inferenceRequests': 0,
+                }), encoding='utf-8')
+            evidence = module.verify(artifacts, version, source)
+            self.assertEqual(len(evidence['platforms']), 5)
+            (artifacts / 'npm-consumer-win32-x64' / 'npm-consumer-win32-x64.json').unlink()
+            with self.assertRaises(module.ConsumerMatrixError):
+                module.verify(artifacts, version, source)
 
     def test_npm_requires_bootstrap_before_oidc(self):
         workflow = (WORKFLOWS / 'publish-npm.yml').read_text(encoding='utf-8')

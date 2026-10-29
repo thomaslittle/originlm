@@ -9,7 +9,7 @@ required reviewer is the second gate; `confirm=PUBLISH` is the third.
 
 | Registry | Publisher workflow | Artifact source | Environment |
 | --- | --- | --- | --- |
-| npm | `.github/workflows/publish-npm.yml` | `release.yml` → `npm-release` | `release-npm` |
+| npm | `.github/workflows/publish-npm.yml` | `release.yml` → `npm-release` + five `npm-consumer-*` artifacts | `release-npm` |
 | crates.io | `.github/workflows/publish-crates.yml` | `.github/workflows/prepare-crates.yml` → `crates-release` | `release-crates` |
 | PyPI | `.github/workflows/publish-pypi.yml` | `.github/workflows/python-wheels.yml` → `python-wheel-*` | `release-pypi` |
 
@@ -64,7 +64,10 @@ field in each package manifest must resolve to the GitHub repository
 `https://github.com/thomaslittle/originlm`.
 
 The workflow publishes platform packages first, then the one universal SDK. It
-uses the workflow input `dist_tag` (default `alpha`) because this is a
+requires all five `npm-consumer-<label>` evidence artifacts from the same
+preparation run, each naming the canonical SDK SHA-256 and source commit and
+resolving its actual platform package; a single Ubuntu proof is insufficient.
+It uses the workflow input `dist_tag` (default `alpha`) because this is a
 prerelease; set `latest` only after the stable release is approved.
 
 Official reference: <https://docs.npmjs.com/trusted-publishers/>
