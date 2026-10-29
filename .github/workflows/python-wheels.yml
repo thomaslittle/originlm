@@ -44,6 +44,10 @@ jobs:
       CARGO_BUILD_JOBS: '2'
       PYTHONUTF8: '1'
       PYTHON: /opt/python/cp312-cp312/bin/python
+      # manylinux images may preinstall Rust under /usr/local. Use isolated
+      # homes so the pinned toolchain never tries to overwrite image shims.
+      RUSTUP_HOME: ${{ runner.temp }}/rustup
+      CARGO_HOME: ${{ runner.temp }}/cargo
     steps:
       - uses: actions/checkout@v7
       - name: Install build prerequisites inside manylinux
@@ -59,7 +63,7 @@ jobs:
           fi
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain none
-          . "$HOME/.cargo/env"
+          . "$CARGO_HOME/env"
           rustup toolchain install 1.98.1 --profile minimal
           "$PYTHON" -m pip install --disable-pip-version-check --upgrade \
             'setuptools==84.1.0' 'wheel==0.48.0' build auditwheel twine
@@ -72,7 +76,7 @@ jobs:
       - name: Build native helper
         shell: bash
         run: |
-          . "$HOME/.cargo/env"
+          . "$CARGO_HOME/env"
           cargo build --release --locked -p originlm-cli --bin originlm --target '${{ matrix.target }}'
       - name: Native helper smoke gate
         shell: bash
