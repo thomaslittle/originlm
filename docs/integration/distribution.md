@@ -13,7 +13,13 @@ python scripts/package_smoke.py
 
 The bundle contains the native helper and Native Messaging host, four npm tarballs, a Python wheel, static demo, browser extension, generated API documents, examples, checksums, license notices, and a dependency inventory covering the shipped Rust and JavaScript packages. It does not install itself, register an extension, read accounts, or run inference. No registry publishing or signing is performed.
 
-Install the four npm tarballs together into a consumer project. Install React separately only for the optional React packages. The Python wheel requires Python 3.11+. The standalone Rust executables do not require Node or Python.
+Release staging produces one universal `originlm` npm tarball with all five
+platform helper packages as optional dependencies, so a normal consumer installs
+`originlm` and lets its platform resolve `@originlm/cli-*` without naming a local
+path. The four framework tarballs are staged alongside it for local preview;
+install React separately only for the optional React packages. The Python wheel
+requires Python 3.11+. The standalone Rust executables do not require Node or
+Python.
 
 ```ts
 import { createLocalAI } from 'originlm';

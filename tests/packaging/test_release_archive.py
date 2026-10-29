@@ -1,7 +1,10 @@
 import importlib.util
+import io
+import json
 import os
 import pathlib
 import sys
+import tarfile
 import tempfile
 import unittest
 import zipfile
@@ -20,6 +23,8 @@ def load(name):
 licenses = load('license_closure')
 verify = load('verify_helper_archive')
 smoke = load('helper_smoke')
+npm_release = load('verify_npm_release')
+npm_consumer = load('npm_consumer_smoke')
 
 
 class LicenseResolution(unittest.TestCase):
@@ -74,6 +79,68 @@ class LicenseResolution(unittest.TestCase):
         for relative in ('../LICENSE', '/LICENSE', 'legal/../../LICENSE', 'legal/bad name'):
             with self.subTest(relative=relative), self.assertRaises(licenses.LicenseClosureError):
                 licenses._safe_member_path('licenses/a-1', pathlib.Path(relative))
+
+
+def npm_tarball(path, manifest, files):
+    with tarfile.open(path, 'w:gz') as archive:
+        def add(name, data):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+        add('package/package.json', json.dumps(manifest).encode('utf-8'))
+        for name, data in files.items():
+            add(f'package/{name}', data)
+
+
+class NpmReleaseShape(unittest.TestCase):
+    version = '0.1.0-alpha.20'
+
+    def build(self, directory, sdk_optional=None):
+        directory = pathlib.Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        optional = sdk_optional or {name: self.version for name in npm_release.PLATFORM_PACKAGES}
+        npm_tarball(directory / 'originlm-0.1.0-alpha.20.tgz', {
+            'name': 'originlm', 'version': self.version, 'optionalDependencies': optional,
+        }, {
+            'dist/index.js': b'export {};',
+            'node/auto.mjs': b'export {};',
+            'LICENSE': b'MIT\n',
+            'THIRD_PARTY_NOTICES.md': b'notices\n',
+        })
+        npm_tarball(directory / 'originlm-cli-linux-x64-0.1.0-alpha.20.tgz', {
+            'name': '@originlm/cli-linux-x64', 'version': self.version,
+            'os': ['linux'], 'cpu': ['x64'], 'bin': {'originlm': 'bin/originlm'},
+        }, {
+            'manifest.json': json.dumps({
+                'version': self.version, 'target': 'x86_64-unknown-linux-gnu',
+                'source': {'commit': 'a' * 40},
+            }).encode('utf-8'),
+            'sbom.cdx.json': b'{"components":[]}',
+            'THIRD_PARTY_NOTICES.md': b'notices\n',
+            'LICENSE': b'MIT\n',
+            'licenses/x-1.0.0/LICENSE': b'MIT\n',
+        })
+        return directory
+
+    def test_universal_sdk_and_platform_metadata_are_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = npm_release.verify(self.build(directory), self.version, 'a' * 40)
+            self.assertEqual(evidence['status'], 'pass')
+            self.assertEqual(len(evidence['optionalDependencies']), 5)
+
+    def test_a_partial_platform_set_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            partial = {'@originlm/cli-linux-x64': self.version}
+            with self.assertRaises(npm_release.VerifyNpmError):
+                npm_release.verify(self.build(directory, partial), self.version)
+
+    def test_consumer_environment_has_no_ambient_override_or_provider_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = npm_consumer._clean_env(directory)
+            self.assertEqual(env['HOME'], directory)
+            self.assertEqual(env['PATH'], str(pathlib.Path(directory) / 'empty-bin'))
+            for name in ('LAI_HELPER_PATH', 'LAI_BROKER_ADDRESS', 'LAI_BROKER_TOKEN_FILE'):
+                self.assertNotIn(name, env)
 
 
 class ArchiveValidation(unittest.TestCase):

@@ -14,6 +14,8 @@ on:
       - 'scripts/release_targets.py'
       - 'scripts/npm-*.mjs'
       - 'scripts/stage_python_package.py'
+      - 'scripts/verify_npm_release.py'
+      - 'scripts/npm_consumer_smoke.py'
 permissions:
   contents: read
 concurrency:
@@ -74,13 +76,28 @@ jobs:
           binary='target/${{ matrix.target }}/release/originlm'
           if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
           python scripts/prepare_helper_archive.py --binary "$binary" --target '${{ matrix.target }}' \
-            --out prepared --source-commit "$GITHUB_SHA"
-          node scripts/npm-platform-packages.mjs --binary "$binary" --target '${{ matrix.target }}' --out npm-out
-          node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk --preview
+            --out prepared --source-commit "$GITHUB_SHA" \
+            --metadata-out "prepared/metadata/${{ matrix.target }}"
+          node scripts/npm-platform-packages.mjs --binary "$binary" --target '${{ matrix.target }}' --out npm-out \
+            --metadata "prepared/metadata/${{ matrix.target }}"
+          node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk \
+            --release --all-platforms
           mkdir -p prepared/npm
           for dir in npm-out/* npm-sdk; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
           python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
           (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
+      - name: Verify packaged npm release and fresh consumer
+        shell: bash
+        run: |
+          sdk="$(ls prepared/npm/originlm-*.tgz | grep -v '/originlm-cli-' | head -1)"
+          platform="$(ls prepared/npm/originlm-cli-*.tgz | head -1)"
+          test -n "$sdk" && test -n "$platform"
+          python scripts/verify_npm_release.py --packages prepared/npm \
+            --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA" \
+            --out "prepared/evidence/npm-packages-${{ matrix.target }}.json"
+          python scripts/npm_consumer_smoke.py --sdk "$sdk" --platform "$platform" \
+            --version '${{ steps.release.outputs.version }}' \
+            --out "prepared/evidence/npm-consumer-${{ matrix.target }}.json"
       - name: Persist native smoke evidence
         shell: bash
         run: |
@@ -108,7 +125,7 @@ jobs:
           import json, os, pathlib
           target = os.environ['TARGET']
           directory = pathlib.Path('prepared/evidence')
-          for name in ('helper-binary', 'helper-archive'):
+          for name in ('helper-binary', 'helper-archive', 'npm-packages', 'npm-consumer'):
               path = directory / f'{name}-{target}.json'
               if not path.is_file() or path.stat().st_size == 0:
                   raise SystemExit(f'missing persisted evidence: {path}')
@@ -131,6 +148,7 @@ jobs:
           echo 'Unsigned preview artifacts only. No packages, registries, GitHub releases, Authenticode signatures, notarization or trusted update signatures were produced.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Each runner executed --version, an empty-home passive scan and a bounded stdio handshake against the built helper and the helper extracted from the final archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Archives contain helper-<target>/originlm[.exe], LICENSE, per-target dependency notices and license texts, sbom.cdx.json and manifest.json with member paths, byte lengths and SHA-256.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Native smoke and archive evidence is persisted under prepared/evidence/ so it is uploaded with the artifact (not in a hidden directory).' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Native smoke, archive, universal npm package and fresh npm consumer evidence is persisted under prepared/evidence/ so it is uploaded with the artifact (not in a hidden directory).' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The npm SDK is one universal originlm tarball with all five exact-version @originlm/cli-* optional dependencies; each platform package carries its native manifest, SBOM, notices and license texts.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise; helper glibc baselines are recorded per archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'See docs/release/PUBLISHING.md for compatibility, signing and publication gates.' >> "$GITHUB_STEP_SUMMARY"

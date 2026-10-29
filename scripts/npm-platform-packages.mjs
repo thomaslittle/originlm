@@ -14,7 +14,7 @@
  * `optionalDependencies` before publishing; the workspace copy stays free of
  * platform-specific dependencies so `npm ci` is identical everywhere.
  */
-import {copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
+import {copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 
 const TARGETS = {
@@ -24,6 +24,11 @@ const TARGETS = {
   'aarch64-apple-darwin': {name: 'darwin-arm64', os: 'darwin', cpu: 'arm64'},
   'x86_64-pc-windows-msvc': {name: 'win32-x64', os: 'win32', cpu: 'x64'},
 };
+
+function optionalArgument(name) {
+  const index = process.argv.indexOf(`--${name}`);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
 
 function argument(name) {
   const index = process.argv.indexOf(`--${name}`);
@@ -37,6 +42,7 @@ function argument(name) {
 const target = argument('target');
 const binary = argument('binary');
 const out = argument('out');
+const metadata = optionalArgument('metadata');
 const spec = TARGETS[target];
 if (!spec) {
   console.error(`Unsupported target: ${target}`);
@@ -60,7 +66,7 @@ const manifest = {
   os: [spec.os],
   cpu: [spec.cpu],
   bin: { 'originlm': `bin/${executable}` },
-  files: ['bin', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md'],
+  files: ['bin', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'sbom.cdx.json', 'licenses'],
   license: 'MIT',
   repository: 'https://github.com/thomaslittle/originlm',
 };
@@ -71,7 +77,14 @@ writeFileSync(
     `Installed automatically as an optional dependency of \`originlm\`; ` +
     `it contains one binary and runs no install scripts.\n`,
 );
-for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md']) {
-  copyFileSync(new URL(`../${name}`, import.meta.url), join(directory, name));
+copyFileSync(new URL('../LICENSE', import.meta.url), join(directory, 'LICENSE'));
+if (metadata) {
+  if (!existsSync(join(metadata, 'manifest.json')) || !existsSync(join(metadata, 'sbom.cdx.json')) || !existsSync(join(metadata, 'THIRD_PARTY_NOTICES.md'))) {
+    console.error(`Incomplete release metadata: ${metadata}`);
+    process.exit(2);
+  }
+  cpSync(metadata, directory, {recursive: true});
+} else {
+  copyFileSync(new URL('../THIRD_PARTY_NOTICES.md', import.meta.url), join(directory, 'THIRD_PARTY_NOTICES.md'));
 }
 console.log(join(directory, 'package.json'));
