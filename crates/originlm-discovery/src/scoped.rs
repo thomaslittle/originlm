@@ -6,7 +6,7 @@
 //! manufacture those records. Each account is scanned independently and
 //! failure in one does not suppress the others.
 
-use crate::{HostPlatform, ScanEnvironment, ScanResult, Scanner};
+use crate::{HostPlatform, ProfileScope, ScanEnvironment, ScanResult, Scanner};
 use originlm_contracts::{
     DataMode, DomainError, ErrorCode, Result, Snapshot, Timestamp, stable_id,
 };
@@ -51,12 +51,19 @@ impl ScopedProvider {
 }
 
 /// One exact account slot: provider, profile home and logical executable.
+///
+/// `home` is the provider configuration root (`CODEX_HOME`,
+/// `CLAUDE_CONFIG_DIR`, or `OPENCODE_CONFIG_DIR`). OpenCode additionally
+/// requires explicit data and state roots so service discovery cannot fall back
+/// to the process-global default account.
 #[derive(Debug, Clone)]
 pub struct AccountScope {
     pub provider: ScopedProvider,
     pub home: PathBuf,
     pub executable: PathBuf,
     pub label: Option<String>,
+    pub data_home: Option<PathBuf>,
+    pub state_home: Option<PathBuf>,
 }
 
 impl AccountScope {
@@ -66,6 +73,26 @@ impl AccountScope {
             home,
             executable,
             label: None,
+            data_home: None,
+            state_home: None,
+        }
+    }
+
+    /// Exact OpenCode scope. `config_home` maps to `OPENCODE_CONFIG_DIR`,
+    /// `data_home` to `XDG_DATA_HOME`, and `state_home` to `XDG_STATE_HOME`.
+    pub fn open_code(
+        config_home: PathBuf,
+        data_home: PathBuf,
+        state_home: PathBuf,
+        executable: PathBuf,
+    ) -> Self {
+        Self {
+            provider: ScopedProvider::OpenCode,
+            home: config_home,
+            executable,
+            label: None,
+            data_home: Some(data_home),
+            state_home: Some(state_home),
         }
     }
 
@@ -80,6 +107,31 @@ impl AccountScope {
                 ErrorCode::InvalidRequest,
                 "Account home and executable must be absolute local paths",
             ));
+        }
+        match self.provider {
+            ScopedProvider::OpenCode => {
+                let (Some(data_home), Some(state_home)) = (&self.data_home, &self.state_home)
+                else {
+                    return Err(DomainError::new(
+                        ErrorCode::InvalidRequest,
+                        "OpenCode scopes require exact config, data and state roots",
+                    ));
+                };
+                if !local_path(data_home) || !local_path(state_home) {
+                    return Err(DomainError::new(
+                        ErrorCode::InvalidRequest,
+                        "OpenCode data and state roots must be absolute local paths",
+                    ));
+                }
+            }
+            ScopedProvider::Codex | ScopedProvider::ClaudeCode => {
+                if self.data_home.is_some() || self.state_home.is_some() {
+                    return Err(DomainError::new(
+                        ErrorCode::InvalidRequest,
+                        "Data and state roots apply only to OpenCode scopes",
+                    ));
+                }
+            }
         }
         if self.label.as_ref().is_some_and(|label| {
             label.is_empty() || label.len() > 128 || label.chars().any(char::is_control)
@@ -152,6 +204,18 @@ impl AccountScope {
             .routes
             .retain(|route| routes.contains(&route.id));
         part.locations.retain(|id, _| exact.contains(id));
+        if self.provider == ScopedProvider::OpenCode
+            && let (Some(data_home), Some(state_home)) = (&self.data_home, &self.state_home)
+        {
+            let scope = ProfileScope {
+                config_home: self.home.clone(),
+                data_home: data_home.clone(),
+                state_home: state_home.clone(),
+            };
+            for located in part.locations.values_mut() {
+                located.scope = Some(scope.clone());
+            }
+        }
         if let Some(label) = &self.label {
             let display = format!("{} · {label}", self.provider.name());
             for connection in part.snapshot.connections.iter_mut() {
@@ -236,6 +300,9 @@ impl ScopedInventory {
             environment
                 .executable_overrides
                 .insert(account.provider.id().into(), account.executable.clone());
+            if let Some(data_home) = &account.data_home {
+                environment.data_home = data_home.clone();
+            }
             match Scanner::new(originlm_platform::NativeFilesystem).scan_selected(
                 &environment,
                 &[account.provider.id()],
@@ -395,6 +462,8 @@ mod tests {
         let claude_home = home(root.path(), "claude-home");
         let claude_exe = executable(root.path(), "bin/b/claude");
         let opencode_home = home(root.path(), "opencode-home");
+        let opencode_data = home(root.path(), "opencode-data");
+        let opencode_state = home(root.path(), "opencode-state");
         let opencode_exe = executable(root.path(), "bin/c/opencode");
         let second_codex_home = home(root.path(), "codex-b-home");
         let second_codex_exe = executable(root.path(), "bin/d/codex");
@@ -419,9 +488,10 @@ mod tests {
                 claude_home.clone(),
                 claude_exe.clone(),
             ))
-            .with_account(AccountScope::new(
-                ScopedProvider::OpenCode,
+            .with_account(AccountScope::open_code(
                 opencode_home.clone(),
+                opencode_data.clone(),
+                opencode_state.clone(),
                 opencode_exe.clone(),
             ))
             .with_account(AccountScope::new(
@@ -467,6 +537,16 @@ mod tests {
             );
         }
 
+        let opencode = result
+            .locations
+            .values()
+            .find(|located| located.provider_id == "opencode")
+            .expect("opencode location");
+        let scope = opencode.scope.as_ref().expect("opencode exact scope");
+        assert_eq!(scope.config_home, opencode_home);
+        assert_eq!(scope.data_home, opencode_data);
+        assert_eq!(scope.state_home, opencode_state);
+
         let codex_connections: Vec<_> = result
             .snapshot
             .connections
@@ -485,6 +565,23 @@ mod tests {
                 .iter()
                 .any(|connection| connection.display_name.contains("Codex B"))
         );
+    }
+
+    #[test]
+    fn open_code_requires_exact_data_and_state_roots() {
+        let scope = AccountScope::new(
+            ScopedProvider::OpenCode,
+            PathBuf::from("/tmp/opencode-config"),
+            PathBuf::from("/tmp/opencode"),
+        );
+        let error = match ScopedInventory::new()
+            .with_account(scope)
+            .scan(&AtomicBool::new(false))
+        {
+            Ok(_) => panic!("an OpenCode scope without data/state must be refused"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, ErrorCode::InvalidRequest);
     }
 
     #[cfg(unix)]

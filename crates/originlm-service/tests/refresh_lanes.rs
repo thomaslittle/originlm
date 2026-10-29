@@ -36,6 +36,7 @@ fn scan() -> ScanResult {
                     provider_id: c.provider_id.clone(),
                     profile_home: std::path::PathBuf::from("synthetic").join(&c.id),
                     executable: None,
+                    scope: None,
                 },
             )
         })
@@ -852,6 +853,7 @@ async fn healthy_work_beyond_sixty_four_failed_connections_and_usage_both_progre
                 provider_id: "test".into(),
                 profile_home: std::path::PathBuf::from(id),
                 executable: None,
+                scope: None,
             },
         );
     }

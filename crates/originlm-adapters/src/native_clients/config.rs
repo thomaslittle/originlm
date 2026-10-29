@@ -156,6 +156,7 @@ pub fn inject_managed_codex(scan: &mut ScanResult, state_dir: &Path) {
             provider_id: "codex_managed".into(),
             profile_home: home,
             executable: Some(executable),
+            scope: None,
         },
     );
 }
@@ -265,6 +266,7 @@ impl NativeRegistry {
                     provider_id: provider.into(),
                     profile_home: p.profile_home.clone(),
                     executable: Some(p.executable.clone()),
+                    scope: None,
                 },
             );
         }

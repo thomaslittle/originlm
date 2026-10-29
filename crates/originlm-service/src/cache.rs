@@ -1528,6 +1528,7 @@ mod refresh_generation_tests {
                         provider_id: "test".into(),
                         profile_home: PathBuf::from("synthetic"),
                         executable: None,
+                        scope: None,
                     },
                 )]),
                 metadata_probes: 0,

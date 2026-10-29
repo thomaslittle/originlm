@@ -195,6 +195,7 @@ async fn clients_that_cannot_remove_their_tools_refuse_text_only_sessions() {
             provider_id: provider.id().into(),
             profile_home: p.profile_home.clone(),
             executable: Some(p.executable.clone()),
+            scope: None,
         };
         let model = Model {
             id: "m".into(),

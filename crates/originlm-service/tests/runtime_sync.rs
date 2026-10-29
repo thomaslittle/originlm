@@ -36,6 +36,7 @@ fn inventory(root: std::path::PathBuf) -> ScanResult {
                     provider_id: "codex".into(),
                     profile_home: root.join(&connection.id),
                     executable: None,
+                    scope: None,
                 },
             )
         })
