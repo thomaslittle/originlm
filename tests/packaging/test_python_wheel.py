@@ -202,6 +202,10 @@ class WheelVerifierTests(unittest.TestCase):
             with self.assertRaises(verify_module.VerifyError):
                 self.verify(wheel, release=True, plat_name='linux_x86_64')
 
+    def test_wrapped_auditwheel_tag_is_parsed(self):
+        output = 'is consistent\nwith the following platform tag: "manylinux_2_28_x86_64".\n'
+        self.assertEqual(verify_module.auditwheel_tag(output), 'manylinux_2_28_x86_64')
+
     def test_version_normalization_matches_cargo_and_pep440(self):
         self.assertEqual(verify_module.normalize_version(NATIVE_VERSION), VERSION)
         self.assertEqual(consumer_module.normalize_version(NATIVE_VERSION), VERSION)

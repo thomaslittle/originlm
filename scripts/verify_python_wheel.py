@@ -177,6 +177,14 @@ def manylinux_accepts(declared, observed):
     return observed_version <= declared_version
 
 
+def auditwheel_tag(output):
+    match = re.search(
+        r'consistent\s+with\s+the\s+following\s+platform\s+tag:\s*"([^"]+)"',
+        output,
+    )
+    return match.group(1) if match else None
+
+
 def _auditwheel(wheel, expected_platform):
     probe = _tool('auditwheel', ['--version'])
     if probe.returncode:
@@ -187,10 +195,9 @@ def _auditwheel(wheel, expected_platform):
     output = (result.stdout or '') + (result.stderr or '')
     if result.returncode:
         raise VerifyError('auditwheel show failed:\n' + output[-4000:])
-    match = re.search(r'consistent with the\s+following platform tag:\s*"([^"]+)"', output)
-    if not match:
+    observed = auditwheel_tag(output)
+    if not observed:
         raise VerifyError('auditwheel show did not confirm a platform tag:\n' + output[-4000:])
-    observed = match.group(1)
     if expected_platform.startswith('manylinux') and not manylinux_accepts(
         expected_platform, observed
     ):
