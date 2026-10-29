@@ -269,7 +269,13 @@ async fn probe_metadata(
             let executable = located.executable.clone().ok_or_else(|| {
                 DomainError::new(ErrorCode::RuntimeMissing, "Native executable unavailable")
             })?;
-            originlm_adapters::opencode::server::probe(&executable, &connection, &route).await
+            originlm_adapters::opencode::server::probe_scoped(
+                &executable,
+                located.scope.as_ref(),
+                &connection,
+                &route,
+            )
+            .await
         }
         "muse" => {
             let executable = located.executable.clone().ok_or_else(|| {

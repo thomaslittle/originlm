@@ -4,10 +4,12 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "Local SQLite persistence for OriginLM"
+publish = true
 
 [dependencies]
-originlm-contracts = { path = "../originlm-contracts" }
+originlm-contracts = { version = "0.1.0-alpha.20", path = "../originlm-contracts" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

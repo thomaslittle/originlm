@@ -138,6 +138,11 @@ impl NativeService {
             }
         }
     }
+    /// Signal the current inventory refresh, including a host-initiated one.
+    /// Used by an owned embedded client during bounded shutdown.
+    pub fn cancel_active_inventory(&self) {
+        self.cache.cancel_active_refresh();
+    }
     /// Host-only: persist the last metadata observations at `path` (identity excluded) and reload
     /// them after a restart, so status is shown immediately and refreshed in the background.
     pub fn enable_metadata_cache(&self, path: std::path::PathBuf) {

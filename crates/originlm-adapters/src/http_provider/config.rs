@@ -163,6 +163,7 @@ impl Registry {
                     provider_id: provider.into(),
                     profile_home: PathBuf::new(),
                     executable: None,
+                    scope: None,
                 },
             );
         }

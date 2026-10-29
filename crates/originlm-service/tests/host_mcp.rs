@@ -45,6 +45,7 @@ async fn setup(allow_writes: bool) -> (Arc<NativeService>, Seen) {
                                 provider_id: "test".into(),
                                 profile_home: std::env::temp_dir(),
                                 executable: None,
+                                scope: None,
                             },
                         )
                     })

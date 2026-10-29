@@ -8,6 +8,7 @@ fn located(home: &Path) -> LocatedClient {
         provider_id: "cursor".into(),
         profile_home: home.into(),
         executable: None,
+        scope: None,
     }
 }
 fn fixture() -> tempfile::TempDir {

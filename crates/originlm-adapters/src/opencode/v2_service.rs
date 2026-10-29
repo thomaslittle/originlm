@@ -13,9 +13,11 @@ use crate::{
 };
 use chrono::DateTime;
 use originlm_contracts::*;
+use originlm_discovery::ProfileScope;
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
     time::Duration,
@@ -34,7 +36,10 @@ fn denied(reason: &str) -> DomainError {
     DomainError::new(ErrorCode::LocalAccessDenied, reason)
 }
 
-fn state_path() -> Option<PathBuf> {
+fn state_path(scope: Option<&ProfileScope>) -> Option<PathBuf> {
+    if let Some(scope) = scope {
+        return Some(scope.state_home.join("opencode/service.json"));
+    }
     let base = std::env::var_os("XDG_STATE_HOME")
         .map(PathBuf::from)
         .or_else(|| {
@@ -45,9 +50,9 @@ fn state_path() -> Option<PathBuf> {
     Some(base.join("opencode/service.json"))
 }
 
-fn service() -> Result<(String, String)> {
+fn service(scope: Option<&ProfileScope>) -> Result<(String, String)> {
     let path =
-        state_path().ok_or_else(|| unavailable("OpenCode state directory is unavailable"))?;
+        state_path(scope).ok_or_else(|| unavailable("OpenCode state directory is unavailable"))?;
     read_service(&path)
 }
 
@@ -109,10 +114,13 @@ fn process_is_alive(pid: u64) -> bool {
     }
 }
 
-fn service_environment() -> BTreeMap<std::ffi::OsString, std::ffi::OsString> {
-    // The CLI resolves its own state and credential store from the owner's
-    // environment. Pass only those roots; never a server password or a
-    // session-specific OPENCODE_CONFIG_CONTENT.
+fn service_environment(scope: Option<&ProfileScope>) -> BTreeMap<OsString, OsString> {
+    if let Some(scope) = scope {
+        return super::scope_environment(scope);
+    }
+    // Legacy default OpenCode scope: the CLI resolves its own state and
+    // credential store from the owner's environment. Pass only those roots;
+    // never a server password or a session-specific OPENCODE_CONFIG_CONTENT.
     const KEYS: [&str; 11] = [
         "HOME",
         "USERPROFILE",
@@ -127,14 +135,13 @@ fn service_environment() -> BTreeMap<std::ffi::OsString, std::ffi::OsString> {
         "PATH",
     ];
     KEYS.into_iter()
-        .filter_map(|key| std::env::var_os(key).map(|value| (std::ffi::OsString::from(key), value)))
+        .filter_map(|key| std::env::var_os(key).map(|value| (OsString::from(key), value)))
         .collect()
 }
 
-/// Ask the installed OpenCode CLI to start its own background service. This is
-/// the same owner-scoped service the OpenCode app/CLI uses, not a second
-/// kit-owned server; the CLI creates its own password and descriptor.
-async fn ensure_service(executable: &Path) -> Result<()> {
+/// Ask the installed OpenCode CLI to start its own background service. With an
+/// exact scope this is the account's service, never the process-global default.
+async fn ensure_service(executable: &Path, scope: Option<&ProfileScope>) -> Result<()> {
     let cwd = std::env::current_dir()
         .map_err(|_| unavailable("OpenCode working directory is unavailable"))?;
     capture(
@@ -142,7 +149,7 @@ async fn ensure_service(executable: &Path) -> Result<()> {
             executable: executable.to_owned(),
             args: vec!["service".into(), "start".into()],
             cwd,
-            env: service_environment(),
+            env: service_environment(scope),
         },
         SERVICE_START,
     )
@@ -241,7 +248,18 @@ fn quota_windows(
 /// descriptor left by a stopped service can recover instead of pinning usage
 /// to a dead endpoint forever.
 pub async fn probe(connection: &str, route: &str, version: &str) -> Result<ConnectionMetadata> {
-    let (url, password) = service()?;
+    probe_scoped(None, connection, route, version).await
+}
+
+/// Probe an exact account scope. The service descriptor and any recovery start
+/// are confined to the supplied config/data/state roots.
+pub async fn probe_scoped(
+    scope: Option<&ProfileScope>,
+    connection: &str,
+    route: &str,
+    version: &str,
+) -> Result<ConnectionMetadata> {
+    let (url, password) = service(scope)?;
     probe_endpoint(&url, &password, connection, route, version).await
 }
 
@@ -250,15 +268,16 @@ pub async fn probe(connection: &str, route: &str, version: &str) -> Result<Conne
 /// service supplies its own credentials; none are read or replaced here.
 pub async fn probe_with_install(
     executable: &Path,
+    scope: Option<&ProfileScope>,
     connection: &str,
     route: &str,
     version: &str,
 ) -> Result<ConnectionMetadata> {
-    let (url, password, started) = match service() {
+    let (url, password, started) = match service(scope) {
         Ok((url, password)) => (url, password, false),
         Err(_) => {
-            ensure_service(executable).await?;
-            let (url, password) = service()?;
+            ensure_service(executable, scope).await?;
+            let (url, password) = service(scope)?;
             (url, password, true)
         }
     };
@@ -277,8 +296,8 @@ pub async fn probe_with_install(
             // OpenCode app or CLI stops), or its old port can be reused.
             // Recover once through the installed CLI, then use its fresh
             // descriptor. This starts the owner's service, never a second one.
-            ensure_service(executable).await?;
-            let (url, password) = service()?;
+            ensure_service(executable, scope).await?;
+            let (url, password) = service(scope)?;
             probe_endpoint(&url, &password, connection, route, version).await
         }
         Err(error) => Err(error),
