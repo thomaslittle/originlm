@@ -60,7 +60,7 @@ read-only.
 
 - Branch: `release/full-official-packages`
 - PR: [#14](https://github.com/thomaslittle/originlm/pull/14)
-- Head: `a0c18e5d82c6b87ce7a7e0624790b11cdffcca04`
+- Head: `81f1e35cdbbeafc7eeacbac760297c6d04d73c76`
 - Shape: one universal `originlm` tarball with exactly five exact-version
   `@originlm/cli-*` optional dependencies.
 - Platform tarballs carry native `manifest.json`, `sbom.cdx.json`, notices,
@@ -75,7 +75,7 @@ read-only.
 
 - Branch: `t3/python-wheel-qualification`
 - PR: [#15](https://github.com/thomaslittle/originlm/pull/15)
-- Head: `2be1b03e77e7ca3e09a4f78d22297436a3b5d5aa` (stacked on PR14)
+- Head: `a4a5ccb02ac33e83f8c833d61f110d9bfed536d5` (stacked on PR14)
 - Adds a read-only manylinux_2_28 x86_64/aarch64 workflow using official
   `quay.io/pypa/manylinux_2_28_*` images, explicit `--release` staging that
   removes the private upload classifier only for publishable wheels, embedded
@@ -94,7 +94,7 @@ read-only.
 
 - Branch: `t3/publish-facade-execution-api`
 - PR: [#16](https://github.com/thomaslittle/originlm/pull/16)
-- Head: `eb38dc9ad08717a5abeb49d09102689d13ea90a2` (stacked on PR14; includes the npm evidence target fix)
+- Head: `2bed31f81f6635b874101c935e4924dc380e3e12` (stacked on PR14; includes the npm evidence target fix and MSRV evidence gate)
 - 13 publishable crates; `originlm-cli`, `originlm-desktop` and `originlm-update`
   remain private.
 - All intra-workspace dependencies in publishable crates use workspace version +
@@ -120,6 +120,22 @@ overrides.
 | Remotif | `thomaslittle/remotif` | `main` | Not modified |
 | Haiwire | `zomlit/xhw_haiwire` | `continuation/fedora-dev-runtime` | Not modified |
 | Crntly | `thomaslittle/crntly-desktop` | `feature/gpui-native-rust-studio` | Not modified; general parity paused |
+
+## Publisher workflows (PR17)
+
+- Branch `release/publishers`, draft PR
+  [#17](https://github.com/thomaslittle/originlm/pull/17).
+- `.github/workflows/publish-npm.yml` — environment `release-npm`, npm trusted
+  publishing, verifies the assembled `npm-release` set and publishes platform
+  packages before the universal SDK.
+- `.github/workflows/prepare-crates.yml` + `publish-crates.yml` — environment
+  `release-crates`; 13-crate order, prepared `.crate` hashes, bootstrap
+  `CARGO_REGISTRY_TOKEN` or post-bootstrap OIDC trusted publishing.
+- `.github/workflows/publish-pypi.yml` — environment `release-pypi`, PyPI
+  trusted publishing for the two qualified manylinux wheels only.
+- All publishers are manual, default to `dry_run=true`, require
+  `confirm=PUBLISH` and environment approval, and reject artifacts not built by
+  a successful integrated-`main` run at the exact `source_commit`.
 
 ## Non-goals in this ledger
 
