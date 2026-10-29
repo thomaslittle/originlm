@@ -1458,7 +1458,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.3",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1672,7 +1672,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3880,9 +3880,9 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "10.3.0"
+version = "11.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0529410abe238729a60b108898784df8984c87f6054c9c4fcacc47e4803c1ce1"
+checksum = "e75fe14a82d81e5f5af639997db37d8b96045938a7ac6ab18cdbe1c7467e05e1"
 dependencies = [
  "aws-lc-rs",
  "base64",
@@ -3893,6 +3893,7 @@ dependencies = [
  "serde_json",
  "signature",
  "simple_asn1",
+ "zeroize",
 ]
 
 [[package]]
@@ -3976,250 +3977,6 @@ dependencies = [
  "euclid",
  "polycool",
  "smallvec",
-]
-
-[[package]]
-name = "originlm-adapters"
-version = "0.1.0-alpha.20"
-dependencies = [
- "axum",
- "chrono",
- "getrandom 0.3.4",
- "originlm-contracts",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "process-wrap",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-stream",
- "windows 0.62.2",
- "zeroize",
-]
-
-[[package]]
-name = "originlm-chatgpt-auth"
-version = "0.1.0-alpha.20"
-dependencies = [
- "aws-lc-rs",
- "base64",
- "fs4",
- "getrandom 0.3.4",
- "jsonwebtoken",
- "keyring",
- "reqwest",
- "ring",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "originlm-cli"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-control",
- "originlm-core",
- "originlm-discovery",
- "originlm-kit",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-contracts"
-version = "0.1.0-alpha.20"
-dependencies = [
- "bigdecimal",
- "chrono",
- "schemars",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "originlm-control"
-version = "0.1.0-alpha.20"
-dependencies = [
- "chrono",
- "crossterm",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
- "ratatui",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-core"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "originlm-desktop"
-version = "0.1.0-alpha.18"
-dependencies = [
- "chrono",
- "gpui-kit",
- "image",
- "originlm-contracts",
- "originlm-control",
- "originlm-platform",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "originlm-discovery"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "originlm-platform",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
-]
-
-[[package]]
-name = "originlm-kit"
-version = "0.1.0-alpha.20"
-dependencies = [
- "axum",
- "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-service",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-platform"
-version = "0.1.0-alpha.20"
-dependencies = [
- "file-id",
- "originlm-contracts",
- "libc",
- "notify",
- "tempfile",
-]
-
-[[package]]
-name = "originlm-runtime"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "originlm-contracts",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "originlm-service"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "chrono",
- "getrandom 0.3.4",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-store",
- "notify-rust",
- "ring",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-store"
-version = "0.1.0-alpha.20"
-dependencies = [
- "getrandom 0.3.4",
- "originlm-contracts",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "originlm-transports"
-version = "0.1.0-alpha.20"
-dependencies = [
- "async-stream",
- "axum",
- "getrandom 0.3.4",
- "interprocess",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-runtime",
- "originlm-service",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "widestring",
-]
-
-[[package]]
-name = "originlm-update"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "fs4",
- "getrandom 0.3.4",
- "originlm-contracts",
- "ring",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
 ]
 
 [[package]]
@@ -4330,21 +4087,6 @@ name = "litrs"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4744e383959f0db86ede514b809b1c53251889093803c05267acc7d4e7030d70"
-
-[[package]]
-name = "originlm"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "originlm-control",
- "originlm-kit",
- "originlm-platform",
- "originlm-transports",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
 
 [[package]]
 name = "lock_api"
@@ -5357,6 +5099,265 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-kit",
+ "originlm-platform",
+ "originlm-transports",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-adapters"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "axum",
+ "chrono",
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "process-wrap",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "windows 0.62.2",
+ "zeroize",
+]
+
+[[package]]
+name = "originlm-chatgpt-auth"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "aws-lc-rs",
+ "base64",
+ "fs4",
+ "getrandom 0.3.4",
+ "jsonwebtoken",
+ "keyring",
+ "reqwest",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "originlm-cli"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-adapters",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-kit",
+ "originlm-platform",
+ "originlm-service",
+ "originlm-transports",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-contracts"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "originlm-control"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "chrono",
+ "crossterm",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-service",
+ "originlm-transports",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-core"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "originlm-desktop"
+version = "0.1.0-alpha.18"
+dependencies = [
+ "chrono",
+ "gpui-kit",
+ "image",
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-platform",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "originlm-discovery"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "originlm-platform",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+]
+
+[[package]]
+name = "originlm-kit"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "axum",
+ "originlm-adapters",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "originlm-service",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-platform"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "file-id",
+ "libc",
+ "notify",
+ "originlm-contracts",
+ "tempfile",
+]
+
+[[package]]
+name = "originlm-runtime"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "originlm-contracts",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-service"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.3.4",
+ "notify-rust",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "originlm-store",
+ "ring",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-store"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "originlm-transports"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "async-stream",
+ "axum",
+ "getrandom 0.3.4",
+ "interprocess",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-runtime",
+ "originlm-service",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "widestring",
+]
+
+[[package]]
+name = "originlm-update"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "fs4",
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "ring",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+]
+
+[[package]]
 name = "palette"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5878,7 +5879,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6539,7 +6540,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7096,7 +7097,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7378,7 +7379,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7823,7 +7824,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8529,7 +8530,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9163,7 +9164,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
