@@ -92,8 +92,8 @@ jobs:
           python scripts/verify_npm_release.py --packages npm-release \
             --version "$version" --source-commit "$SOURCE_COMMIT" --require-all
           python -c "import json; d=json.load(open('npm-release/evidence/registry-consumer.json')); assert d['status']=='pass' and d['mode']=='child'"
-      - name: Install trusted-publishing-capable npm
-        run: npm install --global npm@11.5.1
+      - name: Confirm trusted-publishing-capable npm
+        run: npx --yes npm@11.5.1 --version
       - name: Publish platform packages then universal SDK
         if: ${{ !inputs.dry_run }}
         env:
@@ -102,11 +102,11 @@ jobs:
         run: |
           for tarball in npm-release/originlm-cli-*.tgz; do
             echo "publishing $tarball"
-            npm publish "$tarball" --access public --tag "$DIST_TAG" --provenance
+            npx --yes npm@11.5.1 publish "$tarball" --access public --tag "$DIST_TAG" --provenance
           done
           for tarball in npm-release/originlm-[0-9]*.tgz; do
             echo "publishing universal SDK $tarball"
-            npm publish "$tarball" --access public --tag "$DIST_TAG" --provenance
+            npx --yes npm@11.5.1 publish "$tarball" --access public --tag "$DIST_TAG" --provenance
           done
       - name: State publication result
         run: |
