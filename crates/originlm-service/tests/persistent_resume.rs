@@ -72,6 +72,7 @@ fn helper(state: Option<&Path>, workspace: &Path, resumable: bool) -> Helper {
                             provider_id: "test".into(),
                             profile_home: std::env::temp_dir(),
                             executable: None,
+                            scope: None,
                         },
                     )
                 })
@@ -433,6 +434,7 @@ async fn missing_native_history_is_resume_unavailable_not_a_new_chat() {
                                     provider_id: "test".into(),
                                     profile_home: std::env::temp_dir(),
                                     executable: None,
+                                    scope: None,
                                 },
                             )
                         })

@@ -226,6 +226,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                             provider_id: definition.id.into(),
                             profile_home: env.home.clone(),
                             executable: Some(executable),
+                            scope: None,
                         },
                     );
                 }
@@ -393,6 +394,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                             provider_id: definition.id.into(),
                             profile_home: root.clone(),
                             executable,
+                            scope: None,
                         },
                     );
                 }

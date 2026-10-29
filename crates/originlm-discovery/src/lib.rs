@@ -26,6 +26,17 @@ pub struct LocatedClient {
     pub executable: Option<PathBuf>,
     /// Logical command and pinned Unix target for a discovered executable link.
     pub executable_identity: Option<ExecutableIdentity>,
+    /// Exact OpenCode config/data/state binding when discovery came from a
+    /// host-owned account scope. Legacy discovery leaves this `None`.
+    pub scope: Option<ProfileScope>,
+}
+/// Exact account roots needed to keep OpenCode metadata and service state out
+/// of process-global defaults.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileScope {
+    pub config_home: PathBuf,
+    pub data_home: PathBuf,
+    pub state_home: PathBuf,
 }
 impl LocatedClient {
     pub fn validate_executable(&self) -> originlm_contracts::Result<()> {

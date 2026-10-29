@@ -48,6 +48,7 @@ fn managed_codex_is_inert_isolated_and_stable() {
             provider_id: "codex".into(),
             profile_home: tmp.path().join("personal-codex"),
             executable: Some(codex.clone()),
+            scope: None,
         },
     );
     inject_managed_codex(&mut first, &state);

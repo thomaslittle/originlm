@@ -83,6 +83,8 @@ fn single_facade_scopes_codex_claude_opencode_and_isolates_one_failure() {
     let claude_home = account_home(root.path(), "claude-home");
     let claude_exe = account_executable(root.path(), "claude");
     let opencode_home = account_home(root.path(), "opencode-home");
+    let opencode_data = account_home(root.path(), "opencode-data");
+    let opencode_state = account_home(root.path(), "opencode-state");
     let opencode_exe = account_executable(root.path(), "opencode");
     let broken_home = account_home(root.path(), "broken-home");
     let broken_exe = root.path().join("bin/missing/codex");
@@ -98,9 +100,10 @@ fn single_facade_scopes_codex_claude_opencode_and_isolates_one_failure() {
             claude_home.clone(),
             claude_exe.clone(),
         ))
-        .with_account(AccountScope::new(
-            ScopedProvider::OpenCode,
+        .with_account(AccountScope::open_code(
             opencode_home.clone(),
+            opencode_data.clone(),
+            opencode_state.clone(),
             opencode_exe.clone(),
         ))
         .with_account(AccountScope::new(

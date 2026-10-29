@@ -140,7 +140,12 @@ use originlm::{
 let scoped = ScopedInventory::new()
     .with_account(AccountScope::new(ScopedProvider::Codex, codex_home, codex_exe))
     .with_account(AccountScope::new(ScopedProvider::ClaudeCode, claude_home, claude_exe))
-    .with_account(AccountScope::new(ScopedProvider::OpenCode, opencode_home, opencode_exe));
+    .with_account(AccountScope::open_code(
+        opencode_config_home,
+        opencode_data_home,
+        opencode_state_home,
+        opencode_exe,
+    ));
 
 let mut ai = LocalAi::start_with(StartOptions {
     required_mode: Some(Mode::InProcess),
@@ -150,7 +155,11 @@ let mut ai = LocalAi::start_with(StartOptions {
 ```
 
 `NativeClientRegistry` remains limited to its native agent providers; it is not
-used to impersonate Codex/Claude/OpenCode discovery or metadata adapters.
+used to impersonate Codex/Claude/OpenCode discovery or metadata adapters. An
+OpenCode scope requires all three roots: `config_home` maps to
+`OPENCODE_CONFIG_DIR`, `data_home` to `XDG_DATA_HOME`, and `state_home` to
+`XDG_STATE_HOME`. Its `connections.probe` reads or starts only that account's
+service descriptor; it never falls back to the process-global OpenCode service.
 
 Tauri and GPUI use this crate. `LocalAi` also exposes `call`, `scan` and
 `status`.

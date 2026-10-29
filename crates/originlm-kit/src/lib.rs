@@ -10,7 +10,8 @@ pub use originlm_adapters::native_clients::config::{
 pub use originlm_contracts::*;
 pub use originlm_core::ClientPolicy;
 pub use originlm_discovery::{
-    AccountScope, ExecutableIdentity, LocatedClient, ScanResult, ScopedInventory, ScopedProvider,
+    AccountScope, ExecutableIdentity, LocatedClient, ProfileScope, ScanResult, ScopedInventory,
+    ScopedProvider,
 };
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
 use originlm_platform::NativeFilesystem;

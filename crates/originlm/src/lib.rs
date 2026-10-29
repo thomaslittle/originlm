@@ -61,7 +61,9 @@
 //! [`AccountScope`] and [`ScopedProvider`] with [`scoped_inventory_source`]; the
 //! official scanner derives account/connection identities and Unix symlink
 //! identity per exact home and logical executable, and one failed account does
-//! not suppress the others.
+//! not suppress the others. OpenCode scopes must also provide exact data and
+//! state roots through [`AccountScope::open_code`]; metadata then reads or
+//! starts only that account's service, never the process-global default.
 //!
 //! [`LocalAi::close`] cooperatively cancels in-process background lanes and the
 //! active inventory refresh, then waits at most
@@ -1564,6 +1566,7 @@ mod tests {
                 profile_home: directory.path().join("profile"),
                 executable: None,
                 executable_identity: None,
+                scope: None,
             },
         )]);
         let inventory = std::sync::Arc::new(move |_cancel: &std::sync::atomic::AtomicBool| {
