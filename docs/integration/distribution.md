@@ -15,7 +15,7 @@ The bundle contains the native helper and Native Messaging host, four npm tarbal
 
 Release staging produces one universal `originlm` npm tarball with all five
 platform helper packages as optional dependencies, so a normal consumer installs
-`originlm` and lets its platform resolve `@originlm/cli-*` without naming a local
+`originlm` and lets its platform resolve `originlm-cli-*` without naming a local
 path. The four framework tarballs are staged alongside it for local preview;
 install React separately only for the optional React packages. The Python wheel
 requires Python 3.11+. The standalone Rust executables do not require Node or

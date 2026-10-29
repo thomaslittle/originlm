@@ -96,12 +96,12 @@ The helper ships as per-platform optional dependencies, the way esbuild and Biom
 do:
 
 ```
-@originlm/cli-linux-x64  @originlm/cli-linux-arm64
-@originlm/cli-darwin-arm64  @originlm/cli-darwin-x64
-@originlm/cli-win32-x64
+originlm-cli-linux-x64  originlm-cli-linux-arm64
+originlm-cli-darwin-arm64  originlm-cli-darwin-x64
+originlm-cli-win32-x64
 ```
 
-The SDK resolves `@originlm/cli-<platform>/package.json` and the binary it
+The SDK resolves `originlm-cli-<platform>/package.json` and the binary it
 declares, so installation is a normal dependency update: no postinstall script,
 no download at import time. The Node transport is intended for Node and Electron's main process; Bun execution must be qualified separately.
 Renderer processes use the web bridge instead.
