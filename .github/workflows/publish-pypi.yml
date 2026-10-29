@@ -101,6 +101,10 @@ jobs:
           done
           test "$count" -eq 2
           sha256sum dist/*.whl > python-wheel-SHA256SUMS
+          if find dist -type f ! -name '*.whl' | grep -q .; then
+            echo 'dist contains non-wheel upload inputs' >&2
+            exit 1
+          fi
           cat python-wheel-SHA256SUMS
       - name: Preserve verification reports
         if: always()

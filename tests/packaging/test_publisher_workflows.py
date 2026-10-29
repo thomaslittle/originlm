@@ -20,6 +20,7 @@ class PublisherWorkflows(unittest.TestCase):
         self.assertIn('packages-dir: dist', workflow)
         self.assertIn('name: python-wheel-verification-reports', workflow)
         self.assertIn('sha256sum dist/*.whl > python-wheel-SHA256SUMS', workflow)
+        self.assertIn("find dist -type f ! -name '*.whl'", workflow)
         upload = workflow.split('Publish to PyPI with trusted publishing', 1)[1]
         self.assertNotIn('python-wheel-SHA256SUMS', upload.split('packages-dir:', 1)[0])
 
