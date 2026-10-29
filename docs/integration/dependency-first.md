@@ -41,6 +41,64 @@ private helper is preferred over in-process because it keeps broker work out of
 the application process; in-process is the fallback that makes "no separate
 install" true, and it is reported as `Mode::InProcess`.
 
+### Strict shared bootstrap
+
+An application that must not silently fall back sets `required_mode` and its
+application identity. The descriptor must be an application grant (`scope:
+"application"`, `independent: true`, matching `appId`, protocol `1.0`); an owner
+or single-use descriptor is rejected before authentication:
+
+```rust
+use originlm::{LocalAi, Mode, StartOptions};
+
+let mut ai = LocalAi::start_with(StartOptions {
+    required_mode: Some(Mode::Shared),
+    address: Some(address),
+    token_file: Some(token_file),
+    expected_app_id: Some("haiwire".into()),
+    ..Default::default()
+})?;
+```
+
+Missing, malformed, foreign or revoked explicit grants fail closed. Automatic
+resolution (`required_mode: None`) may fall back only when no explicit descriptor
+or identity was supplied.
+
+### Deterministic, cancellable embedded runtime
+
+`Mode::InProcess` as the required mode ignores shared-token discovery, `PATH`,
+adjacent helpers and `LAI_HELPER_PATH`. Host-owned configuration is forwarded
+without changing process-global environment:
+
+```rust
+use originlm::{CancelToken, LocalAi, Mode, StartOptions};
+
+let mut ai = LocalAi::start_with(StartOptions {
+    required_mode: Some(Mode::InProcess),
+    home: Some(app_owned_home),
+    inventory: Some(synthetic_inventory),
+    native_clients: native_registry,
+    app_label: Some("haiwire".into()),
+    request_timeout: std::time::Duration::from_secs(10),
+    close_timeout: std::time::Duration::from_secs(2),
+    ..Default::default()
+})?;
+
+let cancel = CancelToken::new();
+// Host Stop/Disable path, any thread:
+let stop = cancel.clone();
+std::thread::spawn(move || stop.cancel());
+let snapshot = ai.call_cancellable("snapshot.get", serde_json::json!({}), &cancel)?;
+```
+
+`call` uses `request_timeout`; `close` uses `close_timeout`. Embedded
+cancellation drops the pending future and keeps the client usable. Cancelling a
+shared or child request returns `Cancelled` and closes that transport. The
+private helper's drop reaps its immediate child on a best-effort bound; descendant
+cleanup across platforms is not claimed. Helper bytes are not authenticated, so
+use required in-process mode when an arbitrary local executable must not be
+trusted.
+
 Tauri and GPUI use this crate. `LocalAi` also exposes `call`, `scan` and
 `status`.
 
@@ -54,6 +112,7 @@ denies every session until the host records the user's exact grant:
 use originlm::{ExecutionGrant, LocalAi, StartOptions};
 
 let mut ai = LocalAi::start_with(StartOptions {
+    required_mode: Some(Mode::InProcess),
     execution: true,
     ..Default::default()
 })?;
