@@ -109,10 +109,12 @@ impl ProviderDefinition {
     }
     /// An explicitly configured executable that replaces the search.
     pub(crate) fn executable_override<'a>(&self, env: &'a ScanEnvironment) -> Option<&'a PathBuf> {
-        match self.id {
-            "muse" => env.overrides.get(MUSE_BINARY_OVERRIDE),
-            _ => None,
-        }
+        env.executable_overrides
+            .get(self.id)
+            .or_else(|| match self.id {
+                "muse" => env.overrides.get(MUSE_BINARY_OVERRIDE),
+                _ => None,
+            })
     }
     pub(crate) fn has_override(&self, env: &ScanEnvironment) -> bool {
         crate::knowledge::has_profile_override(self.id, env)

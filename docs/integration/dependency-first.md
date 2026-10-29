@@ -125,6 +125,33 @@ let inventory: InventorySource = Arc::new(|_cancel| {
 let native = NativeClientRegistry::default();
 ```
 
+For exact Codex, Claude Code and OpenCode accounts, use the facade's
+scoped-discovery configuration. It names the exact host-owned home and logical
+executable for each account; the official scanner derives installation/profile/
+connection IDs and Unix symlink identity. Accounts are scanned independently, a
+failed account is omitted with a path-free diagnostic, and no global `HOME`,
+`PATH` or provider environment is changed:
+
+```rust
+use originlm::{
+    AccountScope, Mode, ScopedInventory, ScopedProvider, StartOptions, scoped_inventory_source,
+};
+
+let scoped = ScopedInventory::new()
+    .with_account(AccountScope::new(ScopedProvider::Codex, codex_home, codex_exe))
+    .with_account(AccountScope::new(ScopedProvider::ClaudeCode, claude_home, claude_exe))
+    .with_account(AccountScope::new(ScopedProvider::OpenCode, opencode_home, opencode_exe));
+
+let mut ai = LocalAi::start_with(StartOptions {
+    required_mode: Some(Mode::InProcess),
+    inventory: Some(scoped_inventory_source(scoped)),
+    ..Default::default()
+})?;
+```
+
+`NativeClientRegistry` remains limited to its native agent providers; it is not
+used to impersonate Codex/Claude/OpenCode discovery or metadata adapters.
+
 Tauri and GPUI use this crate. `LocalAi` also exposes `call`, `scan` and
 `status`.
 

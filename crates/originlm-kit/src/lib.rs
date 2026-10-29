@@ -9,7 +9,9 @@ pub use originlm_adapters::native_clients::config::{
 };
 pub use originlm_contracts::*;
 pub use originlm_core::ClientPolicy;
-pub use originlm_discovery::{ExecutableIdentity, LocatedClient, ScanResult};
+pub use originlm_discovery::{
+    AccountScope, ExecutableIdentity, LocatedClient, ScanResult, ScopedInventory, ScopedProvider,
+};
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
 use originlm_platform::NativeFilesystem;
 pub use originlm_service::{ExecutionGrant, InventorySource, NativeService};
@@ -168,6 +170,12 @@ pub fn inventory_source(home: Option<PathBuf>) -> InventorySource {
         };
         Scanner::new(NativeFilesystem).scan(&environment, cancel, |_| {})
     })
+}
+/// Build an official inventory source from exact host-owned account scopes.
+/// Each account is scanned independently; callers do not reimplement discovery
+/// or manufacture connection identities.
+pub fn scoped_inventory_source(scoped: ScopedInventory) -> InventorySource {
+    Arc::new(move |cancel| scoped.scan(cancel))
 }
 impl EmbeddedClient {
     fn open(&self) -> Result<()> {
