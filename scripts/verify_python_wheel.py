@@ -229,7 +229,7 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
     if not match:
         raise VerifyError(f'unexpected wheel filename: {wheel.name}')
     filename_version, filename_platform = match.groups()
-    if filename_version != version:
+    if normalize_version(filename_version) != normalize_version(version):
         raise VerifyError(f'wheel version is {filename_version}, expected {version}')
     if plat_name and filename_platform != plat_name:
         raise VerifyError(f'wheel platform is {filename_platform}, expected {plat_name}')
@@ -251,7 +251,7 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
         wheel_text = archive.read(wheel_name).decode('utf-8')
         if _header(metadata_text, 'Name')[0].strip() != 'originlm':
             raise VerifyError('wheel metadata Name is not originlm')
-        if _header(metadata_text, 'Version')[0].strip() != version:
+        if normalize_version(_header(metadata_text, 'Version')[0].strip()) != normalize_version(version):
             raise VerifyError('wheel metadata Version does not match the filename')
         classifiers = [value.strip() for value in _header(metadata_text, 'Classifier', required=False)]
         has_guard = CLASSIFIER in classifiers
@@ -277,7 +277,7 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
             raise VerifyError('PROVENANCE.json is not valid JSON') from error
         if provenance.get('kind') != 'originlm-python-wheel':
             raise VerifyError('PROVENANCE.json is not a Python wheel provenance record')
-        if provenance.get('version') != version:
+        if normalize_version(provenance.get('version')) != normalize_version(version):
             raise VerifyError('PROVENANCE.json version does not match the wheel')
         if provenance.get('platform') != filename_platform:
             raise VerifyError('PROVENANCE.json platform does not match the wheel tag')
