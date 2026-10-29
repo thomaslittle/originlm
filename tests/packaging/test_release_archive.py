@@ -8,6 +8,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -185,6 +186,39 @@ class NpmPackaging(unittest.TestCase):
                 self.assertTrue(all(member.mtime == 0 for member in archive.getmembers()))
             with self.assertRaises(npm_pack.PackError):
                 npm_pack.pack(package, pathlib.Path(directory) / 'three', require=['src/secret.ts'])
+
+
+    def test_member_order_is_platform_independent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = pathlib.Path(directory) / 'package'
+            (package / 'dist').mkdir(parents=True)
+            (package / 'package.json').write_text(json.dumps({
+                'name': 'originlm', 'version': '0.1.0-alpha.20',
+                'files': ['dist', 'LICENSE', 'NOTICE'],
+            }), encoding='utf-8')
+            (package / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+            (package / 'NOTICE').write_text('NOTICE\n', encoding='utf-8')
+            (package / 'dist' / 'a.js').write_text('a\n', encoding='utf-8')
+            (package / 'dist' / 'Z.js').write_text('Z\n', encoding='utf-8')
+            # Simulate Windows' case-insensitive rglob order: dist before LICENSE.
+            windows_order = [
+                package / 'dist' / 'a.js',
+                package / 'dist' / 'Z.js',
+                package / 'LICENSE',
+                package / 'NOTICE',
+                package / 'package.json',
+            ]
+            with mock.patch.object(pathlib.Path, 'rglob', return_value=iter(windows_order)):
+                archive_path = npm_pack.pack(package, pathlib.Path(directory) / 'out')
+            with tarfile.open(archive_path, 'r:gz') as archive:
+                names = archive.getnames()
+            self.assertEqual(names, [
+                'package/LICENSE',
+                'package/NOTICE',
+                'package/dist/Z.js',
+                'package/dist/a.js',
+                'package/package.json',
+            ])
 
 
 class ArchiveValidation(unittest.TestCase):

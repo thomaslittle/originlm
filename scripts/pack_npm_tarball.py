@@ -68,7 +68,11 @@ def pack(package, out, name=None, require=()):
     destination = out / (filename if filename.endswith('.tgz') else filename + '.tgz')
     files = []
     included = set()
-    for path in sorted(package.rglob('*')):
+    paths = sorted(
+        package.rglob('*'),
+        key=lambda path: path.relative_to(package).as_posix(),
+    )
+    for path in paths:
         relative = path.relative_to(package)
         if not _included(relative, patterns):
             continue
