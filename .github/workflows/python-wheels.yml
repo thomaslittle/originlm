@@ -51,9 +51,12 @@ jobs:
         run: |
           # manylinux images may preinstall Rust under /usr/local. Use isolated
           # homes so the pinned toolchain never tries to overwrite image shims.
-          echo "RUSTUP_HOME=$RUNNER_TEMP/rustup" >> "$GITHUB_ENV"
-          echo "CARGO_HOME=$RUNNER_TEMP/cargo" >> "$GITHUB_ENV"
-          echo "$RUNNER_TEMP/cargo/bin" >> "$GITHUB_PATH"
+          export RUSTUP_HOME="$RUNNER_TEMP/rustup"
+          export CARGO_HOME="$RUNNER_TEMP/cargo"
+          export PATH="$CARGO_HOME/bin:$PATH"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$CARGO_HOME" >> "$GITHUB_ENV"
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
           if ! command -v git >/dev/null 2>&1; then
             (command -v dnf >/dev/null 2>&1 && dnf install -y git) || \
               (command -v microdnf >/dev/null 2>&1 && microdnf install -y git)
