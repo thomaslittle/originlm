@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Github } from "./Icon";
-import logo from "../assets/brand/originlm-horizontal-dark.svg";
+import { BrandLogo } from "./BrandLogo";
 
 const COLUMNS = [
   {
@@ -42,7 +42,7 @@ export function Footer({ children }: { children?: ReactNode }) {
 
         <div className="footer-grid">
           <div className="footer-brand">
-            <img src={logo} alt="OriginLM" width={906} height={208} />
+            <BrandLogo />
             <p>
               A local control center for every AI client on your machine, and the one dependency that
               puts the user’s own AI in your app. Private by design.
