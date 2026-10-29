@@ -44,15 +44,16 @@ jobs:
       CARGO_BUILD_JOBS: '2'
       PYTHONUTF8: '1'
       PYTHON: /opt/python/cp312-cp312/bin/python
-      # manylinux images may preinstall Rust under /usr/local. Use isolated
-      # homes so the pinned toolchain never tries to overwrite image shims.
-      RUSTUP_HOME: ${{ runner.temp }}/rustup
-      CARGO_HOME: ${{ runner.temp }}/cargo
     steps:
       - uses: actions/checkout@v7
       - name: Install build prerequisites inside manylinux
         shell: bash
         run: |
+          # manylinux images may preinstall Rust under /usr/local. Use isolated
+          # homes so the pinned toolchain never tries to overwrite image shims.
+          echo "RUSTUP_HOME=$RUNNER_TEMP/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$RUNNER_TEMP/cargo" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/cargo/bin" >> "$GITHUB_PATH"
           if ! command -v git >/dev/null 2>&1; then
             (command -v dnf >/dev/null 2>&1 && dnf install -y git) || \
               (command -v microdnf >/dev/null 2>&1 && microdnf install -y git)
