@@ -78,26 +78,39 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check auditwheel twine
           version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
-          mkdir -p dist
+          mkdir -p dist reports
           count=0
           for directory in artifacts/python-wheel-*; do
             target="${directory#artifacts/python-wheel-}"
             test -d "$directory" || continue
+            case "$target" in
+              *linux-gnu) ;;
+              *) echo "unsupported PyPI target: $target" >&2; exit 1 ;;
+            esac
             wheel="$(find "$directory" -name 'originlm-*.whl' -type f | head -1)"
             test -n "$wheel"
-            plat="$(python -c "import sys; sys.path.insert(0, 'scripts'); from release_targets import target_info; print(target_info('$target')['wheelPlatform'])")"
+            plat="$(python -c "import sys; sys.path.insert(0, 'scripts'); from release_targets import target_info; print(target_info('$target')['manylinuxPlatform'])")"
             evidence="$directory/prepared/evidence/python-wheel-$target.json"
             consumer="$directory/prepared/evidence/python-consumer-$target.json"
             python -c "import json, sys; w=json.load(open(sys.argv[1])); c=json.load(open(sys.argv[2])); assert w['status']=='pass' and w.get('manylinux') and w['auditwheel']['passed'] and w['twine']['passed'] and c['status']=='pass' and c['mode']=='child' and c['inferenceRequests']==0" "$evidence" "$consumer"
             python scripts/verify_python_wheel.py --wheel "$wheel" --version "$version" \
               --target "$target" --plat-name "$plat" --source-commit "$SOURCE_COMMIT" \
-              --release --out "dist/python-wheel-$target.json"
+              --release --out "reports/python-wheel-$target.json"
             cp "$wheel" dist/
             count=$((count + 1))
           done
           test "$count" -eq 2
           sha256sum dist/*.whl > python-wheel-SHA256SUMS
           cat python-wheel-SHA256SUMS
+      - name: Preserve verification reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-verification-reports
+          path: |
+            reports/
+            python-wheel-SHA256SUMS
+          if-no-files-found: warn
       - name: Publish to PyPI with trusted publishing
         if: ${{ !inputs.dry_run }}
         uses: pypa/gh-action-pypi-publish@release/v1
