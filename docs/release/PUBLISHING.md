@@ -119,7 +119,7 @@ differs.
 
 The preparation workflow now stages one **universal** `originlm` npm tarball. Its
 `optionalDependencies` are exactly the five supported
-`@originlm/cli-<platform>` packages at the same exact version; each release job
+`originlm-cli-<platform>` packages at the same exact version; each release job
 produces the same universal SDK manifest, while the platform tarball differs by
 target. Platform tarballs carry the qualified native `manifest.json`,
 `sbom.cdx.json`, notices, repository `LICENSE` and full dependency license texts.

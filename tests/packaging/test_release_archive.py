@@ -123,7 +123,7 @@ class NpmReleaseShape(unittest.TestCase):
             'licenses/x-1.0.0/LICENSE': {'bytes': len(dependency), 'sha256': hashlib.sha256(dependency).hexdigest()},
         }
         npm_tarball(directory / 'originlm-cli-linux-x64-0.1.0-alpha.20.tgz', {
-            'name': '@originlm/cli-linux-x64', 'version': self.version,
+            'name': 'originlm-cli-linux-x64', 'version': self.version,
             'os': ['linux'], 'cpu': ['x64'], 'bin': {'originlm': 'bin/originlm'},
         }, {
             'bin/originlm': helper,
@@ -148,7 +148,7 @@ class NpmReleaseShape(unittest.TestCase):
 
     def test_a_partial_platform_set_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
-            partial = {'@originlm/cli-linux-x64': self.version}
+            partial = {'originlm-cli-linux-x64': self.version}
             with self.assertRaises(npm_release.VerifyNpmError):
                 npm_release.verify(self.build(directory, partial), self.version)
 

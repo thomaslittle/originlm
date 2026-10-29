@@ -31,11 +31,11 @@ import urllib.parse
 import npm_consumer_smoke
 
 PLATFORM_PACKAGES = {
-    ('linux', 'x86_64'): '@originlm/cli-linux-x64',
-    ('linux', 'aarch64'): '@originlm/cli-linux-arm64',
-    ('darwin', 'x86_64'): '@originlm/cli-darwin-x64',
-    ('darwin', 'arm64'): '@originlm/cli-darwin-arm64',
-    ('win32', 'x64'): '@originlm/cli-win32-x64',
+    ('linux', 'x86_64'): 'originlm-cli-linux-x64',
+    ('linux', 'aarch64'): 'originlm-cli-linux-arm64',
+    ('darwin', 'x86_64'): 'originlm-cli-darwin-x64',
+    ('darwin', 'arm64'): 'originlm-cli-darwin-arm64',
+    ('win32', 'x64'): 'originlm-cli-win32-x64',
 }
 
 

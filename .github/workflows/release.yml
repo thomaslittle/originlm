@@ -154,7 +154,7 @@ jobs:
           echo 'Each runner executed --version, an empty-home passive scan and a bounded stdio handshake against the built helper and the helper extracted from the final archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Archives contain helper-<target>/originlm[.exe], LICENSE, per-target dependency notices and license texts, sbom.cdx.json and manifest.json with member paths, byte lengths and SHA-256.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Native smoke, archive, universal npm package and fresh npm consumer evidence is persisted under prepared/evidence/ so it is uploaded with the artifact (not in a hidden directory).' >> "$GITHUB_STEP_SUMMARY"
-          echo 'The npm SDK is one universal originlm tarball with all five exact-version @originlm/cli-* optional dependencies; each platform package carries its native manifest, SBOM, notices and license texts.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The npm SDK is one universal originlm tarball with all five exact-version originlm-cli-* optional dependencies; each platform package carries its native manifest, SBOM, notices and license texts.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise; helper glibc baselines are recorded per archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'See docs/release/PUBLISHING.md for compatibility, signing and publication gates.' >> "$GITHUB_STEP_SUMMARY"
 

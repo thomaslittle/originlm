@@ -11,7 +11,7 @@ runtime when allowed and no helper exists; this is reported as `in_process`.
 ## Packaged Electron cannot start the helper
 
 Set your packager's `asarUnpack` to include
-`node_modules/@originlm/cli-*/bin/**`. Electron cannot `spawn` a native binary
+`node_modules/originlm-cli-*/bin/**`. Electron cannot `spawn` a native binary
 through its virtual ASAR filesystem. The SDK selects the physical
 `.asar.unpacked` sibling and reports `HELPER_NOT_UNPACKED` if it is missing.
 Keep SDK/runtime access in the main process and use scoped IPC for the renderer.

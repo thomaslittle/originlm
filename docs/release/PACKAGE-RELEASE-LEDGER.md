@@ -7,7 +7,7 @@ does not claim registry publication or consumer migration before those happen.
 
 | Registry | Package/name state | Credential state |
 | --- | --- | --- |
-| npm | `originlm` and `@originlm/cli-*` unclaimed (`404` at check time) | No local npm login (`ENEEDAUTH`); no GitHub repository secret/environment |
+| npm | `originlm` and `originlm-cli-*` unclaimed (`404` at check time) | No local npm login (`ENEEDAUTH`); no GitHub repository secret/environment |
 | crates.io | Not published | No local cargo credentials file; no GitHub repository secret/environment |
 | PyPI | `originlm` unclaimed (`404` at check time) | No local `.pypirc` or twine configuration; no GitHub repository secret/environment |
 
@@ -30,7 +30,7 @@ read-only.
    Store it only as `NPM_TOKEN` in the protected release environment.
 3. Publish platform packages first, then the universal SDK:
    `npm publish <platform.tgz> --access public` for each
-   `@originlm/cli-*`, then `npm publish originlm-<version>.tgz --access public`.
+   `originlm-cli-*`, then `npm publish originlm-<version>.tgz --access public`.
 4. Verify with `npm view originlm@<version> optionalDependencies` and a clean
    `npm install originlm@<version>` consumer on each platform.
 
@@ -62,7 +62,7 @@ read-only.
 - PR: [#14](https://github.com/thomaslittle/originlm/pull/14)
 - Head: `64942f0d385912aaef6e24427e3de7d63d31673c`
 - Shape: one universal `originlm` tarball with exactly five exact-version
-  `@originlm/cli-*` optional dependencies.
+  `originlm-cli-*` optional dependencies.
 - Platform tarballs carry native `manifest.json`, `sbom.cdx.json`, notices,
   repository `LICENSE` and full dependency license texts.
 - Local proof on Linux x64: 34 packaging tests pass (1 Windows-only skip);
