@@ -73,17 +73,27 @@ read-only.
 
 ## Python wheel qualification
 
-Being implemented by an independent worker. Required evidence: real manylinux
-baseline (not Ubuntu retagging), embedded qualified native helper, full
-license/provenance metadata, wheel inspection, and fresh `Client.auto()` proof
-with empty home, empty PATH, no checkout, no path override and no persistent
-service.
+- Branch: `t3/python-wheel-qualification`
+- PR: [#15](https://github.com/thomaslittle/originlm/pull/15)
+- Head: `05319ccc87eea5dc46ccfd3c0197ca34ccf1d4e4` (stacked on PR14)
+- Adds a read-only manylinux_2_28 x86_64/aarch64 workflow using official
+  `quay.io/pypa/manylinux_2_28_*` images, explicit `--release` staging that
+  removes the private upload classifier only for publishable wheels, embedded
+  native helper plus LICENSE/notices/SBOM/native manifest/license texts, wheel
+  verification with `auditwheel show` and `twine check`, and a fresh
+  `Client.auto()` venv proof with empty HOME/PATH, no `LAI_*`, no shared grant and
+  no persistent service.
+- Local evidence: 57 packaging tests, 40 SDK Python tests, 11 generation tests,
+  `check_project.py` pass; host-tagged wheel built and smoke-tested. The real
+  manylinux_2_28 build is being run in CI; it is not claimed until that job passes.
+- The first manylinux aarch64 run failed on a Rust shim conflict before building;
+  isolated `RUSTUP_HOME`/`CARGO_HOME` now fix that and reruns are queued.
 
 ## Cargo closure and Rust facade
 
 - Branch: `t3/publish-facade-execution-api`
 - PR: [#16](https://github.com/thomaslittle/originlm/pull/16)
-- Head: `5dcffac9bae06ea0ceb36926468f77a1b0adb131` (stacked on PR14's `998e890`)
+- Head: `eb38dc9ad08717a5abeb49d09102689d13ea90a2` (stacked on PR14; includes the npm evidence target fix)
 - 13 publishable crates; `originlm-cli`, `originlm-desktop` and `originlm-update`
   remain private.
 - All intra-workspace dependencies in publishable crates use workspace version +
