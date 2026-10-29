@@ -204,6 +204,15 @@ class WheelVerifierTests(unittest.TestCase):
 
     def test_version_normalization_matches_cargo_and_pep440(self):
         self.assertEqual(verify_module.normalize_version(NATIVE_VERSION), VERSION)
+        self.assertEqual(consumer_module.normalize_version(NATIVE_VERSION), VERSION)
+
+    def test_project_semver_accepts_pep440_wheel_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wheel = make_wheel(directory, release=True)
+            evidence = verify_module.verify(
+                wheel, NATIVE_VERSION, target=TARGET, release=True, run_tools=False
+            )
+            self.assertEqual(evidence['status'], 'pass')
 
     def test_auditwheel_baseline_must_cover_the_declared_manylinux(self):
         self.assertTrue(verify_module.manylinux_accepts(

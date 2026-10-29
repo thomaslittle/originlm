@@ -13,10 +13,13 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+
+from verify_python_wheel import normalize_version
 
 
 class ConsumerError(RuntimeError):
@@ -154,6 +157,9 @@ def smoke(wheel, version, python=None, timeout=240, keep=False):
     wheel = pathlib.Path(wheel).resolve()
     if wheel.is_symlink() or not wheel.is_file():
         raise ConsumerError(f'wheel is unavailable: {wheel}')
+    match = re.fullmatch(r'originlm-(.+)-py3-none-.+\.whl', wheel.name)
+    if not match or normalize_version(match.group(1)) != normalize_version(version):
+        raise ConsumerError(f'wheel version does not match the expected release: {wheel.name}')
     python = pathlib.Path(python or sys.executable).resolve()
     temporary = tempfile.mkdtemp(prefix='originlm-python-consumer-')
     base = pathlib.Path(temporary)
@@ -203,6 +209,7 @@ def smoke(wheel, version, python=None, timeout=240, keep=False):
             'status': 'pass',
             'wheel': wheel.name,
             'version': version,
+            'pep440Version': normalize_version(version),
             'mode': result['mode'],
             'protocolVersion': result.get('protocolVersion'),
             'connections': result['connections'],
