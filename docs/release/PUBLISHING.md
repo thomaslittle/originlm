@@ -134,8 +134,20 @@ aggregate check is not treated as all-platform consumer proof.
 Actual npm/crates.io/PyPI publication is a separate authorized registry operation.
 No registry credential or GitHub environment currently exists in this repository,
 and the preparation workflow has read-only permissions. The workspace SDK keeps
-`private: true` (release staging removes it only in the publishable copy), and Rust
-crates keep `publish = false` until the registry closure and order are approved.
+`private: true` (release staging removes it only in the publishable copy).
+
+The Rust facade closure (the normal/build dependencies of `originlm`) is marked
+publishable; the CLI, GPUI desktop app, and the unpublished update helper keep
+`publish = false`. `scripts/publish_order.py` derives the dependency-first order
+from `cargo metadata`, fails on cycles or intra-workspace dependencies without
+`version` and `path`, reports the declared MSRV, and can verify packaging without
+uploading:
+
+```sh
+python scripts/publish_order.py --check
+python scripts/publish_order.py --package
+```
+
 Consumer-repository pin changes, signing credentials and public package ownership
 remain maintainer/root-release-worker operations.
 
@@ -220,6 +232,22 @@ A machine without Docker cannot produce or verify a manylinux claim; it can buil
 only a host-tagged preview wheel. Use the workflow's `prepared/evidence/` JSON as
 the qualification record, not a locally retagged artifact. The workflow still
 does not publish to PyPI, sign anything or modify consumer repositories.
+
+## Packaged crate closure gate
+
+`cargo package --no-verify` validates the source worktree, not the `.crate`
+contents. The crate preparation and publisher jobs therefore run
+`scripts/verify_packaged_closure.py` against the exact 13 prepared archives. It
+verifies the manifest source/version/order and every archive hash, safely
+extracts the archives outside the checkout, rejects normalized manifests with
+`path` dependencies or leaked absolute workspace paths, and checks the unpacked
+workspace with the declared MSRV. Internal dependencies resolve only to the
+unpacked packages through temporary `[patch.crates-io]` entries. A fresh consumer
+manifest depends only on the public `originlm` crate; the same bootstrap patches
+map the unpublished closure to the reviewed unpacked crates. The evidence JSON is
+persisted with the crate artifact and checked again before publication. Offline
+resolution uses the runner cargo cache for registry dependencies; no provider,
+credential or publication action is involved.
 
 ## Maintainer gates for a signed/stable release
 

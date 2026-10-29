@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "Local ChatGPT sign-in and credential handling for OriginLM"
+publish = true
 
 [dependencies]
 base64 = "0.22"

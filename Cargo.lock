@@ -5104,6 +5104,7 @@ version = "0.1.0-alpha.20"
 dependencies = [
  "originlm-contracts",
  "originlm-control",
+ "originlm-discovery",
  "originlm-kit",
  "originlm-platform",
  "originlm-transports",

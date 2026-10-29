@@ -44,6 +44,42 @@ install" true, and it is reported as `Mode::InProcess`.
 Tauri and GPUI use this crate. `LocalAi` also exposes `call`, `scan` and
 `status`.
 
+### Rust execution and consent
+
+Starting a runtime is never execution consent. In-process execution drivers are
+registered only when `StartOptions::execution` is `true`, and registration still
+denies every session until the host records the user's exact grant:
+
+```rust
+use originlm::{ExecutionGrant, LocalAi, StartOptions};
+
+let mut ai = LocalAi::start_with(StartOptions {
+    execution: true,
+    ..Default::default()
+})?;
+ai.authorize_execution(ExecutionGrant {
+    connection_ids: ["personal".into()].into_iter().collect(),
+    workspaces: [("scratch".into(), workspace.canonicalize()?)].into_iter().collect(),
+    // allow_paid, allow_writes, review_native, and allow_native_policy stay
+    // false unless the user explicitly approved each one.
+    ..Default::default()
+})?;
+```
+
+`authorize_execution` is a host API, not an RPC and not a permission mutation.
+`Mode::Shared` and `Mode::Child` return `LocalAccessDenied` because the user
+approves applications through the broker; the facade can use that grant but
+cannot widen or replace it. A client without a grant receives
+`LocalAccessDenied` before an agent starts.
+
+Sessions and turns use the same public contracts as the JSON-RPC surface:
+`create_session`, `get_session`, `suspend_session`, `resume_session`,
+`update_session_options`, `close_session`, `start_turn`, `cancel_turn`,
+`respond_to_approval`, `read_events`, and `subscribe_events`. Subscriptions are
+cursor-based polling (`EventSubscription::poll`); they do not spawn a task,
+open a socket, or start a service. `LocalAi::close` closes only this client and
+reaps an owned private helper.
+
 ## npm
 
 ```ts
