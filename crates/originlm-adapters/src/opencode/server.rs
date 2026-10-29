@@ -185,7 +185,7 @@ pub async fn probe(
     })?;
     let version = capture(
         LaunchSpec {
-            executable,
+            executable: executable.clone(),
             args: vec!["--version".into()],
             cwd,
             env: BTreeMap::new(),
@@ -194,7 +194,8 @@ pub async fn probe(
     )
     .await?;
     if super::version::installed_major(&version) == Some(2) {
-        return super::v2_service::probe(connection, route, &version).await;
+        return super::v2_service::probe_with_install(&executable, connection, route, &version)
+            .await;
     }
     let dir = tempfile::Builder::new()
         .prefix("originlm-opencode-probe-")
@@ -205,7 +206,7 @@ pub async fn probe(
                 "Isolated workspace unavailable",
             )
         })?;
-    let mut server = start(located_executable, dir.path()).await?;
+    let mut server = start(&executable, dir.path()).await?;
     let result = super::catalog(connection, route, &server.providers, &BTreeMap::new());
     server.child.shutdown().await;
     result

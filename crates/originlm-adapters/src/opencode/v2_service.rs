@@ -7,7 +7,10 @@
 //! service itself. Execution remains unavailable until the v2 ACP/text client
 //! is independently wired.
 
-use crate::http::{Authentication, Endpoint};
+use crate::{
+    http::{Authentication, Endpoint},
+    process::{LaunchSpec, capture},
+};
 use chrono::DateTime;
 use originlm_contracts::*;
 use serde_json::Value;
@@ -15,9 +18,13 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 const MAX_DESCRIPTOR: u64 = 8 * 1024;
+/// Starting the owner's own background service is bounded; a healthy service
+/// answers immediately and the CLI is idempotent.
+const SERVICE_START: Duration = Duration::from_secs(20);
 
 fn unavailable(reason: &str) -> DomainError {
     DomainError::new(ErrorCode::ProviderUnavailable, reason)
@@ -74,7 +81,74 @@ fn read_service(path: &Path) -> Result<(String, String)> {
         .as_str()
         .filter(|password| password.len() >= 16 && password.len() <= 512)
         .ok_or_else(|| denied("OpenCode service credential is invalid"))?;
+    if let Some(pid) = value["pid"].as_u64()
+        && pid > 0
+        && !process_is_alive(pid)
+    {
+        // A stopped OpenCode service leaves this descriptor behind. Treating
+        // its port as authoritative keeps every later probe pinned to a dead
+        // endpoint, so usage can never advance.
+        return Err(unavailable(
+            "OpenCode 2 background service is stopped; its descriptor is stale",
+        ));
+    }
     Ok((url.trim_end_matches('/').to_string(), password.to_string()))
+}
+
+fn process_is_alive(pid: u64) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        Path::new("/proc").join(pid.to_string()).exists()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Other platforms have no portable, dependency-free PID liveness
+        // check here; an unreachable endpoint still triggers one recovery.
+        let _ = pid;
+        true
+    }
+}
+
+fn service_environment() -> BTreeMap<std::ffi::OsString, std::ffi::OsString> {
+    // The CLI resolves its own state and credential store from the owner's
+    // environment. Pass only those roots; never a server password or a
+    // session-specific OPENCODE_CONFIG_CONTENT.
+    const KEYS: [&str; 11] = [
+        "HOME",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "XDG_STATE_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+        "TMPDIR",
+        "TEMP",
+        "PATH",
+    ];
+    KEYS.into_iter()
+        .filter_map(|key| std::env::var_os(key).map(|value| (std::ffi::OsString::from(key), value)))
+        .collect()
+}
+
+/// Ask the installed OpenCode CLI to start its own background service. This is
+/// the same owner-scoped service the OpenCode app/CLI uses, not a second
+/// kit-owned server; the CLI creates its own password and descriptor.
+async fn ensure_service(executable: &Path) -> Result<()> {
+    let cwd = std::env::current_dir()
+        .map_err(|_| unavailable("OpenCode working directory is unavailable"))?;
+    capture(
+        LaunchSpec {
+            executable: executable.to_owned(),
+            args: vec!["service".into(), "start".into()],
+            cwd,
+            env: service_environment(),
+        },
+        SERVICE_START,
+    )
+    .await
+    .map_err(|_| unavailable("OpenCode 2 background service could not be started"))?;
+    Ok(())
 }
 
 fn observed<T>(value: T, source: EvidenceSource) -> Observation<T> {
@@ -97,7 +171,12 @@ fn decimal(value: f64) -> Result<DecimalString> {
         .map_err(|_| DomainError::new(ErrorCode::InvalidRequest, "OpenCode usage value is invalid"))
 }
 
-fn quota_windows(connection: &str, route: &str, limits: &Value) -> Result<Vec<QuotaPool>> {
+fn quota_windows(
+    connection: &str,
+    route: &str,
+    go_route: Option<&str>,
+    limits: &Value,
+) -> Result<Vec<QuotaPool>> {
     let Some(go) = limits["data"]["go"].as_object() else {
         return Ok(Vec::new());
     };
@@ -149,19 +228,73 @@ fn quota_windows(connection: &str, route: &str, limits: &Value) -> Result<Vec<Qu
         id: pool_id,
         account_id: None,
         connection_ids: vec![connection.into()],
-        route_ids: vec![route.into()],
+        // Attribute Go usage to the exact `opencode-go` route when the catalog
+        // exposes it; a plain `opencode`/Zen route must never inherit it.
+        route_ids: vec![go_route.unwrap_or(route).into()],
         sharing: "account".into(),
         windows,
     }])
 }
 
-/// Probe the running service. `connection` and `route` are the discovered
-/// OpenCode ids; `version` is the CLI's reported version string.
+/// Probe the running service through its owner-only descriptor. Callers that
+/// have the installed executable should use [`probe_with_install`] so a stale
+/// descriptor left by a stopped service can recover instead of pinning usage
+/// to a dead endpoint forever.
 pub async fn probe(connection: &str, route: &str, version: &str) -> Result<ConnectionMetadata> {
     let (url, password) = service()?;
+    probe_endpoint(&url, &password, connection, route, version).await
+}
+
+/// Probe the installed OpenCode 2 service, starting the owner's own background
+/// service when the descriptor is missing or points at a stopped process. The
+/// service supplies its own credentials; none are read or replaced here.
+pub async fn probe_with_install(
+    executable: &Path,
+    connection: &str,
+    route: &str,
+    version: &str,
+) -> Result<ConnectionMetadata> {
+    let (url, password, started) = match service() {
+        Ok((url, password)) => (url, password, false),
+        Err(_) => {
+            ensure_service(executable).await?;
+            let (url, password) = service()?;
+            (url, password, true)
+        }
+    };
+    match probe_endpoint(&url, &password, connection, route, version).await {
+        Ok(metadata) => Ok(metadata),
+        Err(error)
+            if !started
+                && matches!(
+                    error.code,
+                    ErrorCode::ProviderUnavailable
+                        | ErrorCode::ProtocolIncompatible
+                        | ErrorCode::Timeout
+                ) =>
+        {
+            // A descriptor can outlive its service (for example after the
+            // OpenCode app or CLI stops), or its old port can be reused.
+            // Recover once through the installed CLI, then use its fresh
+            // descriptor. This starts the owner's service, never a second one.
+            ensure_service(executable).await?;
+            let (url, password) = service()?;
+            probe_endpoint(&url, &password, connection, route, version).await
+        }
+        Err(error) => Err(error),
+    }
+}
+
+async fn probe_endpoint(
+    url: &str,
+    password: &str,
+    connection: &str,
+    route: &str,
+    version: &str,
+) -> Result<ConnectionMetadata> {
     let endpoint = Endpoint::new(
         &format!("{url}/"),
-        Authentication::Basic("opencode".into(), password),
+        Authentication::Basic("opencode".into(), password.to_string()),
         true,
     )?;
     let models = endpoint
@@ -206,7 +339,12 @@ pub async fn probe(connection: &str, route: &str, version: &str) -> Result<Conne
         },
     };
     if let Some(limits) = limits.as_ref() {
-        metadata.quota_pools = quota_windows(connection, route, limits)?;
+        let go_route = metadata
+            .additional_routes
+            .iter()
+            .find(|route| route.provider_id == "opencode-go")
+            .map(|route| route.id.clone());
+        metadata.quota_pools = quota_windows(connection, route, go_route.as_deref(), limits)?;
     }
     metadata.diagnostics = vec![
         "OPENCODE_2_METADATA_FROM_LOCAL_SERVICE".into(),
@@ -217,7 +355,7 @@ pub async fn probe(connection: &str, route: &str, version: &str) -> Result<Conne
 
 #[cfg(test)]
 mod tests {
-    use super::read_service;
+    use super::{quota_windows, read_service};
     use std::io::Write;
 
     #[test]
@@ -258,5 +396,48 @@ mod tests {
         let (url, password) = read_service(&path).unwrap();
         assert_eq!(url, "http://127.0.0.1:49374");
         assert_eq!(password.len(), 32);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rejects_a_descriptor_whose_service_pid_is_dead() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("service.json");
+        let mut file = std::fs::File::create(&path).unwrap();
+        write!(
+            file,
+            "{}",
+            serde_json::json!({"url":"http://127.0.0.1:49374","pid":4294967295u64,"password":"0123456789abcdef0123456789abcdef"})
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let error = read_service(&path).unwrap_err();
+        assert_eq!(
+            error.code,
+            originlm_contracts::ErrorCode::ProviderUnavailable
+        );
+    }
+
+    #[test]
+    fn go_pool_uses_the_exact_go_route_and_never_zen() {
+        let limits = serde_json::json!({"data":{"go":{
+            "rolling":{"percent":14,"resetsAt":1793272155000u64},
+            "weekly":{"percent":23,"resetsAt":1793577600000u64},
+            "monthly":{"percent":61,"resetsAt":1795241023000u64}
+        }}});
+        let pools = quota_windows("connection", "route-zen", Some("route-go"), &limits).unwrap();
+        assert_eq!(pools[0].route_ids, vec!["route-go".to_string()]);
+        assert_eq!(
+            pools[0].id,
+            originlm_contracts::stable_id("pool", &["connection", "opencode-go"])
+        );
+        // Without a published Go route the catalog falls back to the root
+        // route; the deterministic pool id still proves it is the Go pool.
+        let pools = quota_windows("connection", "route-zen", None, &limits).unwrap();
+        assert_eq!(pools[0].route_ids, vec!["route-zen".to_string()]);
     }
 }
