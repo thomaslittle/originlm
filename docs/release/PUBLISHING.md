@@ -132,8 +132,20 @@ private child helper and an empty live snapshot with zero provider inference.
 Actual npm/crates.io/PyPI publication is a separate authorized registry operation.
 No registry credential or GitHub environment currently exists in this repository,
 and the preparation workflow has read-only permissions. The workspace SDK keeps
-`private: true` (release staging removes it only in the publishable copy), and Rust
-crates keep `publish = false` until the registry closure and order are approved.
+`private: true` (release staging removes it only in the publishable copy).
+
+The Rust facade closure (the normal/build dependencies of `originlm`) is marked
+publishable; the CLI, GPUI desktop app, and the unpublished update helper keep
+`publish = false`. `scripts/publish_order.py` derives the dependency-first order
+from `cargo metadata`, fails on cycles or intra-workspace dependencies without
+`version` and `path`, reports the declared MSRV, and can verify packaging without
+uploading:
+
+```sh
+python scripts/publish_order.py --check
+python scripts/publish_order.py --package
+```
+
 Consumer-repository pin changes, signing credentials and public package ownership
 remain maintainer/root-release-worker operations.
 

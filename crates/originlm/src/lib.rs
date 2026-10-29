@@ -24,11 +24,42 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # Execution and consent
+//!
+//! Execution is a separate grant, never implied by starting the runtime or by
+//! passive discovery. In-process execution drivers are registered only when
+//! [`StartOptions::execution`] is `true`; registration alone still denies every
+//! session. The host must then call [`LocalAi::authorize_execution`] with the
+//! exact connections, providers, workspaces, and write/paid/native permissions
+//! the user approved. There is no implicit or machine-wide grant, and no method
+//! here starts a service, reads provider credentials, or widens a policy.
+//!
+//! In [`Mode::Shared`] and [`Mode::Child`] the broker owns the grant. This crate
+//! can use that grant but cannot create or change it; the user approves the
+//! application through the broker's own consent flow. Calling
+//! [`LocalAi::authorize_execution`] in those modes fails instead of bypassing
+//! the broker.
+//!
+//! Session methods mirror the public runtime methods:
+//! [`LocalAi::create_session`], [`LocalAi::get_session`],
+//! [`LocalAi::suspend_session`], [`LocalAi::resume_session`],
+//! [`LocalAi::update_session_options`], [`LocalAi::close_session`],
+//! [`LocalAi::start_turn`], [`LocalAi::cancel_turn`],
+//! [`LocalAi::respond_to_approval`], [`LocalAi::read_events`], and
+//! [`LocalAi::subscribe_events`]. Every call carries the caller's existing
+//! grant; a missing grant surfaces as
+//! [`ErrorCode::LocalAccessDenied`] before any agent is started.
 use originlm_contracts::Result;
-pub use originlm_contracts::{DomainError, ErrorCode, Snapshot};
+pub use originlm_contracts::{
+    ApprovalParams, DomainError, ErrorCode, Event, EventPage, HostMcpServer, Selection, Session,
+    SessionCreateParams, SessionOptionsParams, SessionParams, SessionResumeParams,
+    SessionSuspendResult, Snapshot, TurnInputRef, TurnParams, TurnStartParams, TurnStarted,
+};
 use originlm_control::BrokerClient;
-use originlm_kit::{ClientPolicy, EmbeddedClient, Kit};
-use serde::Deserialize;
+pub use originlm_kit::{ClientPolicy, ExecutionGrant};
+use originlm_kit::{EmbeddedClient, Kit};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::{
     env,
@@ -74,6 +105,10 @@ pub struct StartOptions {
     pub state_dir: Option<PathBuf>,
     /// Allow the in-process fallback. Disable to require an isolated helper.
     pub allow_in_process: bool,
+    /// Register in-process execution drivers. This is not permission: the host
+    /// must still call [`LocalAi::authorize_execution`] with an explicit grant.
+    /// Shared brokers and private helpers use their own broker-side grant.
+    pub execution: bool,
 }
 
 impl Default for StartOptions {
@@ -85,6 +120,7 @@ impl Default for StartOptions {
             policy: ClientPolicy::passive(),
             state_dir: None,
             allow_in_process: true,
+            execution: false,
         }
     }
 }
@@ -93,6 +129,7 @@ impl Default for StartOptions {
 pub struct LocalAi {
     mode: Mode,
     fallback_reason: Option<&'static str>,
+    execution_enabled: bool,
     backend: Backend,
 }
 
@@ -106,6 +143,7 @@ enum Backend {
         client: EmbeddedClient,
         runtime: tokio::runtime::Runtime,
     },
+    Closed,
 }
 
 /// A small, stable status surface for badges and menus.
@@ -463,6 +501,7 @@ impl LocalAi {
                     return Ok(Self {
                         mode: Mode::Shared,
                         fallback_reason: None,
+                        execution_enabled: false,
                         backend: Backend::Shared(client),
                     });
                 }
@@ -483,6 +522,7 @@ impl LocalAi {
             return Ok(Self {
                 mode: Mode::Child,
                 fallback_reason,
+                execution_enabled: false,
                 backend: Backend::Child {
                     client,
                     _child: child,
@@ -494,7 +534,7 @@ impl LocalAi {
                 "No shared broker or helper binary is available, and the in-process fallback is disabled",
             ));
         }
-        let mut builder = Kit::builder().execution(false);
+        let mut builder = Kit::builder().execution(options.execution);
         if let Some(directory) = options.state_dir.clone() {
             builder = builder.state_dir(directory);
         }
@@ -512,6 +552,7 @@ impl LocalAi {
         Ok(Self {
             mode: Mode::InProcess,
             fallback_reason,
+            execution_enabled: options.execution,
             backend: Backend::InProcess { client, runtime },
         })
     }
@@ -526,6 +567,12 @@ impl LocalAi {
         self.mode
     }
 
+    /// Whether in-process execution drivers were registered. This is not a
+    /// grant; see [`LocalAi::authorize_execution`].
+    pub fn execution_enabled(&self) -> bool {
+        self.execution_enabled
+    }
+
     /// One JSON-RPC call. The helper and the shared broker use the same surface.
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value> {
         match &mut self.backend {
@@ -534,6 +581,7 @@ impl LocalAi {
             Backend::InProcess {
                 client, runtime, ..
             } => runtime.block_on(client.request::<Value>(method, params)),
+            Backend::Closed => Err(closed()),
         }
     }
 
@@ -545,6 +593,7 @@ impl LocalAi {
             Backend::InProcess {
                 client, runtime, ..
             } => runtime.block_on(client.snapshot()),
+            Backend::Closed => Err(closed()),
         }
     }
 
@@ -575,6 +624,228 @@ impl LocalAi {
             connected_apps,
         })
     }
+
+    /// Record the user's explicit execution grant for this in-process runtime.
+    ///
+    /// The grant names exact connections or providers, canonical absolute
+    /// workspaces, and separate paid/write/review/native-policy permissions.
+    /// Calling this twice is a conflict; revoke through the runtime's normal
+    /// `grants.revoke` call. Shared brokers and private helpers own their grants,
+    /// so this returns [`ErrorCode::LocalAccessDenied`] in those modes rather
+    /// than bypassing the user's broker approval.
+    pub fn authorize_execution(&mut self, grant: ExecutionGrant) -> Result<()> {
+        if self.mode != Mode::InProcess {
+            return Err(DomainError::new(
+                ErrorCode::LocalAccessDenied,
+                "Execution grants for a shared broker or private helper are approved by the user and cannot be changed through this client",
+            ));
+        }
+        if !self.execution_enabled {
+            return Err(DomainError::new(
+                ErrorCode::InvalidRequest,
+                "Execution drivers were not registered; set StartOptions.execution to true before starting",
+            ));
+        }
+        match &mut self.backend {
+            Backend::InProcess { client, .. } => client.authorize_execution(grant),
+            Backend::Closed => Err(closed()),
+            _ => Err(DomainError::new(
+                ErrorCode::LocalAccessDenied,
+                "Execution grants cannot be changed through this client",
+            )),
+        }
+    }
+
+    /// Open a session under the caller's existing execution grant.
+    pub fn create_session(&mut self, params: SessionCreateParams) -> Result<Session> {
+        self.typed_request("sessions.create", params)
+    }
+
+    /// Read the current state of a session owned by this application.
+    pub fn get_session(&mut self, session_id: &str) -> Result<Session> {
+        self.typed_request(
+            "sessions.get",
+            SessionParams {
+                session_id: session_id.to_owned(),
+            },
+        )
+    }
+
+    /// Suspend a resumable session and return its opaque resume token.
+    pub fn suspend_session(&mut self, session_id: &str) -> Result<SessionSuspendResult> {
+        self.typed_request(
+            "sessions.suspend",
+            SessionParams {
+                session_id: session_id.to_owned(),
+            },
+        )
+    }
+
+    /// Resume a session from a token issued by [`LocalAi::suspend_session`].
+    pub fn resume_session(&mut self, params: SessionResumeParams) -> Result<Session> {
+        self.typed_request("sessions.resume", params)
+    }
+
+    /// Change session options, subject to the same selection validation and grant.
+    pub fn update_session_options(&mut self, params: SessionOptionsParams) -> Result<Session> {
+        self.typed_request("sessions.updateOptions", params)
+    }
+
+    /// Close a session and release its agent. A missing or foreign session is
+    /// reported as `NotFound`.
+    pub fn close_session(&mut self, session_id: &str) -> Result<()> {
+        self.acknowledge(
+            "sessions.close",
+            SessionParams {
+                session_id: session_id.to_owned(),
+            },
+        )
+    }
+
+    /// Start a turn. `request_id` makes retries idempotent at the runtime.
+    pub fn start_turn(&mut self, params: TurnStartParams) -> Result<TurnStarted> {
+        self.typed_request("turns.start", params)
+    }
+
+    /// Cancel a running turn owned by this application.
+    pub fn cancel_turn(&mut self, turn_id: &str) -> Result<()> {
+        self.acknowledge(
+            "turns.cancel",
+            TurnParams {
+                turn_id: turn_id.to_owned(),
+            },
+        )
+    }
+
+    /// Answer a pending approval. The runtime only accepts approvals it raised
+    /// for this application's own session.
+    pub fn respond_to_approval(&mut self, approval_id: &str, allow: bool) -> Result<()> {
+        self.acknowledge(
+            "approvals.respond",
+            ApprovalParams {
+                approval_id: approval_id.to_owned(),
+                allow,
+            },
+        )
+    }
+
+    /// Read a bounded page of session events after an optional cursor.
+    pub fn read_events(
+        &mut self,
+        session_id: Option<&str>,
+        after: Option<&str>,
+    ) -> Result<EventPage> {
+        let mut params = serde_json::Map::new();
+        if let Some(session_id) = session_id {
+            params.insert("sessionId".into(), Value::String(session_id.to_owned()));
+        }
+        if let Some(after) = after {
+            params.insert("after".into(), Value::String(after.to_owned()));
+        }
+        self.typed_request("events.read", Value::Object(params))
+    }
+
+    /// Start a cursor-based event subscription at the current journal tail.
+    ///
+    /// This does not open a socket, spawn a task, or start a service: callers
+    /// drive [`EventSubscription::poll`] from their own loop. Events published
+    /// after this call are returned by later polls.
+    pub fn subscribe_events(&mut self, session_id: Option<&str>) -> Result<EventSubscription> {
+        let params = match session_id {
+            Some(session_id) => json!({"sessionId": session_id}),
+            None => json!({}),
+        };
+        let value = self.call("events.read", params)?;
+        let cursor = value
+            .get("tailCursor")
+            .or_else(|| value.get("cursor"))
+            .and_then(Value::as_str)
+            .unwrap_or("0")
+            .to_owned();
+        Ok(EventSubscription {
+            session_id: session_id.map(str::to_owned),
+            cursor,
+            closed: false,
+        })
+    }
+
+    /// Close the client transport. The private helper, when present, is reaped
+    /// and later calls return `ProviderUnavailable`. Idempotent.
+    pub fn close(&mut self) {
+        let backend = std::mem::replace(&mut self.backend, Backend::Closed);
+        match backend {
+            Backend::Shared(client) => client.close(),
+            Backend::Child { client, _child } => {
+                client.close();
+                drop(_child);
+            }
+            Backend::InProcess { client, .. } => client.close(),
+            Backend::Closed => {}
+        }
+    }
+
+    fn typed_request<T: DeserializeOwned, P: Serialize>(
+        &mut self,
+        method: &str,
+        params: P,
+    ) -> Result<T> {
+        let params = serde_json::to_value(params)
+            .map_err(|_| DomainError::new(ErrorCode::InvalidRequest, "Request is invalid"))?;
+        let value = self.call(method, params)?;
+        serde_json::from_value(value).map_err(|_| {
+            DomainError::new(
+                ErrorCode::ProtocolIncompatible,
+                "The runtime returned an incompatible response",
+            )
+        })
+    }
+
+    fn acknowledge<P: Serialize>(&mut self, method: &str, params: P) -> Result<()> {
+        self.typed_request::<Value, _>(method, params).map(|_| ())
+    }
+}
+
+/// Cursor-based event subscription returned by [`LocalAi::subscribe_events`].
+///
+/// No background work runs while this value exists. Call [`Self::poll`] from
+/// the host's event loop and stop on an error or after calling [`Self::close`].
+#[derive(Debug, Clone)]
+pub struct EventSubscription {
+    session_id: Option<String>,
+    cursor: String,
+    closed: bool,
+}
+
+impl EventSubscription {
+    /// The session filter, or `None` for every session owned by this application.
+    pub fn session_id(&self) -> Option<&str> {
+        self.session_id.as_deref()
+    }
+
+    /// The cursor for the next read.
+    pub fn cursor(&self) -> &str {
+        &self.cursor
+    }
+
+    /// Read the next bounded batch. Returns an empty vector when nothing new
+    /// has happened; the cursor advances even for empty pages.
+    pub fn poll(&mut self, ai: &mut LocalAi) -> Result<Vec<Event>> {
+        if self.closed {
+            return Err(closed());
+        }
+        let page = ai.read_events(self.session_id.as_deref(), Some(&self.cursor))?;
+        self.cursor = page.cursor;
+        Ok(page.events)
+    }
+
+    /// Stop polling locally. This does not close the runtime or a session.
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+}
+
+fn closed() -> DomainError {
+    DomainError::new(ErrorCode::ProviderUnavailable, "Runtime is closed")
 }
 
 fn typed_snapshot(client: &mut BrokerClient) -> Result<Snapshot> {
@@ -680,6 +951,219 @@ mod tests {
         );
         let closed = child_args("/tmp/example.sock", &ClientPolicy::denied());
         assert!(!closed.iter().any(|arg| arg == "--allow-passive-discovery"));
+    }
+
+    fn fixture() -> Snapshot {
+        let mut snapshot = Snapshot::empty(originlm_contracts::DataMode::Synthetic);
+        snapshot.providers.push(originlm_contracts::Provider {
+            id: "ollama".into(),
+            name: "Ollama".into(),
+            kind: "local".into(),
+        });
+        snapshot
+            .installations
+            .push(originlm_contracts::Installation {
+                id: "install-local".into(),
+                provider_id: "ollama".into(),
+                environment_id: "synthetic".into(),
+                location_hint: "synthetic".into(),
+                version: originlm_contracts::Observation::unknown("NOT_PROBED"),
+            });
+        snapshot.profiles.push(originlm_contracts::Profile {
+            id: "profile-local".into(),
+            installation_id: "install-local".into(),
+            label: "local".into(),
+        });
+        snapshot.connections.push(originlm_contracts::Connection {
+            id: "local".into(),
+            provider_id: "ollama".into(),
+            installation_id: "install-local".into(),
+            profile_id: "profile-local".into(),
+            display_name: "Local".into(),
+            account_id: None,
+            auth: originlm_contracts::Observation::unknown("LOCAL_RUNTIME_HAS_NO_ACCOUNT_AUTH"),
+            plan: originlm_contracts::Observation::unknown("NOT_REPORTED"),
+            status: "ok".into(),
+            diagnostics: vec![],
+        });
+        snapshot.routes.push(originlm_contracts::AccessRoute {
+            id: "route-local".into(),
+            connection_id: "local".into(),
+            provider_id: "ollama".into(),
+            display_name: "Local".into(),
+            billing: originlm_contracts::Observation::reported(
+                originlm_contracts::BillingMode::Local,
+                originlm_contracts::EvidenceSource::new(
+                    originlm_contracts::EvidenceKind::Synthetic,
+                    "test",
+                    "synthetic local route",
+                ),
+            ),
+            capabilities: vec![],
+            catalog_revision: "1".into(),
+        });
+        snapshot.models.push(originlm_contracts::Model {
+            id: "model-local".into(),
+            route_id: "route-local".into(),
+            native_id: "local".into(),
+            name: "Local".into(),
+            revision: "1".into(),
+            is_default: true,
+            capabilities: vec![originlm_contracts::Capability {
+                id: "generation.text".into(),
+                support: originlm_contracts::Support::Supported,
+                origin: originlm_contracts::CapabilityOrigin::Model,
+                evidence: originlm_contracts::Observation::reported(
+                    "synthetic".into(),
+                    originlm_contracts::EvidenceSource::new(
+                        originlm_contracts::EvidenceKind::Synthetic,
+                        "test",
+                        "synthetic model capability",
+                    ),
+                ),
+                conditions: vec![],
+            }],
+            options: vec![],
+            context_window: originlm_contracts::Observation::unknown("NOT_REPORTED"),
+        });
+        snapshot
+    }
+
+    fn session_params() -> SessionCreateParams {
+        SessionCreateParams {
+            selection: Selection {
+                route_id: "route-local".into(),
+                model_id: "model-local".into(),
+                revision: "1".into(),
+                options: Default::default(),
+            },
+            workspace_id: "scratch".into(),
+            permission_mode: None,
+            review_requests: false,
+            allow_paid: false,
+            host_mcp_servers: vec![],
+            persistent: false,
+        }
+    }
+
+    fn in_process(execution: bool) -> (LocalAi, tempfile::TempDir) {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = directory.path().join("scratch");
+        std::fs::create_dir(&workspace).unwrap();
+        let _workspace = workspace.canonicalize().unwrap();
+        let snapshot = fixture();
+        let locations = std::collections::BTreeMap::from([(
+            "local".to_string(),
+            originlm_discovery::LocatedClient {
+                provider_id: "ollama".into(),
+                profile_home: directory.path().join("profile"),
+                executable: None,
+                executable_identity: None,
+            },
+        )]);
+        let inventory = std::sync::Arc::new(move |_cancel: &std::sync::atomic::AtomicBool| {
+            Ok(originlm_discovery::ScanResult {
+                snapshot: snapshot.clone(),
+                locations: locations.clone(),
+                metadata_probes: 0,
+            })
+        });
+        let kit = Kit::builder()
+            .inventory(inventory)
+            .execution(execution)
+            .build()
+            .unwrap();
+        let client = kit
+            .connect("originlm-execution-test", ClientPolicy::passive())
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        (
+            LocalAi {
+                mode: Mode::InProcess,
+                fallback_reason: None,
+                execution_enabled: execution,
+                backend: Backend::InProcess { client, runtime },
+            },
+            directory,
+        )
+    }
+
+    #[test]
+    fn execution_requires_an_explicit_grant() {
+        let (mut ai, directory) = in_process(true);
+        let error = ai.create_session(session_params()).unwrap_err();
+        assert_eq!(error.code, ErrorCode::LocalAccessDenied);
+        // An explicit grant is the only thing that moves the boundary.
+        ai.authorize_execution(ExecutionGrant {
+            connection_ids: ["local".to_string()].into_iter().collect(),
+            workspaces: [(
+                "scratch".to_string(),
+                directory.path().join("scratch").canonicalize().unwrap(),
+            )]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        })
+        .unwrap();
+        ai.scan().unwrap();
+        let session = ai.create_session(session_params()).unwrap();
+        assert_eq!(session.connection_id, "local");
+        assert_eq!(session.selection.route_id, "route-local");
+        assert_eq!(ai.get_session(&session.id).unwrap().id, session.id);
+        let mut events = ai.subscribe_events(Some(&session.id)).unwrap();
+        assert!(events.poll(&mut ai).unwrap().is_empty());
+        ai.close_session(&session.id).unwrap();
+    }
+
+    #[test]
+    fn execution_grants_are_explicit_and_registration_must_be_opted_in() {
+        let (mut disabled, directory) = in_process(false);
+        let error = disabled
+            .authorize_execution(ExecutionGrant {
+                connection_ids: ["local".to_string()].into_iter().collect(),
+                workspaces: [(
+                    "scratch".to_string(),
+                    directory.path().join("scratch").canonicalize().unwrap(),
+                )]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidRequest);
+
+        let mut shared = LocalAi {
+            mode: Mode::Shared,
+            fallback_reason: None,
+            execution_enabled: false,
+            backend: Backend::Closed,
+        };
+        let error = shared
+            .authorize_execution(ExecutionGrant::default())
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::LocalAccessDenied);
+    }
+
+    #[test]
+    fn event_subscriptions_are_cursor_based_and_do_not_spawn_services() {
+        let (mut ai, _directory) = in_process(true);
+        let mut subscription = ai.subscribe_events(None).unwrap();
+        assert!(subscription.poll(&mut ai).unwrap().is_empty());
+        subscription.close();
+        assert_eq!(
+            subscription.poll(&mut ai).unwrap_err().code,
+            ErrorCode::ProviderUnavailable
+        );
+        ai.close();
+        ai.close();
+        assert_eq!(
+            ai.snapshot().unwrap_err().code,
+            ErrorCode::ProviderUnavailable
+        );
     }
 
     #[test]
