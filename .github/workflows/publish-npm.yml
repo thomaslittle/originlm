@@ -1,0 +1,117 @@
+name: Publish npm packages
+
+# Manual, protected publisher. Defaults to dry-run; an actual publish requires
+# the release-npm environment approval and confirm=PUBLISH.
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Prepare release artifacts run ID containing npm-release'
+        required: true
+        type: string
+      source_commit:
+        description: 'Full integrated main commit SHA used to build the artifacts'
+        required: true
+        type: string
+      dist_tag:
+        description: 'npm dist-tag for the universal SDK and platform packages'
+        required: true
+        default: 'alpha'
+        type: choice
+        options: ['alpha', 'latest']
+      dry_run:
+        description: 'Verify only; do not publish'
+        required: true
+        default: true
+        type: boolean
+      confirm:
+        description: 'Type PUBLISH to allow an actual publish when dry_run is false'
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release-npm
+    steps:
+      - name: Require explicit publication confirmation
+        if: ${{ !inputs.dry_run && inputs.confirm != 'PUBLISH' }}
+        run: |
+          echo 'Refusing to publish: set confirm=PUBLISH.' >&2
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify the artifact came from integrated main at this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor "$SOURCE_COMMIT" origin/main
+          gh run view "$RUN_ID" --json headSha,headBranch,conclusion,status > run.json
+          python - <<'PY'
+          import json, os
+          run = json.load(open('run.json'))
+          if run.get('headSha') != os.environ['SOURCE_COMMIT']:
+              raise SystemExit('artifact run head SHA does not match source_commit')
+          if run.get('headBranch') != 'main' or run.get('conclusion') != 'success':
+              raise SystemExit('artifact run is not a successful integrated-main run')
+          PY
+      - name: Download the reviewed npm release set
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+        run: gh run download "$RUN_ID" --name npm-release --dir npm-release
+      - name: Verify checksums, source version and native payload hashes
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          cd npm-release
+          sha256sum -c SHA256SUMS
+          cd ..
+          version="$(python -c "import json; print(json.load(open('npm-release/manifest.json'))['version'])")"
+          test "$(python -c "import json; print(json.load(open('npm-release/manifest.json'))['sourceCommit'])")" = "$SOURCE_COMMIT"
+          python scripts/verify_npm_release.py --packages npm-release \
+            --version "$version" --source-commit "$SOURCE_COMMIT" --require-all
+          python -c "import json; d=json.load(open('npm-release/evidence/registry-consumer.json')); assert d['status']=='pass' and d['mode']=='child'"
+      - name: Install trusted-publishing-capable npm
+        run: npm install --global npm@11.5.1
+      - name: Publish platform packages then universal SDK
+        if: ${{ !inputs.dry_run }}
+        env:
+          DIST_TAG: ${{ inputs.dist_tag }}
+          NPM_CONFIG_PROVENANCE: 'true'
+        run: |
+          for tarball in npm-release/originlm-cli-*.tgz; do
+            echo "publishing $tarball"
+            npm publish "$tarball" --access public --tag "$DIST_TAG" --provenance
+          done
+          for tarball in npm-release/originlm-[0-9]*.tgz; do
+            echo "publishing universal SDK $tarball"
+            npm publish "$tarball" --access public --tag "$DIST_TAG" --provenance
+          done
+      - name: State publication result
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo 'Dry run: verification passed; no npm package was published.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Published five platform packages and the universal originlm SDK via npm trusted publishing.' >> "$GITHUB_STEP_SUMMARY"
+          fi
