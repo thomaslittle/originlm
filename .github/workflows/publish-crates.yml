@@ -142,6 +142,18 @@ jobs:
             echo "publishing $name"
             cargo publish --package "$name" --locked --no-verify
           done < order.txt
+      - name: Verify the exact published crate bytes
+        if: ${{ !inputs.dry_run }}
+        run: |
+          python scripts/verify_published_crates.py \
+            --manifest crates-release/manifest.json --out crate-publication-evidence.json
+      - name: Preserve publication evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crate-publication-evidence
+          path: crate-publication-evidence.json
+          if-no-files-found: warn
       - name: State publication result
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then

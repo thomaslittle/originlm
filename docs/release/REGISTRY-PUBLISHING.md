@@ -19,14 +19,36 @@ The preparation workflows stay read-only and secret-free.
 
 ## npm trusted publishing
 
+### Bootstrap the six packages first
+
+npm trusted publishing requires each package to already exist. The first
+publication of `originlm`, `originlm-cli-linux-x64`, `originlm-cli-linux-arm64`,
+`originlm-cli-darwin-arm64`, `originlm-cli-darwin-x64` and
+`originlm-cli-win32-x64` must therefore be a coordinated manual publication
+from the already-authenticated maintainer PC (`tomlit`), using the exact
+reviewed `npm-release/` tarballs after every source/version/hash gate passes.
+Use the prerelease dist-tag (normally `alpha`) and do not move `latest`.
+
+Example, after verifying `npm-release/SHA256SUMS` and the aggregate manifest:
+
+```sh
+cd npm-release
+for tarball in originlm-cli-*.tgz; do npm publish "$tarball" --tag alpha; done
+npm publish originlm-*.tgz --tag alpha
+```
+
+Only after those packages exist should trusted publishing be configured. The
+`publish-npm.yml` workflow is for subsequent versions; OIDC cannot bootstrap a
+new npm package.
+
 Configure a trusted publisher for **each** of the six packages:
 
 - `originlm`
-- `@originlm/cli-linux-x64`
-- `@originlm/cli-linux-arm64`
-- `@originlm/cli-darwin-arm64`
-- `@originlm/cli-darwin-x64`
-- `@originlm/cli-win32-x64`
+- `originlm-cli-linux-x64`
+- `originlm-cli-linux-arm64`
+- `originlm-cli-darwin-arm64`
+- `originlm-cli-darwin-x64`
+- `originlm-cli-win32-x64`
 
 Fields on npmjs.com:
 
@@ -79,10 +101,14 @@ originlm-kit
 originlm
 ```
 
-The publisher verifies `crates-release/SHA256SUMS`, the source commit, the exact
-13-crate order, and that a fresh `cargo package` reproduces every prepared
-`.crate` hash before publishing. Unrelated private crates (`originlm-cli`,
-`originlm-desktop`, `originlm-update`) are not in the artifact.
+The preparation job runs `cargo fetch --locked` before offline packaging, so a
+cold runner has the complete locked dependency set. The publisher verifies
+`crates-release/SHA256SUMS`, the source commit, the exact 13-crate order, and
+that a fresh `cargo package` reproduces every prepared `.crate` hash before
+publishing. After upload it downloads each published `.crate` from crates.io
+and compares its SHA-256 to the same manifest, so bytes rebuilt after the
+initial check cannot silently diverge. Unrelated private crates
+(`originlm-cli`, `originlm-desktop`, `originlm-update`) are not in the artifact.
 
 Official references: <https://crates.io/docs/trusted-publishing> and the
 [crates.io trusted-publishing RFC](https://github.com/rust-lang/rfcs/blob/master/text/3691-trusted-publishing-cratesio.md).

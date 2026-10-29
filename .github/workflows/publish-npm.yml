@@ -1,7 +1,9 @@
 name: Publish npm packages
 
-# Manual, protected publisher. Defaults to dry-run; an actual publish requires
-# the release-npm environment approval and confirm=PUBLISH.
+# Manual, protected publisher for subsequent versions. Defaults to dry-run; an
+# actual publish requires the release-npm environment approval and
+# confirm=PUBLISH. The first publication of each package is a manual bootstrap
+# from the authenticated maintainer PC; OIDC cannot create new npm packages.
 on:
   workflow_dispatch:
     inputs:
@@ -94,6 +96,16 @@ jobs:
           python -c "import json; d=json.load(open('npm-release/evidence/registry-consumer.json')); assert d['status']=='pass' and d['mode']=='child'"
       - name: Confirm trusted-publishing-capable npm
         run: npx --yes npm@11.5.1 --version
+      - name: Require packages to exist before OIDC publish
+        if: ${{ !inputs.dry_run }}
+        run: |
+          for name in originlm originlm-cli-linux-x64 originlm-cli-linux-arm64 \
+            originlm-cli-darwin-arm64 originlm-cli-darwin-x64 originlm-cli-win32-x64; do
+            if ! npm view "$name" version >/dev/null 2>&1; then
+              echo "$name has not been bootstrapped; publish it manually first" >&2
+              exit 1
+            fi
+          done
       - name: Publish platform packages then universal SDK
         if: ${{ !inputs.dry_run }}
         env:

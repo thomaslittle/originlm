@@ -22,6 +22,8 @@ jobs:
           python-version: '3.12'
       - name: Install pinned Rust
         run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Fetch locked dependencies for offline packaging
+        run: cargo fetch --locked
       - name: Validate closure, MSRV declaration and package all crates in order
         run: python scripts/publish_order.py --check --package --package-dir crates-release
       - name: Verify crate release checksums
