@@ -256,6 +256,10 @@ class WorkflowEvidence(unittest.TestCase):
         self.assertIn('shutil.copy2(source, target / source.name)', workflow)
         self.assertIn('path: prepared/', workflow)
         self.assertIn('Assert persisted evidence', workflow)
+        self.assertIn('npm-consumers', workflow)
+        self.assertIn("if [ '${{ matrix.target }}' = 'x86_64-unknown-linux-gnu' ]", workflow)
+        for label in ('linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'):
+            self.assertIn(f'label: {label}', workflow)
 
 
 if __name__ == '__main__':

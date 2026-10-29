@@ -117,17 +117,19 @@ differs.
 
 ## Official package staging
 
-The preparation workflow now stages one **universal** `originlm` npm tarball. Its
-`optionalDependencies` are exactly the five supported
-`originlm-cli-<platform>` packages at the same exact version; each release job
-produces the same universal SDK manifest, while the platform tarball differs by
-target. Platform tarballs carry the qualified native `manifest.json`,
-`sbom.cdx.json`, notices, repository `LICENSE` and full dependency license texts.
+The preparation workflow stages one **canonical universal** `originlm` npm
+tarball, built once on Linux x64. Its `optionalDependencies` are exactly the five
+supported `originlm-cli-<platform>` packages at the same exact version. Each
+native target produces only its own platform tarball; the aggregate job verifies
+the canonical SDK and every platform package's native manifest, helper, license
+and SBOM hashes.
 
-Each target also runs a fresh consumer proof against the packed tarballs:
-`npm install` in an empty temporary project, then `createLocalAI()` with an empty
-home, no checkout, no `PATH` helper and no `LAI_*` overrides. The proof requires a
-private child helper and an empty live snapshot with zero provider inference.
+A post-aggregate consumer matrix then installs only `originlm` on Linux x64,
+Linux ARM64, macOS Intel, macOS Apple silicon and Windows x64 using a temporary
+local registry. It proves normal optional-dependency resolution, `createLocalAI()`
+with an empty home, empty `PATH`, no checkout and no `LAI_*` overrides, a private
+child helper, zero provider inference and no persistent service. An Ubuntu-only
+aggregate check is not treated as all-platform consumer proof.
 
 Actual npm/crates.io/PyPI publication is a separate authorized registry operation.
 No registry credential or GitHub environment currently exists in this repository,
