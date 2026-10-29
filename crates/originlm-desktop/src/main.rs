@@ -76,6 +76,7 @@ fn main() {
                 "../assets/fonts/RedHatDisplay-Variable.ttf"
             ) as &[u8])]);
         gpui_kit::init(cx);
+        cx.set_reduce_motion(brand::preferred_reduce_motion());
         theme::install(cx, true);
         let token = token_path.clone();
         let (width, height) = std::env::var("LAI_DESKTOP_WINDOW")

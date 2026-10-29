@@ -185,6 +185,7 @@ fn load_prefs() -> Prefs {
 
 pub struct Desktop {
     pub page: Page,
+    pub brand_marks: [Entity<crate::brand::EyeLogo>; 3],
     pub bundle: Option<Bundle>,
     pub dark: bool,
     pub refresh_seconds: u64,
@@ -283,6 +284,11 @@ impl Desktop {
         let models_split = cx.new(|_| ResizableState::default());
         let providers_split = cx.new(|_| ResizableState::default());
         let sidebar_width = prefs.sidebar_width.clamp(190., 340.);
+        let brand_marks = [
+            cx.new(|_| crate::brand::EyeLogo::new(32.)),
+            cx.new(|_| crate::brand::EyeLogo::new(30.)),
+            cx.new(|_| crate::brand::EyeLogo::new(30.)),
+        ];
         let mut subscriptions = Vec::new();
         subscriptions.push(cx.subscribe_in(&palette_input, window, {
             let input = palette_input.clone();
@@ -337,6 +343,7 @@ impl Desktop {
                     })
                 })
                 .unwrap_or(Page::Overview),
+            brand_marks,
             bundle: None,
             dark,
             refresh_seconds,
@@ -937,12 +944,24 @@ impl Render for Desktop {
         };
 
         let entity_keys = entity.clone();
+        let tracking_marks = self.brand_marks.clone();
+        let resting_marks = self.brand_marks.clone();
         div()
             .v_flex()
             .size_full()
             .bg(theme.background)
             .text_color(theme.foreground)
             .track_focus(&self.focus)
+            .on_mouse_move(move |event, _, cx| {
+                for mark in &tracking_marks {
+                    mark.update(cx, |eye, cx| eye.aim(event.position, cx));
+                }
+            })
+            .on_mouse_exit(move |_, _, cx| {
+                for mark in &resting_marks {
+                    mark.update(cx, |eye, cx| eye.rest(cx));
+                }
+            })
             .on_key_down(move |event: &KeyDownEvent, window, cx| {
                 let command =
                     event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
@@ -1139,7 +1158,7 @@ impl Desktop {
             .bg(theme.sidebar)
             .border_r_1()
             .border_color(theme.sidebar_border)
-            .child(crate::brand::app_tile(30.))
+            .child(self.brand_marks[1].clone())
             .child(div().h(px(10.)))
             .children(Page::ALL.into_iter().map(|page| {
                 let selected = self.page == page;
@@ -1287,7 +1306,7 @@ impl Desktop {
                     .px(px(16.))
                     .pt(px(18.))
                     .pb(px(10.))
-                    .child(crate::brand::app_tile(32.)),
+                    .child(self.brand_marks[0].clone()),
             )
             .child(
                 div()
