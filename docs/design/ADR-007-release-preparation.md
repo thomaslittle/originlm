@@ -67,17 +67,6 @@ publish. The release operation must use assets from the final candidate SHA and
 concatenate per-target `SHA256SUMS` without introducing a parallel flat asset
 scheme.
 
-## Amendment: packaged crate closure verification (2026-10-29)
-
-Crate preparation now verifies the packaged archives, not only the source
-worktree. The exact 13 `.crate` files are hash-bound to the source commit and
-order, safely unpacked outside the checkout, checked for normalized path
-dependencies and source-path leakage, compiled as a temporary workspace using
-only the unpacked packages, and consumed by a fresh manifest whose only public
-dependency is `originlm`. The declared MSRV toolchain is used for this packaged
-check. Evidence is attached to the crate artifact and publisher gate; no
-registry upload, credential or provider action is involved.
-
 ## Amendment: five-platform Python wheel qualification (2026-10-29)
 
 A separate read-only workflow (`.github/workflows/python-wheels.yml`) produces the
@@ -91,3 +80,14 @@ license/SBOM/provenance metadata from the helper archive. Every wheel passes
 native helper smoke, format/architecture checks, `twine check`, and a fresh
 empty-home `Client.auto()` consumer proof; Linux additionally passes `auditwheel
 show`. No publication, signing or registry credential is added.
+
+## Amendment: packaged crate closure verification (2026-10-29)
+
+Crate preparation now verifies the packaged archives, not only the source
+worktree. The exact 13 `.crate` files are hash-bound to the source commit and
+order, safely unpacked outside the checkout, checked for normalized path
+dependencies and source-path leakage, compiled as a temporary workspace using
+only the unpacked packages, and consumed by a fresh manifest whose only public
+dependency is `originlm`. The declared MSRV toolchain is used for this packaged
+check. Evidence is attached to the crate artifact and publisher gate; no
+registry upload, credential or provider action is involved.
