@@ -51,7 +51,18 @@
 //! In-process discovery can use [`StartOptions::home`],
 //! [`StartOptions::inventory`], [`StartOptions::native_clients`] and
 //! [`StartOptions::app_label`] without mutating process-global `HOME`, `PATH` or
-//! provider configuration.
+//! provider configuration. Those fields are honored only by the in-process
+//! runtime; supplying them while selecting automatic, shared or child mode is
+//! rejected instead of silently scanning a broader machine home. The facade
+//! re-exports [`ScanResult`], [`LocatedClient`], [`ExecutableIdentity`],
+//! [`NativeProfile`] and [`NativeProvider`] so a consumer can build synthetic
+//! inventory and scoped native configuration with only this crate.
+//!
+//! [`LocalAi::close`] cooperatively cancels in-process background lanes and the
+//! active inventory refresh, then waits at most
+//! [`StartOptions::close_timeout`] for blocking work. A sync inventory callback
+//! that ignores its cancel flag cannot be aborted by Rust; the runtime detaches
+//! it after the deadline rather than letting it extend the host's close.
 //!
 //! ```no_run
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -89,12 +100,15 @@
 //! [`ErrorCode::LocalAccessDenied`] before any agent is started.
 use originlm_contracts::Result;
 pub use originlm_contracts::{
-    ApprovalParams, DomainError, ErrorCode, Event, EventPage, HostMcpServer, Selection, Session,
-    SessionCreateParams, SessionOptionsParams, SessionParams, SessionResumeParams,
+    ApprovalParams, DataMode, DomainError, ErrorCode, Event, EventPage, HostMcpServer, Selection,
+    Session, SessionCreateParams, SessionOptionsParams, SessionParams, SessionResumeParams,
     SessionSuspendResult, Snapshot, TurnInputRef, TurnParams, TurnStartParams, TurnStarted,
 };
 use originlm_control::{BrokerClient, DEFAULT_CALL_TIMEOUT};
-pub use originlm_kit::{ClientPolicy, ExecutionGrant, InventorySource, NativeClientRegistry};
+pub use originlm_kit::{
+    ClientPolicy, ExecutableIdentity, ExecutionGrant, InventorySource, LocatedClient,
+    NativeClientRegistry, NativeProfile, NativeProvider, ScanResult,
+};
 use originlm_kit::{EmbeddedClient, Kit};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -355,7 +369,7 @@ fn denied(message: &str) -> DomainError {
     DomainError::new(ErrorCode::LocalAccessDenied, message)
 }
 
-fn invalid(message: &str) -> DomainError {
+fn invalid(message: impl Into<String>) -> DomainError {
     DomainError::new(ErrorCode::InvalidRequest, message)
 }
 
@@ -641,6 +655,26 @@ fn validate_child_policy(policy: &ClientPolicy) -> Result<()> {
     Ok(())
 }
 
+/// Configuration that only the in-process runtime can honor. Other modes must
+/// reject it instead of silently scanning a broader machine home.
+fn embedded_only_option(options: &StartOptions) -> Option<&'static str> {
+    if options.home.is_some() {
+        Some("home")
+    } else if options.inventory.is_some() {
+        Some("inventory")
+    } else if options.state_dir.is_some() {
+        Some("state_dir")
+    } else if options.app_label.is_some() {
+        Some("app_label")
+    } else if !options.native_clients.profiles.is_empty()
+        || options.native_clients.browser_blocker.is_some()
+    {
+        Some("native_clients")
+    } else {
+        None
+    }
+}
+
 /// Own the process immediately, including while its startup handshake is pending.
 struct OwnedHelper(Child);
 
@@ -756,6 +790,13 @@ impl LocalAi {
             && (label.is_empty() || label.len() > 128 || label.chars().any(char::is_control))
         {
             return Err(invalid("app_label must be a non-empty, bounded label"));
+        }
+        if options.required_mode != Some(Mode::InProcess)
+            && let Some(option) = embedded_only_option(&options)
+        {
+            return Err(invalid(format!(
+                "StartOptions.{option} is honored only by the in-process runtime; set required_mode to Some(Mode::InProcess) or remove it so a shared broker or helper cannot silently ignore the supplied scope"
+            )));
         }
         if options.execution && options.required_mode != Some(Mode::InProcess) {
             return Err(invalid(
@@ -1194,6 +1235,12 @@ impl LocalAi {
 
     /// Close the client transport. The private helper, when present, is reaped
     /// and later calls return `ProviderUnavailable`. Idempotent.
+    ///
+    /// In-process close cooperatively cancels background lanes and the active
+    /// inventory refresh, then waits at most [`StartOptions::close_timeout`] for
+    /// blocking work. A non-cooperative sync inventory callback that ignores its
+    /// cancel flag cannot be aborted by Rust; it is detached after the deadline
+    /// rather than blocking the host.
     pub fn close(&mut self) {
         let timeout = self.close_timeout;
         let backend = std::mem::replace(&mut self.backend, Backend::Closed);
@@ -1203,7 +1250,15 @@ impl LocalAi {
                 client.close_with(timeout, None);
                 drop(_child);
             }
-            Backend::InProcess { client, .. } => client.close(),
+            Backend::InProcess { client, runtime } => {
+                client.stop_background();
+                client.close();
+                // A sync inventory callback runs on a blocking task that cannot
+                // be aborted. Cooperative cancellation usually ends it before
+                // this deadline; a non-cooperative callback is detached after
+                // the bound instead of holding close indefinitely.
+                runtime.shutdown_timeout(timeout);
+            }
             Backend::Closed => {}
         }
     }
@@ -1657,6 +1712,20 @@ mod tests {
         })
     }
 
+    fn cooperative_inventory(snapshot: Snapshot) -> InventorySource {
+        Arc::new(move |cancel| {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while !cancel.load(Ordering::Acquire) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Ok(originlm_discovery::ScanResult {
+                snapshot: snapshot.clone(),
+                locations: Default::default(),
+                metadata_probes: 0,
+            })
+        })
+    }
+
     #[test]
     fn shared_grants_require_application_identity_and_owner_only_file() {
         let directory = tempfile::tempdir().unwrap();
@@ -1840,5 +1909,133 @@ mod tests {
         assert_eq!(error.code, ErrorCode::Cancelled);
         assert!(started.elapsed() < Duration::from_millis(250));
         ai.close();
+    }
+
+    #[test]
+    fn embedded_only_configuration_is_rejected_before_helper_resolution() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let directory = tempfile::tempdir().unwrap();
+            let helper = directory.path().join("helper");
+            let marker = directory.path().join("spawned");
+            std::fs::write(
+                &helper,
+                format!("#!/bin/sh\ntouch '{}'\n", marker.display()),
+            )
+            .unwrap();
+            std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700)).unwrap();
+            let outcome = LocalAi::start_with(StartOptions {
+                helper: Some(helper),
+                home: Some(directory.path().join("account-home")),
+                ..StartOptions::default()
+            });
+            assert!(outcome.is_err());
+            assert!(
+                !marker.exists(),
+                "scoped embedded configuration must be rejected before a helper starts"
+            );
+        }
+
+        let mut native = NativeClientRegistry::default();
+        native.profiles.insert(
+            "fixture".into(),
+            NativeProfile {
+                id: "fixture".into(),
+                label: "Fixture".into(),
+                provider: NativeProvider::GeminiCli,
+                executable: PathBuf::from("/bin/false"),
+                profile_home: PathBuf::from("/tmp/originlm-fixture-home"),
+                auth_method: None,
+                billing: None,
+            },
+        );
+        let child = LocalAi::start_with(StartOptions {
+            required_mode: Some(Mode::Child),
+            helper: Some(PathBuf::from("/definitely/not/a/helper")),
+            native_clients: native,
+            ..StartOptions::default()
+        });
+        assert_eq!(
+            child.err().map(|error| error.code),
+            Some(ErrorCode::InvalidRequest)
+        );
+
+        let shared = LocalAi::start_with(StartOptions {
+            required_mode: Some(Mode::Shared),
+            app_label: Some("haiwire".into()),
+            ..StartOptions::default()
+        });
+        assert_eq!(
+            shared.err().map(|error| error.code),
+            Some(ErrorCode::InvalidRequest)
+        );
+    }
+
+    #[test]
+    fn embedded_close_signals_cooperative_inventory() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut ai = LocalAi::start_with(StartOptions {
+            required_mode: Some(Mode::InProcess),
+            home: Some(directory.path().to_path_buf()),
+            inventory: Some(cooperative_inventory(fixture())),
+            close_timeout: Duration::from_millis(200),
+            ..StartOptions::default()
+        })
+        .unwrap();
+        let cancel = CancelToken::new();
+        let signal = cancel.clone();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            signal.cancel();
+        });
+        let call_started = Instant::now();
+        let error = ai
+            .call_cancellable("discovery.refresh", json!({"level":"passive"}), &cancel)
+            .unwrap_err();
+        let call_elapsed = call_started.elapsed();
+        stopper.join().unwrap();
+        assert_eq!(error.code, ErrorCode::Cancelled);
+
+        let close_started = Instant::now();
+        ai.close();
+        let close_elapsed = close_started.elapsed();
+        assert!(call_elapsed < Duration::from_millis(500));
+        assert!(
+            close_elapsed < Duration::from_millis(500),
+            "cooperative inventory should finish inside the close bound: {close_elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn embedded_close_deadline_detaches_noncooperative_inventory() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut ai = LocalAi::start_with(StartOptions {
+            required_mode: Some(Mode::InProcess),
+            home: Some(directory.path().to_path_buf()),
+            inventory: Some(inventory(fixture(), Duration::from_millis(1500))),
+            close_timeout: Duration::from_millis(100),
+            ..StartOptions::default()
+        })
+        .unwrap();
+        let cancel = CancelToken::new();
+        let signal = cancel.clone();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            signal.cancel();
+        });
+        let error = ai
+            .call_cancellable("discovery.refresh", json!({"level":"passive"}), &cancel)
+            .unwrap_err();
+        stopper.join().unwrap();
+        assert_eq!(error.code, ErrorCode::Cancelled);
+
+        let close_started = Instant::now();
+        ai.close();
+        let close_elapsed = close_started.elapsed();
+        assert!(
+            close_elapsed < Duration::from_millis(700),
+            "non-cooperative inventory must not extend close past its deadline: {close_elapsed:?}"
+        );
     }
 }

@@ -137,68 +137,72 @@ impl BrokerClient {
         let mut complete_reply = false;
         let result = self.runtime.block_on(async {
             tokio::time::timeout(timeout, async {
-                let bytes =
-                    serde_json::to_vec(&frame).map_err(|_| DomainError::new(ErrorCode::InvalidRequest, "Request is invalid"))?;
-                if bytes.len() > 1024 * 1024 {
-                    return Err(DomainError::new(ErrorCode::FrameTooLarge, "Request exceeds the frame bound"));
-                }
-                stream
-                    .get_mut()
-                    .write_all(&bytes)
-                    .await
-                    .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
-                stream
-                    .get_mut()
-                    .write_all(b"\n")
-                    .await
-                    .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
-                stream
-                    .get_mut()
-                    .flush()
-                    .await
-                    .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
-                loop {
-                    let mut line = Vec::new();
-                    // Bound allocation before parsing, including a peer that never sends a newline.
-                    let mut bounded = (&mut *stream).take(1024 * 1024 + 1);
-                    let read = tokio::select! {
-                        biased;
-                        () = wait_for_cancel(cancel) => return Err(cancelled()),
-                        read = bounded.read_until(b'\n', &mut line) => read,
-                    }
-                    .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
-                    if line.len() > 1024 * 1024 {
-                        return Err(DomainError::new(ErrorCode::FrameTooLarge, "Broker response exceeds the frame bound"));
-                    }
-                    if read == 0 {
-                        return Err(DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"));
-                    }
-                    let value: Value = serde_json::from_slice(&line)
-                        .map_err(|_| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned invalid JSON"))?;
-                    if value.get("id").and_then(Value::as_i64) != Some(id as i64) {
-                        continue;
-                    }
-                    if value.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-                        return Err(DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid response envelope"));
-                    }
-                    if let Some(error) = value.get("error") {
-                        let data = &error["data"];
-                        let code = serde_json::from_value::<ErrorCode>(data["code"].clone())
-                            .map_err(|_| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid error code"))?;
-                        let retryable = data["retryable"] == true;
-                        let retry_after_ms = match data.get("retryAfterMs") {
-                            None | Some(Value::Null) => None,
-                            Some(value) => Some(value.as_u64().filter(|value| retryable && *value <= 86_400_000)
-                                .ok_or_else(|| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid retry hint"))?),
-                        };
-                        complete_reply = true;
-                        return Err(DomainError { code, message: "Broker rejected this request; check its error code and the application's grants".into(), retryable, retry_after_ms });
-                    }
-                    if value.get("result").is_none() {
-                        return Err(DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid response envelope"));
-                    }
-                    complete_reply = true;
-                    return Ok(value.get("result").cloned().unwrap_or(Value::Null));
+                tokio::select! {
+                    biased;
+                    () = wait_for_cancel(cancel) => Err(cancelled()),
+                    result = async {
+                        let bytes =
+                            serde_json::to_vec(&frame).map_err(|_| DomainError::new(ErrorCode::InvalidRequest, "Request is invalid"))?;
+                        if bytes.len() > 1024 * 1024 {
+                            return Err(DomainError::new(ErrorCode::FrameTooLarge, "Request exceeds the frame bound"));
+                        }
+                        stream
+                            .get_mut()
+                            .write_all(&bytes)
+                            .await
+                            .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
+                        stream
+                            .get_mut()
+                            .write_all(b"\n")
+                            .await
+                            .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
+                        stream
+                            .get_mut()
+                            .flush()
+                            .await
+                            .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
+                        loop {
+                            let mut line = Vec::new();
+                            // Bound allocation before parsing, including a peer that never sends a newline.
+                            let read = (&mut *stream)
+                                .take(1024 * 1024 + 1)
+                                .read_until(b'\n', &mut line)
+                                .await
+                                .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
+                            if line.len() > 1024 * 1024 {
+                                return Err(DomainError::new(ErrorCode::FrameTooLarge, "Broker response exceeds the frame bound"));
+                            }
+                            if read == 0 {
+                                return Err(DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"));
+                            }
+                            let value: Value = serde_json::from_slice(&line)
+                                .map_err(|_| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned invalid JSON"))?;
+                            if value.get("id").and_then(Value::as_i64) != Some(id as i64) {
+                                continue;
+                            }
+                            if value.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
+                                return Err(DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid response envelope"));
+                            }
+                            if let Some(error) = value.get("error") {
+                                let data = &error["data"];
+                                let code = serde_json::from_value::<ErrorCode>(data["code"].clone())
+                                    .map_err(|_| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid error code"))?;
+                                let retryable = data["retryable"] == true;
+                                let retry_after_ms = match data.get("retryAfterMs") {
+                                    None | Some(Value::Null) => None,
+                                    Some(value) => Some(value.as_u64().filter(|value| retryable && *value <= 86_400_000)
+                                        .ok_or_else(|| DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid retry hint"))?),
+                                };
+                                complete_reply = true;
+                                return Err(DomainError { code, message: "Broker rejected this request; check its error code and the application's grants".into(), retryable, retry_after_ms });
+                            }
+                            if value.get("result").is_none() {
+                                return Err(DomainError::new(ErrorCode::ProtocolIncompatible, "Broker returned an invalid response envelope"));
+                            }
+                            complete_reply = true;
+                            return Ok(value.get("result").cloned().unwrap_or(Value::Null));
+                        }
+                    } => result,
                 }
             })
             .await

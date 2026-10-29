@@ -92,12 +92,38 @@ let snapshot = ai.call_cancellable("snapshot.get", serde_json::json!({}), &cance
 ```
 
 `call` uses `request_timeout`; `close` uses `close_timeout`. Embedded
-cancellation drops the pending future and keeps the client usable. Cancelling a
+cancellation drops the pending future and keeps the client usable; close
+cooperatively cancels background lanes and the active inventory refresh, then
+waits at most `close_timeout`. A sync inventory callback that ignores its cancel
+flag cannot be aborted by Rust and is detached after that bound. Cancelling a
 shared or child request returns `Cancelled` and closes that transport. The
 private helper's drop reaps its immediate child on a best-effort bound; descendant
 cleanup across platforms is not claimed. Helper bytes are not authenticated, so
 use required in-process mode when an arbitrary local executable must not be
 trusted.
+
+`home`, `inventory`, `native_clients`, `state_dir` and `app_label` are honored
+only by in-process mode. Supplying them with automatic, shared or child mode is
+rejected before any broker connection or helper spawn. The facade re-exports
+`ScanResult`, `LocatedClient`, `ExecutableIdentity`, `NativeProfile`,
+`NativeProvider`, `Snapshot` and `DataMode`, so this compiles with `originlm` as
+the only OriginLM dependency:
+
+```rust
+use originlm::{
+    DataMode, InventorySource, NativeClientRegistry, ScanResult, Snapshot,
+};
+use std::{collections::BTreeMap, sync::Arc};
+
+let inventory: InventorySource = Arc::new(|_cancel| {
+    Ok(ScanResult {
+        snapshot: Snapshot::empty(DataMode::Synthetic),
+        locations: BTreeMap::new(),
+        metadata_probes: 0,
+    })
+});
+let native = NativeClientRegistry::default();
+```
 
 Tauri and GPUI use this crate. `LocalAi` also exposes `call`, `scan` and
 `status`.
