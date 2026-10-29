@@ -20,14 +20,23 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Install pinned Rust
-        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Install pinned Rust and declared MSRV
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup toolchain install 1.88.0 --profile minimal
       - name: Fetch locked dependencies for offline packaging
         run: cargo fetch --locked
       - name: Validate closure, MSRV declaration and package all crates in order
         run: python scripts/publish_order.py --check --package --package-dir crates-release
       - name: Verify crate release checksums
         run: cd crates-release && sha256sum -c SHA256SUMS
+      - name: Verify packaged crate closure with declared MSRV
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          python scripts/verify_packaged_closure.py --release-dir crates-release \
+            --toolchain 1.88.0 --source-commit "$SOURCE_COMMIT" \
+            --out crates-release/evidence/packaged-closure.json
       - name: Preserve crate release set
         uses: actions/upload-artifact@v7
         with:
@@ -37,4 +46,4 @@ jobs:
       - name: State boundaries
         run: |
           echo 'Read-only crate packaging only. No crates.io publication or token was used.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'The artifact contains only the 13 publishable crates in dependency-first order, with SHA256SUMS and a source-commit manifest.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The artifact contains only the 13 publishable crates in dependency-first order, with SHA256SUMS, a source-commit manifest and packaged-closure compile evidence.' >> "$GITHUB_STEP_SUMMARY"

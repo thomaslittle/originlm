@@ -109,12 +109,17 @@ class PublisherWorkflows(unittest.TestCase):
         workflow = (WORKFLOWS / 'prepare-crates.yml').read_text(encoding='utf-8')
         self.assertIn('cargo fetch --locked', workflow)
         self.assertLess(workflow.index('cargo fetch --locked'), workflow.index('--package-dir crates-release'))
+        self.assertIn('verify_packaged_closure.py', workflow)
+        self.assertIn('--toolchain 1.88.0', workflow)
+        self.assertIn('crates-release/evidence/packaged-closure.json', workflow)
 
     def test_crate_publisher_fetches_and_revalidates_published_bytes(self):
         workflow = (WORKFLOWS / 'publish-crates.yml').read_text(encoding='utf-8')
         self.assertIn('cargo fetch --locked', workflow)
         self.assertLess(workflow.index('cargo fetch --locked'), workflow.index('publish_order.py'))
         self.assertIn('repacked crate payload hashes match', workflow)
+        self.assertIn('verify_packaged_closure.py', workflow)
+        self.assertIn('crate-packaged-closure', workflow)
         self.assertIn('verify_published_crates.py', workflow)
         self.assertLess(workflow.index('cargo publish --package'), workflow.index('verify_published_crates.py'))
 
