@@ -150,9 +150,7 @@ fn credentials_arbitrary_args_and_remote_paths_are_not_configuration_fields() {
     for field in ["token", "apiKey", "args", "environment", "command"] {
         let mut d = document();
         d["profiles"][0][field] = json!("SECRET_SENTINEL");
-        let e = NativeRegistry::parse(&d.to_string(), "source")
-            .err()
-            .expect("unknown fields denied");
+        let e = NativeRegistry::parse(&d.to_string(), "source").expect_err("unknown fields denied");
         assert!(!e.to_string().contains("SECRET_SENTINEL"));
     }
     let mut d = document();
