@@ -201,12 +201,13 @@ class NpmPackaging(unittest.TestCase):
             (package / 'dist' / 'a.js').write_text('a\n', encoding='utf-8')
             (package / 'dist' / 'Z.js').write_text('Z\n', encoding='utf-8')
             # Simulate Windows' case-insensitive rglob order: dist before LICENSE.
+            resolved = package.resolve()
             windows_order = [
-                package / 'dist' / 'a.js',
-                package / 'dist' / 'Z.js',
-                package / 'LICENSE',
-                package / 'NOTICE',
-                package / 'package.json',
+                resolved / 'dist' / 'a.js',
+                resolved / 'dist' / 'Z.js',
+                resolved / 'LICENSE',
+                resolved / 'NOTICE',
+                resolved / 'package.json',
             ]
             with mock.patch.object(pathlib.Path, 'rglob', return_value=iter(windows_order)):
                 archive_path = npm_pack.pack(package, pathlib.Path(directory) / 'out')
