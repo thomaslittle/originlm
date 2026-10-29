@@ -28,8 +28,10 @@ python scripts/stage_python_package.py --binary "$PWD/target/release/originlm" \
 ```
 
 The wheel defaults to the host's platform when built, not a claimed manylinux baseline.
-Windows can use the preparation workflow's x64 artifacts; the helper filename ends
-in `.exe`. [Release preparation](../release/PUBLISHING.md) lists the exact target set.
+Use the manylinux 2.28 qualification workflow for a publishable Linux wheel;
+`--release` is required to remove the private publication guard. Windows can use the
+preparation workflow's x64 artifacts; the helper filename ends in `.exe`.
+[Release preparation](../release/PUBLISHING.md) lists the exact target set.
 
 ## Plain Node
 

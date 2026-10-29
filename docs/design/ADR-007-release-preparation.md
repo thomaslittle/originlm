@@ -66,3 +66,16 @@ The preparation workflow still has read-only repository permissions and cannot
 publish. The release operation must use assets from the final candidate SHA and
 concatenate per-target `SHA256SUMS` without introducing a parallel flat asset
 scheme.
+
+## Amendment: manylinux Python wheel qualification (2026-10-29)
+
+A separate read-only workflow (`.github/workflows/python-wheels.yml`) compiles the
+helper inside the official `quay.io/pypa/manylinux_2_28_x86_64` and
+`manylinux_2_28_aarch64` images and builds `py3-none-manylinux_2_28_<arch>`
+wheels there. The staging script refuses a manylinux tag outside a matching image,
+so Ubuntu-built host wheels keep `linux_<arch>` and are never retagged. Publishable
+staging requires an explicit `--release` flag and the license/SBOM/provenance
+metadata from the helper archive; `auditwheel show`, `twine check` and a fresh
+empty-home `Client.auto()` consumer proof run before the wheel is uploaded as
+evidence. This qualifies the Python wheel only: helper `.tar.gz` archives remain
+host-specific, and no publication, signing or registry credential is added.

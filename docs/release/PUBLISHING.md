@@ -137,11 +137,89 @@ crates keep `publish = false` until the registry closure and order are approved.
 Consumer-repository pin changes, signing credentials and public package ownership
 remain maintainer/root-release-worker operations.
 
+## Qualified Python wheels (manylinux 2.28)
+
+The separate `Qualify Python wheels (manylinux 2.28)` workflow
+(`.github/workflows/python-wheels.yml`) is the authoritative Linux wheel
+qualification. It runs in the official
+`quay.io/pypa/manylinux_2_28_x86_64` and `quay.io/pypa/manylinux_2_28_aarch64`
+images, on native x86_64 and ARM64 runners respectively, with read-only
+repository permissions. The helper is compiled **inside** the manylinux image and
+the wheel is tagged `manylinux_2_28_<arch>` only there. A wheel built on Ubuntu
+keeps its host-specific `linux_<arch>` tag and cannot be retagged by the staging
+script; `stage_python_package.py` refuses a `manylinux_*` tag unless
+`/opt/python`, an official-image OS identity and a glibc no newer than the
+declared baseline are all present.
+
+Preview staging keeps the `Private :: Do Not Upload` classifier, so ordinary
+wheels remain unpublishable. Only an explicit `--release` run removes that
+classifier, and it also requires the helper metadata directory produced by
+`prepare_helper_archive.py`. The publishable wheel contains package data for:
+
+```text
+originlm/_bin/originlm[.exe]          # the qualified native helper
+originlm/LICENSE                      # repository license
+originlm/THIRD_PARTY_NOTICES.md       # generated dependency notices
+originlm/licenses/<crate>-<version>/  # every dependency license text
+originlm/sbom.cdx.json                # CycloneDX SBOM
+originlm/manifest.json                # native helper provenance + member hashes
+originlm/PROVENANCE.json              # wheel provenance and metadata pins
+```
+
+The native manifest member hashes are checked again against the wheel contents,
+so the helper and license texts cannot drift from the archive that was qualified.
+`scripts/verify_python_wheel.py` inspects the wheel's metadata, classifier, tag,
+executable helper, provenance, license closure and SBOM; it runs
+`auditwheel show` for manylinux wheels and `twine check` when those tools are
+installed. `scripts/python_consumer_smoke.py` then installs the wheel into a fresh
+temporary virtual environment with `--no-index --no-deps` and runs
+`Client.auto()` from a directory outside the checkout with an empty `HOME`, an
+empty `PATH`, no `LAI_*` overrides and no shared broker grant. The proof requires
+the helper to resolve through installed package data, a private child mode, an
+empty live snapshot and zero provider inference. It also checks that no
+persistent service was installed. Importing the SDK still performs no download.
+
+Local qualification path (Docker required):
+
+```sh
+docker run --rm -v "$PWD:/work" -w /work \
+  quay.io/pypa/manylinux_2_28_x86_64 bash -lc '
+    curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
+    . "$HOME/.cargo/env"
+    export PYTHON=/opt/python/cp312-cp312/bin/python
+    "$PYTHON" -m pip install "setuptools==84.1.0" "wheel==0.48.0" build auditwheel twine
+    cargo build --release --locked -p originlm-cli --bin originlm
+    "$PYTHON" scripts/prepare_helper_archive.py --binary target/release/originlm \
+      --target x86_64-unknown-linux-gnu --out prepared/native \
+      --source-commit "$(git rev-parse HEAD)" \
+      --metadata-out prepared/metadata/x86_64-unknown-linux-gnu
+    "$PYTHON" scripts/stage_python_package.py --binary target/release/originlm \
+      --target x86_64-unknown-linux-gnu --plat-name manylinux_2_28_x86_64 \
+      --metadata prepared/metadata/x86_64-unknown-linux-gnu --release --out wheels
+    (cd wheels/originlm && "$PYTHON" setup.py bdist_wheel \
+      --plat-name manylinux_2_28_x86_64 --dist-dir ../../prepared)
+    "$PYTHON" scripts/verify_python_wheel.py \
+      --wheel prepared/originlm-0.1.0a20-py3-none-manylinux_2_28_x86_64.whl \
+      --version 0.1.0a20 --target x86_64-unknown-linux-gnu \
+      --plat-name manylinux_2_28_x86_64 --release
+    "$PYTHON" scripts/python_consumer_smoke.py \
+      --wheel prepared/originlm-0.1.0a20-py3-none-manylinux_2_28_x86_64.whl \
+      --version 0.1.0a20 --python "$PYTHON"
+  '
+```
+
+A machine without Docker cannot produce or verify a manylinux claim; it can build
+only a host-tagged preview wheel. Use the workflow's `prepared/evidence/` JSON as
+the qualification record, not a locally retagged artifact. The workflow still
+does not publish to PyPI, sign anything or modify consumer repositories.
+
 ## Maintainer gates for a signed/stable release
 
 Before any public signed release, Thomas must choose registry names/version and
-approve removing publication guards. Qualify a Linux portability baseline in an
-appropriate manylinux environment. Provision Developer ID signing and
+approve removing publication guards. The manylinux 2.28 wheel qualification
+workflow must pass on the final candidate SHA for both architectures; the
+publishable wheel must keep the helper, license closure, SBOM and provenance it
+verified. Provision Developer ID signing and
 notarization, Windows Authenticode signing, and a checksum signing identity. Signed
 helpers must be verified **before** they are embedded in npm packages, wheels and
 service archives; a separate signing job whose outputs are unused is insufficient.

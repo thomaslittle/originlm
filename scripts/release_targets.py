@@ -15,6 +15,8 @@ TARGETS = {
         'archiveSuffix': '.tar.gz',
         'executable': 'originlm',
         'wheelPlatform': 'linux_x86_64',
+        'manylinuxPlatform': 'manylinux_2_28_x86_64',
+        'manylinuxImage': 'quay.io/pypa/manylinux_2_28_x86_64',
         'support': 'Linux x86_64 with glibc; exact build-host baseline is recorded in the manifest',
     },
     'aarch64-unknown-linux-gnu': {
@@ -24,6 +26,8 @@ TARGETS = {
         'archiveSuffix': '.tar.gz',
         'executable': 'originlm',
         'wheelPlatform': 'linux_aarch64',
+        'manylinuxPlatform': 'manylinux_2_28_aarch64',
+        'manylinuxImage': 'quay.io/pypa/manylinux_2_28_aarch64',
         'support': 'Linux ARM64 with glibc; exact build-host baseline is recorded in the manifest',
     },
     'x86_64-apple-darwin': {
