@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import pathlib
 import sys
 import tempfile
@@ -52,7 +53,7 @@ class LicenseResolution(unittest.TestCase):
         shared.write_text('shared text\n', encoding='utf-8')
         package = self.package(self.root / 'explicit', license='MIT', license_file='../legal/MIT.txt')
         files = licenses._license_files(package, self.root, 'MIT')
-        self.assertEqual(files[0][0], shared)
+        self.assertTrue(os.path.samefile(files[0][0], shared))
 
     def test_nested_license_file_is_found_when_no_root_text_exists(self):
         directory = self.root / 'nested'
