@@ -60,7 +60,7 @@ read-only.
 
 - Branch: `release/full-official-packages`
 - PR: [#14](https://github.com/thomaslittle/originlm/pull/14)
-- Head: `dce192adac32a0d4e2f55634b054fd56c198a3d5`
+- Head: `64942f0d385912aaef6e24427e3de7d63d31673c`
 - Shape: one universal `originlm` tarball with exactly five exact-version
   `@originlm/cli-*` optional dependencies.
 - Platform tarballs carry native `manifest.json`, `sbom.cdx.json`, notices,
@@ -75,7 +75,7 @@ read-only.
 
 - Branch: `t3/python-wheel-qualification`
 - PR: [#15](https://github.com/thomaslittle/originlm/pull/15)
-- Head: `a4a5ccb02ac33e83f8c833d61f110d9bfed536d5` (stacked on PR14)
+- Head: `a4a5ccb02ac33e83f8c833d61f110d9bfed536d5` (stacked on PR14); manylinux run `40912541952` passed both targets, with `manylinux_2_28` wheels and passing consumer evidence.
 - Adds a read-only manylinux_2_28 x86_64/aarch64 workflow using official
   `quay.io/pypa/manylinux_2_28_*` images, explicit `--release` staging that
   removes the private upload classifier only for publishable wheels, embedded
@@ -105,14 +105,13 @@ read-only.
   explicit `authorize_execution`, and idempotent `close`. Registration is not a
   grant; shared/child modes cannot be granted through the facade.
 - Actual declared MSRV evidence is durable in workflow `Verify declared MSRV`
-  (run `40911954983`, artifact `msrv-1.88-evidence`) for code head `2bed31f`;
-  the artifact tested GitHub PR merge SHA `61dcb65d` with rustc/cargo 1.88.0,
+  (run `40913002077`, artifact `msrv-1.88-evidence`) on current head `71c03ab`.
+  The artifact tested GitHub PR merge SHA `95aa965d` with rustc/cargo 1.88.0,
   exit 0 and the exact command `cargo +1.88.0 check --workspace --exclude
-  originlm-desktop --all-targets --locked`. A snapshot is committed at
-  `docs/release/evidence/msrv-1.88.json`.
-- Current head `71c03ab` adds only documentation/evidence-snapshot files; its
-  MSRV rerun `40913002077` is still pending. Do not claim the current head passed
-  until that exact evidence exists.
+  originlm-desktop --all-targets --locked`, with the full compiler log.
+- An earlier snapshot for head `2bed31f` (tested merge `61dcb65d`) is committed at
+  `docs/release/evidence/msrv-1.88.json`; the current run artifact is the
+  authoritative evidence for `71c03ab`.
 
 ## Consumer targets
 
@@ -130,7 +129,7 @@ overrides.
 
 - Branch `release/publishers`, draft PR
   [#17](https://github.com/thomaslittle/originlm/pull/17), head
-  `853ebd109e4fff1cda6a00815296f3c9d2f59de4`.
+  `4e8e77a4c1f4879db9dd404149943999e778b19d`.
 - `.github/workflows/publish-npm.yml` — environment `release-npm`, npm trusted
   publishing, verifies the assembled `npm-release` set and publishes platform
   packages before the universal SDK.
