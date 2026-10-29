@@ -81,11 +81,22 @@ service.
 
 ## Cargo closure and Rust facade
 
-Being implemented by an independent worker. Required evidence: every
-intra-workspace dependency uses version + path in the publishable closure,
-topological package order, actual MSRV verification, and public
-session/turn/events/cancel/approval/close APIs through explicit existing grants
-with no auto-authorization.
+- Branch: `t3/publish-facade-execution-api`
+- PR: [#16](https://github.com/thomaslittle/originlm/pull/16)
+- Head: `5dcffac9bae06ea0ceb36926468f77a1b0adb131` (stacked on PR14's `998e890`)
+- 13 publishable crates; `originlm-cli`, `originlm-desktop` and `originlm-update`
+  remain private.
+- All intra-workspace dependencies in publishable crates use workspace version +
+  path. `scripts/publish_order.py --check` emits a dependency-first order and
+  `cargo package --no-verify --offline` succeeds for all 13.
+- Public `originlm` facade now exposes session create/get/suspend/resume/update/
+  close, turn start/cancel, cursor event reads/subscriptions, approval response,
+  explicit `authorize_execution`, and idempotent `close`. Registration is not a
+  grant; shared/child modes cannot be granted through the facade.
+- Actual declared MSRV: `cargo +1.88.0 check --workspace --exclude
+  originlm-desktop --all-targets --locked` passed locally (rustc 1.88.0). The
+  worker's earlier caveat is resolved by this independent check.
+- CI: checks in progress.
 
 ## Consumer targets
 
