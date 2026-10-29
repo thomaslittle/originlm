@@ -43,7 +43,7 @@ pub struct NativeProfile {
     #[serde(default)]
     pub billing: Option<BillingMode>,
 }
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NativeRegistry {
     pub profiles: BTreeMap<String, NativeProfile>,
     pub browser_blocker: Option<PathBuf>,

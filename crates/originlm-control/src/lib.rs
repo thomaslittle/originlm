@@ -4,11 +4,17 @@ use originlm_contracts::*;
 use serde_json::{Value, json};
 use std::{
     path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 
 pub const MAX_PAGE_LINES: usize = 500;
+
+/// Default deadline for one broker request when the caller does not supply one.
+pub const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(30);
+
+const CANCEL_POLL: Duration = Duration::from_millis(10);
 
 pub struct BrokerClient {
     runtime: tokio::runtime::Runtime,
@@ -18,6 +24,15 @@ pub struct BrokerClient {
 
 impl BrokerClient {
     pub fn connect(address: &str, token: &str) -> std::result::Result<Self, String> {
+        Self::connect_with_timeout(address, token, DEFAULT_CALL_TIMEOUT)
+    }
+
+    /// Connect and complete authentication/handshake within `timeout`.
+    pub fn connect_with_timeout(
+        address: &str,
+        token: &str,
+        timeout: Duration,
+    ) -> std::result::Result<Self, String> {
         if address.is_empty() || token.len() != 64 {
             return Err("A broker address and owner token are required".into());
         }
@@ -28,11 +43,8 @@ impl BrokerClient {
             .map_err(|_| "Runtime unavailable".to_owned())?;
         let stream = runtime
             .block_on(async {
-                tokio::time::timeout(
-                    Duration::from_secs(2),
-                    originlm_transports::local_ipc::connect(address),
-                )
-                .await
+                tokio::time::timeout(timeout, originlm_transports::local_ipc::connect(address))
+                    .await
             })
             .map_err(|_| "Broker connection timed out".to_owned())?
             .map_err(|error| error.to_string())?;
@@ -41,14 +53,25 @@ impl BrokerClient {
             stream: Some(BufReader::new(stream)),
             sequence: 0,
         };
-        let authentication = client.call("broker.authenticate", json!({"token": token}))?;
+        let authentication = client
+            .call_typed_with(
+                "broker.authenticate",
+                json!({"token": token}),
+                timeout,
+                None,
+            )
+            .map_err(|error| error.to_string())?;
         if authentication["authenticated"] != true {
             return Err("PERMISSION_DENIED: Broker did not authenticate this client".into());
         }
-        let handshake = client.call(
-            "runtime.handshake",
-            json!({"protocolVersion":"1.0","clientName":"originlm-control"}),
-        )?;
+        let handshake = client
+            .call_typed_with(
+                "runtime.handshake",
+                json!({"protocolVersion":"1.0","clientName":"originlm-control"}),
+                timeout,
+                None,
+            )
+            .map_err(|error| error.to_string())?;
         validate_handshake(&handshake)?;
         Ok(client)
     }
@@ -89,6 +112,22 @@ impl BrokerClient {
 
     /// Canonical errors retain code and retry hints without exposing remote error bodies.
     pub fn call_typed(&mut self, method: &str, params: Value) -> originlm_contracts::Result<Value> {
+        self.call_typed_with(method, params, DEFAULT_CALL_TIMEOUT, None)
+    }
+
+    /// Bounded, optionally cancellable request. Cancellation closes this
+    /// transport because a partial reply cannot be reused.
+    pub fn call_typed_with(
+        &mut self,
+        method: &str,
+        params: Value,
+        timeout: Duration,
+        cancel: Option<&AtomicBool>,
+    ) -> originlm_contracts::Result<Value> {
+        if cancel.is_some_and(|cancel| cancel.load(Ordering::Acquire)) {
+            self.stream = None;
+            return Err(cancelled());
+        }
         self.sequence = self.sequence.saturating_add(1);
         let id = self.sequence;
         let frame = json!({"jsonrpc":"2.0","id":id,"method":method,"params":params});
@@ -97,7 +136,7 @@ impl BrokerClient {
         })?;
         let mut complete_reply = false;
         let result = self.runtime.block_on(async {
-            tokio::time::timeout(Duration::from_secs(30), async {
+            tokio::time::timeout(timeout, async {
                 let bytes =
                     serde_json::to_vec(&frame).map_err(|_| DomainError::new(ErrorCode::InvalidRequest, "Request is invalid"))?;
                 if bytes.len() > 1024 * 1024 {
@@ -121,11 +160,13 @@ impl BrokerClient {
                 loop {
                     let mut line = Vec::new();
                     // Bound allocation before parsing, including a peer that never sends a newline.
-                    let read = (&mut *stream)
-                        .take(1024 * 1024 + 1)
-                        .read_until(b'\n', &mut line)
-                        .await
-                        .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
+                    let mut bounded = (&mut *stream).take(1024 * 1024 + 1);
+                    let read = tokio::select! {
+                        biased;
+                        () = wait_for_cancel(cancel) => return Err(cancelled()),
+                        read = bounded.read_until(b'\n', &mut line) => read,
+                    }
+                    .map_err(|_| DomainError::new(ErrorCode::ProviderUnavailable, "Broker connection is closed"))?;
                     if line.len() > 1024 * 1024 {
                         return Err(DomainError::new(ErrorCode::FrameTooLarge, "Broker response exceeds the frame bound"));
                     }
@@ -163,7 +204,7 @@ impl BrokerClient {
             .await
             .map_err(|_| DomainError::new(ErrorCode::Timeout, "Broker request timed out"))?
         });
-        // A partial write/read or late reply cannot be reused as a new request's stream.
+        // A partial write/read, timeout or late reply cannot be reused as a new request's stream.
         if result.is_err() && !complete_reply {
             self.stream = None;
         }
@@ -183,9 +224,30 @@ impl BrokerClient {
             .unwrap_or_default())
     }
 
-    pub fn close(mut self) {
-        let _ = self.call("runtime.closeClient", json!({}));
+    pub fn close(self) {
+        self.close_with(DEFAULT_CALL_TIMEOUT, None);
+    }
+
+    /// Close within `timeout`; a cancelled or timed-out close still drops the
+    /// transport locally.
+    pub fn close_with(mut self, timeout: Duration, cancel: Option<&AtomicBool>) {
+        let _ = self.call_typed_with("runtime.closeClient", json!({}), timeout, cancel);
         self.stream = None;
+    }
+}
+
+fn cancelled() -> DomainError {
+    DomainError::new(ErrorCode::Cancelled, "Broker request was cancelled")
+}
+
+async fn wait_for_cancel(cancel: Option<&AtomicBool>) {
+    match cancel {
+        Some(cancel) => {
+            while !cancel.load(Ordering::Acquire) {
+                tokio::time::sleep(CANCEL_POLL).await;
+            }
+        }
+        None => std::future::pending::<()>().await,
     }
 }
 
