@@ -3979,250 +3979,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "originlm-adapters"
-version = "0.1.0-alpha.20"
-dependencies = [
- "axum",
- "chrono",
- "getrandom 0.3.4",
- "originlm-contracts",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "process-wrap",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-stream",
- "windows 0.62.2",
- "zeroize",
-]
-
-[[package]]
-name = "originlm-chatgpt-auth"
-version = "0.1.0-alpha.20"
-dependencies = [
- "aws-lc-rs",
- "base64",
- "fs4",
- "getrandom 0.3.4",
- "jsonwebtoken",
- "keyring",
- "reqwest",
- "ring",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "originlm-cli"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-control",
- "originlm-core",
- "originlm-discovery",
- "originlm-kit",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-contracts"
-version = "0.1.0-alpha.20"
-dependencies = [
- "bigdecimal",
- "chrono",
- "schemars",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "originlm-control"
-version = "0.1.0-alpha.20"
-dependencies = [
- "chrono",
- "crossterm",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
- "ratatui",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-core"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "originlm-desktop"
-version = "0.1.0-alpha.18"
-dependencies = [
- "chrono",
- "gpui-kit",
- "image",
- "originlm-contracts",
- "originlm-control",
- "originlm-platform",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "originlm-discovery"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "originlm-platform",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
-]
-
-[[package]]
-name = "originlm-kit"
-version = "0.1.0-alpha.20"
-dependencies = [
- "axum",
- "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-service",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-platform"
-version = "0.1.0-alpha.20"
-dependencies = [
- "file-id",
- "originlm-contracts",
- "libc",
- "notify",
- "tempfile",
-]
-
-[[package]]
-name = "originlm-runtime"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "originlm-contracts",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "originlm-service"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "chrono",
- "getrandom 0.3.4",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-store",
- "notify-rust",
- "ring",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "originlm-store"
-version = "0.1.0-alpha.20"
-dependencies = [
- "getrandom 0.3.4",
- "originlm-contracts",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "originlm-transports"
-version = "0.1.0-alpha.20"
-dependencies = [
- "async-stream",
- "axum",
- "getrandom 0.3.4",
- "interprocess",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-runtime",
- "originlm-service",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "widestring",
-]
-
-[[package]]
-name = "originlm-update"
-version = "0.1.0-alpha.20"
-dependencies = [
- "base64",
- "fs4",
- "getrandom 0.3.4",
- "originlm-contracts",
- "ring",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4330,21 +4086,6 @@ name = "litrs"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4744e383959f0db86ede514b809b1c53251889093803c05267acc7d4e7030d70"
-
-[[package]]
-name = "originlm"
-version = "0.1.0-alpha.20"
-dependencies = [
- "originlm-contracts",
- "originlm-control",
- "originlm-kit",
- "originlm-platform",
- "originlm-transports",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
-]
 
 [[package]]
 name = "lock_api"
@@ -5354,6 +5095,265 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "originlm"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-kit",
+ "originlm-platform",
+ "originlm-transports",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-adapters"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "axum",
+ "chrono",
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "process-wrap",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "windows 0.62.2",
+ "zeroize",
+]
+
+[[package]]
+name = "originlm-chatgpt-auth"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "aws-lc-rs",
+ "base64",
+ "fs4",
+ "getrandom 0.3.4",
+ "jsonwebtoken",
+ "keyring",
+ "reqwest",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "originlm-cli"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-adapters",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-kit",
+ "originlm-platform",
+ "originlm-service",
+ "originlm-transports",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-contracts"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "originlm-control"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "chrono",
+ "crossterm",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-service",
+ "originlm-transports",
+ "ratatui",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-core"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "originlm-desktop"
+version = "0.1.0-alpha.18"
+dependencies = [
+ "chrono",
+ "gpui-kit",
+ "image",
+ "originlm-contracts",
+ "originlm-control",
+ "originlm-platform",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "originlm-discovery"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "originlm-contracts",
+ "originlm-platform",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+]
+
+[[package]]
+name = "originlm-kit"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "axum",
+ "originlm-adapters",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "originlm-service",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-platform"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "file-id",
+ "libc",
+ "notify",
+ "originlm-contracts",
+ "tempfile",
+]
+
+[[package]]
+name = "originlm-runtime"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "originlm-contracts",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-service"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.3.4",
+ "notify-rust",
+ "originlm-chatgpt-auth",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-platform",
+ "originlm-runtime",
+ "originlm-store",
+ "ring",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-store"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "originlm-transports"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "async-stream",
+ "axum",
+ "getrandom 0.3.4",
+ "interprocess",
+ "originlm-contracts",
+ "originlm-core",
+ "originlm-discovery",
+ "originlm-runtime",
+ "originlm-service",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tokio",
+ "widestring",
+]
+
+[[package]]
+name = "originlm-update"
+version = "0.1.0-alpha.20"
+dependencies = [
+ "base64",
+ "fs4",
+ "getrandom 0.3.4",
+ "originlm-contracts",
+ "ring",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
 ]
 
 [[package]]
