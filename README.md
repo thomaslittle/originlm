@@ -161,9 +161,9 @@ try {
 
 | Platform | Status |
 |---|---|
-| Windows x64 | Source implementation retained; OriginLM binaries are not yet released. |
-| Linux x64 | Verified on Ubuntu (WSL2) and exercised in CI; no release bundle yet. |
-| macOS | Built and tested in CI only; not manually qualified. |
+| Windows x64 | Runtime host implemented; unsigned x64 helper archive prepared by the release workflow. Older Windows versions are not independently qualified. |
+| Linux x64 | Runtime host supported; unsigned x86_64 and ARM64 glibc archives prepared on Ubuntu 24.04. Manylinux and older-glibc compatibility are not claimed. |
+| macOS | Intel and Apple-silicon helpers built and smoke-tested in CI with a macOS 15 deployment target; not manually qualified. |
 
 Status words in this repository are deliberate: **planned**, **implemented**, **fixture-tested**, **platform-executed**, and **live-qualified** mean different things. Most provider paths are fixture-tested; live qualification is called out per provider in the [support matrix](docs/adapters/SUPPORT-MATRIX.md).
 
