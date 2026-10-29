@@ -97,6 +97,7 @@ def verify(packages, version, source_commit=None):
         })
     return {
         'status': 'pass',
+        'target': report[0]['nativeTarget'],
         'version': version,
         'sdk': sdk[0].name,
         'sdkSha256': hashlib.sha256(sdk[0].read_bytes()).hexdigest(),

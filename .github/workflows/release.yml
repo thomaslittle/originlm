@@ -96,7 +96,7 @@ jobs:
             --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA" \
             --out "prepared/evidence/npm-packages-${{ matrix.target }}.json"
           python scripts/npm_consumer_smoke.py --sdk "$sdk" --platform "$platform" \
-            --version '${{ steps.release.outputs.version }}' \
+            --version '${{ steps.release.outputs.version }}' --target '${{ matrix.target }}' \
             --out "prepared/evidence/npm-consumer-${{ matrix.target }}.json"
       - name: Persist native smoke evidence
         shell: bash
