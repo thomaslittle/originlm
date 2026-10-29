@@ -60,7 +60,7 @@ read-only.
 
 - Branch: `release/full-official-packages`
 - PR: [#14](https://github.com/thomaslittle/originlm/pull/14)
-- Head: `81f1e35cdbbeafc7eeacbac760297c6d04d73c76`
+- Head: `dce192adac32a0d4e2f55634b054fd56c198a3d5`
 - Shape: one universal `originlm` tarball with exactly five exact-version
   `@originlm/cli-*` optional dependencies.
 - Platform tarballs carry native `manifest.json`, `sbom.cdx.json`, notices,
@@ -124,7 +124,8 @@ overrides.
 ## Publisher workflows (PR17)
 
 - Branch `release/publishers`, draft PR
-  [#17](https://github.com/thomaslittle/originlm/pull/17).
+  [#17](https://github.com/thomaslittle/originlm/pull/17), head
+  `853ebd109e4fff1cda6a00815296f3c9d2f59de4`.
 - `.github/workflows/publish-npm.yml` — environment `release-npm`, npm trusted
   publishing, verifies the assembled `npm-release` set and publishes platform
   packages before the universal SDK.
