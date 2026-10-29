@@ -3,6 +3,7 @@ import importlib.util
 import json
 import pathlib
 import stat
+import struct
 import sys
 import tempfile
 import unittest
@@ -44,6 +45,22 @@ def elf_bytes(machine=62):
     return bytes(data)
 
 
+def pe_bytes(machine=0x8664):
+    data = bytearray(0x80)
+    data[:2] = b'MZ'
+    struct.pack_into('<I', data, 0x3C, 0x40)
+    data[0x40:0x44] = b'PE\0\0'
+    struct.pack_into('<H', data, 0x44, machine)
+    return bytes(data)
+
+
+def macho_bytes(machine=0x0100000C):
+    data = bytearray(32)
+    struct.pack_into('<I', data, 0, 0xFEEDFACF)
+    struct.pack_into('<I', data, 4, machine)
+    return bytes(data)
+
+
 def add(archive, name, data, mode=0o644):
     info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
     info.create_system = 3
@@ -58,7 +75,8 @@ def make_wheel(directory, *, platform='manylinux_2_28_x86_64', release=False,
     omit = set(omit or ())
     directory = pathlib.Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    helper_member = f'helper-{target}/originlm'
+    helper_name = 'originlm.exe' if target.endswith('windows-msvc') else 'originlm'
+    helper_member = f'helper-{target}/{helper_name}'
     sbom = {
         'bomFormat': 'CycloneDX', 'specVersion': '1.5', 'version': 1,
         'components': [{
@@ -114,7 +132,7 @@ def make_wheel(directory, *, platform='manylinux_2_28_x86_64', release=False,
             'originlm/manifest.json': native_bytes,
             'originlm/PROVENANCE.json': json.dumps(provenance).encode(),
             'originlm/licenses/fixture-1.0/LICENSE': b'MIT dep\n\n',
-            'originlm/_bin/originlm': helper,
+            f'originlm/_bin/{helper_name}': helper,
             f'originlm-{VERSION}.dist-info/METADATA': metadata.encode(),
             f'originlm-{VERSION}.dist-info/WHEEL': wheel_file.encode(),
             f'originlm-{VERSION}.dist-info/RECORD': b'',
@@ -122,7 +140,7 @@ def make_wheel(directory, *, platform='manylinux_2_28_x86_64', release=False,
         for name, data in files.items():
             if name in omit:
                 continue
-            mode = helper_mode if name == 'originlm/_bin/originlm' else 0o644
+            mode = helper_mode if name == f'originlm/_bin/{helper_name}' else 0o644
             add(archive, name, data, mode)
     return path
 
@@ -205,6 +223,53 @@ class WheelVerifierTests(unittest.TestCase):
     def test_wrapped_auditwheel_tag_is_parsed(self):
         output = 'is consistent\nwith the following platform tag: "manylinux_2_28_x86_64".\n'
         self.assertEqual(verify_module.auditwheel_tag(output), 'manylinux_2_28_x86_64')
+
+    def test_native_binary_parsers(self):
+        self.assertEqual(verify_module.pe_machine(pe_bytes()), 0x8664)
+        self.assertEqual(verify_module.macho_machine(macho_bytes(0x01000007)), 0x01000007)
+        self.assertEqual(verify_module.macho_machine(macho_bytes(0x0100000C)), 0x0100000C)
+        with self.assertRaises(verify_module.VerifyError):
+            verify_module.pe_machine(b'MZ' + b'\0' * 10)
+        with self.assertRaises(verify_module.VerifyError):
+            verify_module.macho_machine(b'\x7fELF' + b'\0' * 20)
+
+    def test_windows_release_wheel_uses_pe_and_win_amd64(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wheel = make_wheel(directory, target='x86_64-pc-windows-msvc',
+                               platform='win_amd64', release=True, helper=pe_bytes())
+            evidence = verify_module.verify(
+                wheel, VERSION, target='x86_64-pc-windows-msvc',
+                plat_name='win_amd64', release=True, run_tools=False,
+            )
+            self.assertFalse(evidence['manylinux'])
+            self.assertTrue(evidence['nativeBinary']['passed'])
+            self.assertEqual(evidence['nativeBinary']['format'], 'pe')
+
+    def test_macos_release_wheel_uses_macho_and_expected_arch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wheel = make_wheel(directory, target='aarch64-apple-darwin',
+                               platform='macosx_15_0_arm64', release=True,
+                               helper=macho_bytes())
+            evidence = verify_module.verify(
+                wheel, VERSION, target='aarch64-apple-darwin',
+                plat_name='macosx_15_0_arm64', release=True, run_tools=False,
+            )
+            self.assertFalse(evidence['manylinux'])
+            self.assertTrue(evidence['nativeBinary']['passed'])
+            self.assertEqual(evidence['nativeBinary']['format'], 'macho')
+
+    def test_release_platform_mapping_covers_all_five_targets(self):
+        from release_targets import TARGETS
+        self.assertEqual(
+            {target: info['releaseWheelPlatform'] for target, info in TARGETS.items()},
+            {
+                'x86_64-unknown-linux-gnu': 'manylinux_2_28_x86_64',
+                'aarch64-unknown-linux-gnu': 'manylinux_2_28_aarch64',
+                'x86_64-apple-darwin': 'macosx_15_0_x86_64',
+                'aarch64-apple-darwin': 'macosx_15_0_arm64',
+                'x86_64-pc-windows-msvc': 'win_amd64',
+            },
+        )
 
     def test_version_normalization_matches_cargo_and_pep440(self):
         self.assertEqual(verify_module.normalize_version(NATIVE_VERSION), VERSION)
@@ -375,6 +440,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('twine upload', text)
         self.assertNotIn('pypa/gh-action-pypi-publish', text)
         self.assertIn('permissions:\n  contents: read', text)
+        for target in (
+            'x86_64-apple-darwin', 'aarch64-apple-darwin',
+            'x86_64-pc-windows-msvc',
+        ):
+            self.assertIn(target, text)
+        self.assertIn('macosx_15_0_x86_64', text)
+        self.assertIn('macosx_15_0_arm64', text)
+        self.assertIn('win_amd64', text)
+        self.assertIn('name: python-wheel-${{ matrix.target }}', text)
 
 
 if __name__ == '__main__':

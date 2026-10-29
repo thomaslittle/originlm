@@ -139,19 +139,25 @@ crates keep `publish = false` until the registry closure and order are approved.
 Consumer-repository pin changes, signing credentials and public package ownership
 remain maintainer/root-release-worker operations.
 
-## Qualified Python wheels (manylinux 2.28)
+## Qualified Python wheels (five supported platforms)
 
-The separate `Qualify Python wheels (manylinux 2.28)` workflow
-(`.github/workflows/python-wheels.yml`) is the authoritative Linux wheel
-qualification. It runs in the official
-`quay.io/pypa/manylinux_2_28_x86_64` and `quay.io/pypa/manylinux_2_28_aarch64`
-images, on native x86_64 and ARM64 runners respectively, with read-only
-repository permissions. The helper is compiled **inside** the manylinux image and
-the wheel is tagged `manylinux_2_28_<arch>` only there. A wheel built on Ubuntu
-keeps its host-specific `linux_<arch>` tag and cannot be retagged by the staging
-script; `stage_python_package.py` refuses a `manylinux_*` tag unless
-`/opt/python`, an official-image OS identity and a glibc no newer than the
-declared baseline are all present.
+The separate `Qualify Python wheels` workflow (`.github/workflows/python-wheels.yml`)
+is the authoritative wheel qualification for five publishable platforms. Linux
+x86_64/ARM64 run in the official `quay.io/pypa/manylinux_2_28_*` images on native
+runners; the helper is compiled **inside** the image and the wheel is tagged
+`manylinux_2_28_<arch>` only there. A wheel built on Ubuntu keeps its host-specific
+`linux_<arch>` tag and cannot be retagged; `stage_python_package.py` refuses a
+`manylinux_*` tag unless `/opt/python`, an official-image OS identity and a glibc
+no newer than the declared baseline are all present.
+
+The native macOS Intel, macOS Apple-silicon and Windows x64 jobs build the helper
+on their own native runner and produce `py3-none-macosx_15_0_<arch>` or
+`py3-none-win_amd64` wheels. macOS uses the explicit
+`MACOSX_DEPLOYMENT_TARGET=15.0` baseline; this is a declared minimum, not a claim
+for older macOS. Windows x64 is built and smoke-tested on Windows Server 2025;
+older Windows versions are not independently qualified. No Ubuntu wheel is
+retagged as manylinux, and Linux `auditwheel show` is never applied to PE or
+Mach-O wheels.
 
 Preview staging keeps the `Private :: Do Not Upload` classifier, so ordinary
 wheels remain unpublishable. Only an explicit `--release` run removes that
@@ -171,9 +177,9 @@ originlm/PROVENANCE.json              # wheel provenance and metadata pins
 The native manifest member hashes are checked again against the wheel contents,
 so the helper and license texts cannot drift from the archive that was qualified.
 `scripts/verify_python_wheel.py` inspects the wheel's metadata, classifier, tag,
-executable helper, provenance, license closure and SBOM; it runs
-`auditwheel show` for manylinux wheels and `twine check` when those tools are
-installed. `scripts/python_consumer_smoke.py` then installs the wheel into a fresh
+native helper format/architecture (ELF, PE or Mach-O), provenance, license
+closure and SBOM; it runs `auditwheel show` only for manylinux wheels and
+`twine check` for every release wheel. `scripts/python_consumer_smoke.py` then installs the wheel into a fresh
 temporary virtual environment with `--no-index --no-deps` and runs
 `Client.auto()` from a directory outside the checkout with an empty `HOME`, an
 empty `PATH`, no `LAI_*` overrides and no shared broker grant. The proof requires
@@ -219,9 +225,9 @@ does not publish to PyPI, sign anything or modify consumer repositories.
 
 Before any public signed release, Thomas must choose registry names/version and
 approve removing publication guards. The manylinux 2.28 wheel qualification
-workflow must pass on the final candidate SHA for both architectures; the
-publishable wheel must keep the helper, license closure, SBOM and provenance it
-verified. Provision Developer ID signing and
+workflow must pass on the final candidate SHA for all five supported platforms;
+each publishable wheel must keep the helper, license closure, SBOM and provenance
+it verified. Provision Developer ID signing and
 notarization, Windows Authenticode signing, and a checksum signing identity. Signed
 helpers must be verified **before** they are embedded in npm packages, wheels and
 service archives; a separate signing job whose outputs are unused is insufficient.

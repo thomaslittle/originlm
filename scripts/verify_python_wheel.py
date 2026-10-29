@@ -17,6 +17,7 @@ import json
 import pathlib
 import re
 import stat
+import struct
 import subprocess
 import sys
 import zipfile
@@ -24,6 +25,8 @@ import zipfile
 CLASSIFIER = 'Private :: Do Not Upload'
 MANYLINUX = re.compile(r'manylinux_(\d+)_(\d+)_(x86_64|aarch64)')
 ELF_MACHINES = {'x86_64': 62, 'aarch64': 183}
+PE_MACHINE = 0x8664
+MACHO_MACHINES = {'x86_64': 0x01000007, 'aarch64': 0x0100000C}
 
 
 class VerifyError(RuntimeError):
@@ -185,6 +188,24 @@ def auditwheel_tag(output):
     return match.group(1) if match else None
 
 
+def pe_machine(data):
+    if len(data) < 64 or data[:2] != b'MZ':
+        raise VerifyError('bundled helper is not a PE executable')
+    offset = struct.unpack_from('<I', data, 0x3C)[0]
+    if offset + 6 > len(data) or data[offset:offset + 4] != b'PE\0\0':
+        raise VerifyError('bundled helper has no PE header')
+    return struct.unpack_from('<H', data, offset + 4)[0]
+
+
+def macho_machine(data):
+    if len(data) < 8:
+        raise VerifyError('bundled helper is not a Mach-O executable')
+    magic = struct.unpack_from('<I', data, 0)[0]
+    if magic not in (0xFEEDFACF, 0xFEEDFACE):
+        raise VerifyError('bundled helper is not a thin Mach-O executable')
+    return struct.unpack_from('<I', data, 4)[0]
+
+
 def _auditwheel(wheel, expected_platform):
     probe = _tool('auditwheel', ['--version'])
     if probe.returncode:
@@ -240,6 +261,13 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
         raise VerifyError(f'wheel version is {filename_version}, expected {version}')
     if plat_name and filename_platform != plat_name:
         raise VerifyError(f'wheel platform is {filename_platform}, expected {plat_name}')
+    if release and target:
+        from release_targets import target_info
+        expected_platform = target_info(target).get('releaseWheelPlatform')
+        if expected_platform and filename_platform != expected_platform:
+            raise VerifyError(
+                f'publishable wheel platform is {filename_platform}, expected {expected_platform}'
+            )
     if MANYLINUX.fullmatch(filename_platform):
         arch = MANYLINUX.fullmatch(filename_platform).group(3)
         if target and target.split('-', 1)[0] != arch:
@@ -306,14 +334,30 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
         helper = archive.read(expected_helper)
         if not helper:
             raise VerifyError('bundled native helper is empty')
-        if target and target.endswith('linux-gnu'):
-            machine = _elf(helper)
-            expected_machine = ELF_MACHINES[target.split('-', 1)[0]]
-            if machine != expected_machine:
-                raise VerifyError('bundled ELF architecture does not match the target')
-            mode = (entries[expected_helper].external_attr >> 16) & 0o777
-            if mode & 0o111 != 0o111:
-                raise VerifyError('bundled native helper is not executable in the wheel')
+        native_binary = None
+        if target:
+            arch = target.split('-', 1)[0]
+            if target.endswith('linux-gnu'):
+                machine = _elf(helper)
+                expected_machine = ELF_MACHINES[arch]
+                if machine != expected_machine:
+                    raise VerifyError('bundled ELF architecture does not match the target')
+                native_binary = {'format': 'elf', 'machine': machine, 'expected': expected_machine, 'passed': True}
+            elif target.endswith('windows-msvc'):
+                machine = pe_machine(helper)
+                if machine != PE_MACHINE:
+                    raise VerifyError('bundled PE architecture does not match the target')
+                native_binary = {'format': 'pe', 'machine': machine, 'expected': PE_MACHINE, 'passed': True}
+            elif target.endswith('apple-darwin'):
+                machine = macho_machine(helper)
+                expected_machine = MACHO_MACHINES[arch]
+                if machine != expected_machine:
+                    raise VerifyError('bundled Mach-O architecture does not match the target')
+                native_binary = {'format': 'macho', 'machine': machine, 'expected': expected_machine, 'passed': True}
+            if not target.endswith('windows-msvc'):
+                mode = (entries[expected_helper].external_attr >> 16) & 0o777
+                if mode & 0o111 != 0o111:
+                    raise VerifyError('bundled native helper is not executable in the wheel')
         license_texts = 0
         if release:
             for required in (
@@ -381,6 +425,7 @@ def verify(wheel, version, *, target=None, plat_name=None, source_commit=None,
         'uploadGuard': 'removed' if release else CLASSIFIER,
         'sourceCommit': source.get('commit'),
         'nativeHelper': expected_helper,
+        'nativeBinary': native_binary,
         'licenseTexts': license_texts,
         'auditwheel': auditwheel,
         'twine': twine,

@@ -10,6 +10,7 @@ live snapshot without provider inference.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -153,8 +154,9 @@ def _venv_python(directory):
     return candidate
 
 
-def smoke(wheel, version, python=None, timeout=240, keep=False):
+def smoke(wheel, version, python=None, target=None, source_commit=None, timeout=240, keep=False):
     wheel = pathlib.Path(wheel).resolve()
+    wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest() if wheel.is_file() else None
     if wheel.is_symlink() or not wheel.is_file():
         raise ConsumerError(f'wheel is unavailable: {wheel}')
     match = re.fullmatch(r'originlm-(.+)-py3-none-.+\.whl', wheel.name)
@@ -208,6 +210,9 @@ def smoke(wheel, version, python=None, timeout=240, keep=False):
         return {
             'status': 'pass',
             'wheel': wheel.name,
+            'wheelSha256': wheel_sha256,
+            'target': target,
+            'sourceCommit': source_commit,
             'version': version,
             'pep440Version': normalize_version(version),
             'mode': result['mode'],
@@ -234,13 +239,15 @@ def main():
     parser.add_argument('--wheel', type=pathlib.Path, required=True)
     parser.add_argument('--version', required=True)
     parser.add_argument('--python', default=sys.executable)
+    parser.add_argument('--target')
+    parser.add_argument('--source-commit')
     parser.add_argument('--timeout', type=int, default=240)
     parser.add_argument('--keep', action='store_true')
     parser.add_argument('--out', type=pathlib.Path)
     args = parser.parse_args()
     evidence = smoke(
-        args.wheel, args.version, python=args.python,
-        timeout=args.timeout, keep=args.keep,
+        args.wheel, args.version, python=args.python, target=args.target,
+        source_commit=args.source_commit, timeout=args.timeout, keep=args.keep,
     )
     text = json.dumps(evidence, indent=2, sort_keys=True) + '\n'
     if args.out:
