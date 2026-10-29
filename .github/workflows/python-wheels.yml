@@ -69,6 +69,11 @@ jobs:
             sh -s -- -y --profile minimal --default-toolchain none
           . "$CARGO_HOME/env"
           rustup toolchain install 1.98.1 --profile minimal
+          # The repository's rust-toolchain.toml asks for rustfmt/clippy, but the
+          # wheel build does not need them. manylinux images ship conflicting
+          # rustfmt shims, so never auto-install those components here.
+          echo "RUSTUP_TOOLCHAIN=1.98.1" >> "$GITHUB_ENV"
+          echo "RUSTUP_AUTO_INSTALL=0" >> "$GITHUB_ENV"
           "$PYTHON" -m pip install --disable-pip-version-check --upgrade \
             'setuptools==84.1.0' 'wheel==0.48.0' build auditwheel twine
       - name: Read release version
