@@ -151,6 +151,22 @@ python scripts/publish_order.py --package
 Consumer-repository pin changes, signing credentials and public package ownership
 remain maintainer/root-release-worker operations.
 
+## Packaged crate closure gate
+
+`cargo package --no-verify` validates the source worktree, not the `.crate`
+contents. The crate preparation and publisher jobs therefore run
+`scripts/verify_packaged_closure.py` against the exact 13 prepared archives. It
+verifies the manifest source/version/order and every archive hash, safely
+extracts the archives outside the checkout, rejects normalized manifests with
+`path` dependencies or leaked absolute workspace paths, and checks the unpacked
+workspace with the declared MSRV. Internal dependencies resolve only to the
+unpacked packages through temporary `[patch.crates-io]` entries. A fresh consumer
+manifest depends only on the public `originlm` crate; the same bootstrap patches
+map the unpublished closure to the reviewed unpacked crates. The evidence JSON is
+persisted with the crate artifact and checked again before publication. Offline
+resolution uses the runner cargo cache for registry dependencies; no provider,
+credential or publication action is involved.
+
 ## Maintainer gates for a signed/stable release
 
 Before any public signed release, Thomas must choose registry names/version and
