@@ -586,12 +586,46 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_logical_symlink_keeps_its_official_resolved_identity() {
+    fn an_absolute_logical_symlink_keeps_its_official_resolved_identity() {
         use std::os::unix::fs::symlink;
-        let root = tempfile::tempdir().unwrap();
-        let account_home = home(root.path(), "codex-home");
-        let target = executable(root.path(), "bin/real/codex-1.2.3");
-        let logical = root.path().join("bin/logical/codex");
+        let temp = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temp.path()).unwrap();
+        let account_home = home(&root, "codex-home");
+        let target = executable(&root, "bin/real/codex-1.2.3");
+        let logical = root.join("bin/logical/codex");
+        fs::create_dir_all(logical.parent().unwrap()).unwrap();
+        symlink(&target, &logical).unwrap();
+
+        let result = ScopedInventory::new()
+            .with_account(AccountScope::new(
+                ScopedProvider::Codex,
+                account_home,
+                logical.clone(),
+            ))
+            .scan(&AtomicBool::new(false))
+            .unwrap();
+        let located = result
+            .locations
+            .values()
+            .find(|located| located.executable.as_ref() == Some(&logical))
+            .expect("logical executable");
+        let identity = located
+            .executable_identity
+            .as_ref()
+            .expect("symlink identity");
+        assert_eq!(identity.command, logical);
+        assert_eq!(identity.resolved, fs::canonicalize(&target).unwrap());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_relative_logical_symlink_keeps_its_official_resolved_identity() {
+        use std::os::unix::fs::symlink;
+        let temp = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temp.path()).unwrap();
+        let account_home = home(&root, "codex-home");
+        let target = executable(&root, "bin/real/codex-1.2.3");
+        let logical = root.join("bin/logical/codex");
         fs::create_dir_all(logical.parent().unwrap()).unwrap();
         symlink(Path::new("../real/codex-1.2.3"), &logical).unwrap();
 
@@ -613,10 +647,6 @@ mod tests {
             .as_ref()
             .expect("symlink identity");
         assert_eq!(identity.command, logical);
-        assert!(
-            identity
-                .resolved
-                .ends_with(target.strip_prefix("/").unwrap_or(&target))
-        );
+        assert_eq!(identity.resolved, fs::canonicalize(&target).unwrap());
     }
 }

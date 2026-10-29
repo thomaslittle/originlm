@@ -16,6 +16,57 @@ fn tempdir() -> tempfile::TempDir {
     tempfile::Builder::new().tempdir_in(base).unwrap()
 }
 
+#[cfg(unix)]
+fn canonical_tempdir() -> tempfile::TempDir {
+    let base = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+    tempfile::Builder::new().tempdir_in(base).unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn executable_resolution_allows_a_repeated_directory_alias_but_rejects_a_real_cycle() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let tmp = canonical_tempdir();
+    let real = tmp.path().join("real");
+    fs::create_dir_all(&real).unwrap();
+    let target = real.join("codex-1.2.3");
+    fs::write(&target, b"#!/bin/sh\n").unwrap();
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o700)).unwrap();
+    let alias = tmp.path().join("alias");
+    symlink(&real, &alias).unwrap();
+    let logical = real.join("codex");
+    // Absolute target traverses the directory alias a second time; this is not
+    // a cycle because the remaining path differs.
+    symlink(alias.join("codex-1.2.3"), &logical).unwrap();
+    let identity = resolve_executable(&logical).unwrap();
+    assert_eq!(identity.command, logical);
+    assert_eq!(identity.resolved, fs::canonicalize(&target).unwrap());
+
+    let first = tmp.path().join("cycle-a");
+    let second = tmp.path().join("cycle-b");
+    symlink(&second, &first).unwrap();
+    symlink(&first, &second).unwrap();
+    assert!(resolve_executable(&first).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn executable_resolution_keeps_relative_command_links() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let tmp = canonical_tempdir();
+    let bin = tmp.path().join("bin");
+    fs::create_dir_all(bin.join("real")).unwrap();
+    let target = bin.join("real/codex-1.2.3");
+    fs::write(&target, b"#!/bin/sh\n").unwrap();
+    fs::set_permissions(&target, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::create_dir_all(bin.join("logical")).unwrap();
+    let logical = bin.join("logical/codex");
+    symlink("../real/codex-1.2.3", &logical).unwrap();
+    let identity = resolve_executable(&logical).unwrap();
+    assert_eq!(identity.command, logical);
+    assert_eq!(identity.resolved, fs::canonicalize(&target).unwrap());
+}
+
 #[test]
 fn file_identity_uses_birth_time_when_available_and_survives_append() {
     let tmp = tempdir();
