@@ -1,5 +1,6 @@
 """Build local distributable bundles. Does not publish, sign, or use provider accounts."""
-import argparse,json,os,pathlib,platform,shutil,subprocess,sys,tempfile,tomllib
+import argparse,json,os,pathlib,platform,re,shutil,subprocess,sys,tempfile,tomllib
+from license_closure import collect_many,write_assets
 from release_support import make_manifest,verify_manifest,create_archive,sha256
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 PACKAGES=('sdk-typescript','selector-core','react','ui-react')
@@ -17,26 +18,31 @@ def write(path,data):
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(data,indent=2,sort_keys=True)+'\n',encoding='utf-8')
 
-def dependency_inventory(stage):
-    metadata=json.loads(run(['cargo','metadata','--locked','--format-version','1']))
-    components=[]
-    licenses=stage/'licenses';licenses.mkdir()
-    for package in metadata['packages']:
-        component={'type':'library','name':package['name'],'version':package['version'],'purl':f"pkg:cargo/{package['name']}@{package['version']}"}
-        if package.get('license'):component['licenses']=[{'expression':package['license']}]
-        components.append(component)
-        source=pathlib.Path(package['manifest_path']).parent
-        for file in source.iterdir():
-            if file.is_file() and not file.is_symlink() and file.name.upper().startswith(('LICENSE','COPYING','NOTICE')) and file.stat().st_size<1048576:
-                target=licenses/(package['name']+'-'+package['version'])/file.name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(file,target)
-    lock=json.loads((ROOT/'package-lock.json').read_text(encoding='utf-8'))
-    for key,package in sorted(lock['packages'].items()):
-        if not key.startswith('node_modules/') or package.get('link'):continue
-        name=key.split('node_modules/')[-1]
-        component={'type':'library','name':name,'version':package.get('version','unknown'),'purl':f"pkg:npm/{name}@{package.get('version','unknown')}"}
-        if package.get('license'):component['licenses']=[{'expression':package['license']}]
-        components.append(component)
-    write(stage/'sbom.cdx.json',{'bomFormat':'CycloneDX','specVersion':'1.5','version':1,'components':sorted(components,key=lambda c:c['purl'])})
+def dependency_inventory(stage,target,head):
+    # Only ship and inventory the Rust binaries and JavaScript packages that are
+    # actually in this bundle. Cargo metadata supplies exact package/license
+    # identity; collect_many resolves each shipped binary's feature-accurate
+    # normal/build closure and fails if a required license text is missing.
+    collection=collect_many(ROOT,target,['originlm-cli','originlm-control'])
+    license_source=ROOT/'LICENSE';data=license_source.read_bytes();digest=sha256(license_source)
+    for package in PACKAGES:
+        info=json.loads((ROOT/'packages'/package/'package.json').read_text(encoding='utf-8'))
+        name=info['name'];version=info['version'];expression=info.get('license')
+        if not expression:raise RuntimeError('JavaScript package has no license expression: '+name)
+        directory=re.sub(r'[^A-Za-z0-9._+-]','_',name+'-'+version)
+        member=f'licenses/{directory}/LICENSE'
+        collection['components'].append({
+            'name':name,'version':version,'purl':f'pkg:npm/{name}@{version}',
+            'license':expression,'source':{'kind':'workspace','path':f'packages/{package}'},
+            'licenseTexts':[{'path':member,'bytes':len(data),'sha256':digest,'sourcePath':'LICENSE','_source':str(license_source)}],
+        })
+        text=next((item for item in collection['texts'] if item['digest']==digest),None)
+        if text is None:
+            collection['texts'].append({'digest':digest,'text':data.decode('utf-8'),'paths':[member]})
+        elif member not in text['paths']:
+            text['paths'].append(member)
+    collection['components'].sort(key=lambda item:item['purl'])
+    write_assets(stage,collection,head)
 
 def build(profile):
     run(['cargo','build','--locked','-p','originlm-cli','-p','originlm-control',*(['--release'] if profile=='release' else [])])
@@ -69,8 +75,8 @@ def build(profile):
         shutil.copytree(ROOT/'examples',stage/'examples',ignore=shutil.ignore_patterns('__pycache__','node_modules','target','bin','obj'))
         (stage/'scripts').mkdir();shutil.copy2(ROOT/'scripts/native_host.py',stage/'scripts/native_host.py')
         shutil.copy2(ROOT/'scripts/release_support.py',stage/'scripts/release_support.py')
-        dependency_inventory(stage)
-        readme="# OriginLM local build\n\nThis archive is an unpublished developer build. Check `manifest.json` for the exact source commit, dirty state, platform, and profile. Checksums detect corruption; the bundle is not digitally signed.\n\nRun `bin/originlm --help`, or `bin/originlm scan --json` for explicit metadata-only discovery. Serve the demo using `bin/originlm serve --http --assets ABSOLUTE_PATH_TO_THIS_BUNDLE/demo --allow-passive-discovery`. Enter the displayed one-use pairing code in the browser. No provider or inference is contacted at startup.\n\nTo permit a Codex account/catalog probe, add `--allow-metadata codex`. Actual turns additionally require `--allow-execution codex --workspace ABSOLUTE_WORKSPACE`, and explicit invocation in the UI. Other integrations have their own provider grants. Do not enable execution just to view account metadata.\n\nThe `packages` folder contains four npm tarballs and the Python wheel. Install all npm tarballs together into your application's project; React is an optional peer dependency. The Python wheel requires Python 3.11 or newer. The native helper needs no Node/Python runtime; the JS/Python examples do.\n\nThe browser extension is uninstalled and has no access until you explicitly prepare and register the native messaging host. See the repository's browser integration documentation. No automatic OS integration is performed.\n\nArtifacts and private account data are never part of this bundle. The dependency inventory includes build/test dependencies for transparency; it is not a vulnerability clearance or a legal certification.\n"
+        dependency_inventory(stage,target,head)
+        readme="# OriginLM local build\n\nThis archive is an unpublished developer build. Check `manifest.json` for the exact source commit, dirty state, platform, and profile. Checksums detect corruption; the bundle is not digitally signed.\n\nRun `bin/originlm --help`, or `bin/originlm scan --json` for explicit metadata-only discovery. Serve the demo using `bin/originlm serve --http --assets ABSOLUTE_PATH_TO_THIS_BUNDLE/demo --allow-passive-discovery`. Enter the displayed one-use pairing code in the browser. No provider or inference is contacted at startup.\n\nTo permit a Codex account/catalog probe, add `--allow-metadata codex`. Actual turns additionally require `--allow-execution codex --workspace ABSOLUTE_WORKSPACE`, and explicit invocation in the UI. Other integrations have their own provider grants. Do not enable execution just to view account metadata.\n\nThe `packages` folder contains four npm tarballs and the Python wheel. Install all npm tarballs together into your application's project; React is an optional peer dependency. The Python wheel requires Python 3.11 or newer. The native helper needs no Node/Python runtime; the JS/Python examples do.\n\nThe browser extension is uninstalled and has no access until you explicitly prepare and register the native messaging host. See the repository's browser integration documentation. No automatic OS integration is performed.\n\nArtifacts and private account data are never part of this bundle. The dependency inventory and notices cover the shipped Rust binaries and JavaScript packages; they are not a vulnerability clearance or a legal certification.\n"
         (stage/'README.md').write_text(readme,encoding='utf-8')
         manifest=make_manifest(stage,{'version':version,'sourceCommit':head,'workingTreeDirty':dirty,'platform':target,'profile':profile,'executedOn':platform.system(),'signed':False})
         write(stage/'manifest.json',manifest);verify_manifest(stage,manifest)

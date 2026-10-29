@@ -31,3 +31,34 @@ for this preview.
 Sources reviewed 2026-10-28:
 - [GitHub runner labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 - [Python platform compatibility tags](https://packaging.python.org/en/latest/specifications/platform-compatibility-tags/)
+
+## Amendment: `v0.1.0-alpha.20` unsigned runtime prerelease (2026-10-29)
+
+The first official prerelease is explicitly unsigned. Its preparation workflow
+adds evidence that the earlier preparation path lacked:
+
+- native `--version`, empty-home passive scan and bounded stdio handshake gates
+  before packaging and again against the extracted archive member;
+- exact source commit, target, pinned Rust/cargo versions and compiler commit,
+  build profile and compatibility baseline in each archive manifest;
+- a per-target `originlm-cli` normal/build dependency closure derived from Cargo
+  metadata and Cargo's feature-resolved tree, not every workspace crate;
+- complete dependency license texts, including explicit `license_file`, nested
+  license files and workspace-shared inheritance, with a hard failure when a
+  required text or expression is missing;
+- an archive member manifest with path, byte length and SHA-256 for the helper,
+  repository `LICENSE`, notices, SBOM and license texts.
+
+Archives remain `helper-<target>/originlm[.exe]`-compatible for the service
+installers. `signed: false` and `authenticode`/`notarized`/`updateSignature:
+false` are recorded; no Authenticode, notarization or trusted update signature is
+claimed. npm, crates.io and PyPI publication remain disabled for this alpha.
+Linux archives record the glibc baseline of their Ubuntu 24.04 build host and do
+not claim manylinux or an older-glibc guarantee. macOS artifacts target macOS 15;
+Windows ARM64, musl and the GPUI desktop binary are not part of the runtime
+bundles.
+
+The preparation workflow still has read-only repository permissions and cannot
+publish. The release operation must use assets from the final candidate SHA and
+concatenate per-target `SHA256SUMS` without introducing a parallel flat asset
+scheme.
