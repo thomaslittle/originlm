@@ -67,7 +67,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
           python scripts/helper_smoke.py --binary "$binary" --target '${{ matrix.target }}' \
             --version '${{ steps.release.outputs.version }}' \
-            --out ".verification/helper-binary-${{ matrix.target }}.json"
+            --out "$RUNNER_TEMP/helper-binary-${{ matrix.target }}.json"
       - name: Stage exact target artifacts
         shell: bash
         run: |
@@ -81,6 +81,16 @@ jobs:
           for dir in npm-out/* npm-sdk; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
           python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
           (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
+      - name: Persist native smoke evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, pathlib, shutil
+          source = pathlib.Path(os.environ['RUNNER_TEMP']) / f'helper-binary-${{ matrix.target }}.json'
+          target = pathlib.Path('prepared/evidence')
+          target.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(source, target / source.name)
+          PY
       - name: Verify helper archive and extracted executable
         shell: bash
         run: |
@@ -88,14 +98,32 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then archive="$archive.zip"; else archive="$archive.tar.gz"; fi
           python scripts/verify_helper_archive.py --archive "$archive" --target '${{ matrix.target }}' \
             --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA" \
-            --out ".verification/helper-archive-${{ matrix.target }}.json"
+            --out "prepared/evidence/helper-archive-${{ matrix.target }}.json"
+      - name: Assert persisted evidence
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          target = os.environ['TARGET']
+          directory = pathlib.Path('prepared/evidence')
+          for name in ('helper-binary', 'helper-archive'):
+              path = directory / f'{name}-{target}.json'
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f'missing persisted evidence: {path}')
+              evidence = json.loads(path.read_text(encoding='utf-8'))
+              if evidence.get('status') != 'pass' or evidence.get('target') != target:
+                  raise SystemExit(f'failed evidence: {path}')
+          archive = json.loads((directory / f'helper-archive-{target}.json').read_text(encoding='utf-8'))
+          if archive.get('sourceCommit') != os.environ['GITHUB_SHA']:
+              raise SystemExit('archive evidence source commit does not match GITHUB_SHA')
+          PY
       - name: Preserve unsigned preview artifacts
         uses: actions/upload-artifact@v7
         with:
           name: prepared-${{ matrix.target }}
-          path: |
-            prepared/
-            .verification/helper-*.json
+          path: prepared/
           if-no-files-found: error
       - name: State release boundaries
         shell: bash
@@ -103,5 +131,6 @@ jobs:
           echo 'Unsigned preview artifacts only. No packages, registries, GitHub releases, Authenticode signatures, notarization or trusted update signatures were produced.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Each runner executed --version, an empty-home passive scan and a bounded stdio handshake against the built helper and the helper extracted from the final archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Archives contain helper-<target>/originlm[.exe], LICENSE, per-target dependency notices and license texts, sbom.cdx.json and manifest.json with member paths, byte lengths and SHA-256.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Native smoke and archive evidence is persisted under prepared/evidence/ so it is uploaded with the artifact (not in a hidden directory).' >> "$GITHUB_STEP_SUMMARY"
           echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise; helper glibc baselines are recorded per archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'See docs/release/PUBLISHING.md for compatibility, signing and publication gates.' >> "$GITHUB_STEP_SUMMARY"

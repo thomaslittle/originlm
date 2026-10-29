@@ -101,5 +101,16 @@ class StdioParsing(unittest.TestCase):
         self.assertEqual(messages[1]['result']['protocolVersion'], '1.0')
 
 
+class WorkflowEvidence(unittest.TestCase):
+    def test_smoke_evidence_is_uploaded_from_a_non_hidden_directory(self):
+        workflow = (ROOT / '.github/workflows/release.yml').read_text(encoding='utf-8')
+        self.assertNotIn('.verification/helper', workflow)
+        self.assertIn('prepared/evidence/helper-archive-', workflow)
+        self.assertIn('--out "$RUNNER_TEMP/helper-binary-', workflow)
+        self.assertIn('shutil.copy2(source, target / source.name)', workflow)
+        self.assertIn('path: prepared/', workflow)
+        self.assertIn('Assert persisted evidence', workflow)
+
+
 if __name__ == '__main__':
     unittest.main()

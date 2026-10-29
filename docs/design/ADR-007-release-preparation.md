@@ -49,6 +49,10 @@ adds evidence that the earlier preparation path lacked:
 - an archive member manifest with path, byte length and SHA-256 for the helper,
   repository `LICENSE`, notices, SBOM and license texts.
 
+Native smoke and archive-verification evidence is persisted under the non-hidden
+`prepared/evidence/` path so the Actions artifact upload includes it; hidden
+directories are not relied on.
+
 Archives remain `helper-<target>/originlm[.exe]`-compatible for the service
 installers. `signed: false` and `authenticode`/`notarized`/`updateSignature:
 false` are recorded; no Authenticode, notarization or trusted update signature is

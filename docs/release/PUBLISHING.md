@@ -37,7 +37,9 @@ Each target runs before packaging:
 
 No provider inference, provider account, credential or inherited provider path is
 used. The same smoke suite runs again against the helper extracted from the final
-archive.
+archive. Both JSON records are written to the non-hidden `prepared/evidence/`
+directory so the artifact upload persists them; they include target, version,
+source commit and pass status.
 
 ## Archive shape and member manifest
 
@@ -96,7 +98,10 @@ if they were shipped.
 ## Assembly and publication boundaries
 
 The preparation workflow uploads one private-to-the-run Actions artifact per
-target. To publish the unsigned alpha, the release operation must:
+target. Each contains the archive, `SHA256SUMS`, `manifest.json` and
+`prepared/evidence/helper-binary-<target>.json` plus
+`prepared/evidence/helper-archive-<target>.json`. To publish the unsigned alpha,
+the release operation must:
 
 1. Download every successful target artifact from the final candidate SHA.
 2. Confirm each archive's `manifest.json` source commit equals that SHA and its
