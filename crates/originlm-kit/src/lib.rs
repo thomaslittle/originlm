@@ -4,9 +4,12 @@ mod adapter_info;
 mod service_builder;
 pub use originlm_adapters::billing_declarations::BillingDeclarations;
 pub use originlm_adapters::http_provider::config::Registry as EndpointRegistry;
-pub use originlm_adapters::native_clients::config::NativeRegistry as NativeClientRegistry;
+pub use originlm_adapters::native_clients::config::{
+    NativeProfile, NativeProvider, NativeRegistry as NativeClientRegistry,
+};
 pub use originlm_contracts::*;
 pub use originlm_core::ClientPolicy;
+pub use originlm_discovery::{ExecutableIdentity, LocatedClient, ScanResult};
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
 use originlm_platform::NativeFilesystem;
 pub use originlm_service::{ExecutionGrant, InventorySource, NativeService};
@@ -205,6 +208,13 @@ impl EmbeddedClient {
     pub fn authorize_execution(&self, grant: ExecutionGrant) -> Result<()> {
         self.open()?;
         self.service.register_execution(&self.id, grant)
+    }
+    /// Cooperatively stop background lanes and the current inventory refresh
+    /// before a bounded shutdown. A source that ignores its cancel flag cannot
+    /// be aborted; the runtime's shutdown deadline still bounds the caller.
+    pub fn stop_background(&self) {
+        self.service.stop_background_tasks();
+        self.service.cancel_active_inventory();
     }
     pub fn close(&self) {
         if !self.closed.swap(true, Ordering::AcqRel) {

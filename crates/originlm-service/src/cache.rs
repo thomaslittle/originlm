@@ -1009,6 +1009,21 @@ impl InventoryCache {
         }
     }
 
+    /// Signal the currently running inventory source, whether host- or
+    /// background-owned. The source still decides how soon it observes the
+    /// flag; a non-cooperative callback cannot be aborted in Rust.
+    pub(crate) fn cancel_active_refresh(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.flight_host_cancelled = true;
+            if let Some(cancel) = &state.flight_cancel {
+                cancel.store(true, Ordering::SeqCst);
+            }
+            if let Some(wake) = &state.flight_cancel_wake {
+                wake.notify_one();
+            }
+        }
+    }
+
     pub(crate) fn set_inventory_refresh(&self, enabled: bool) {
         if let Ok(mut state) = self.state.lock() {
             state.inventory_enabled = enabled;
