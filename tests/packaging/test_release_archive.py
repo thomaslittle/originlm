@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import io
 import json
@@ -25,6 +26,7 @@ verify = load('verify_helper_archive')
 smoke = load('helper_smoke')
 npm_release = load('verify_npm_release')
 npm_consumer = load('npm_consumer_smoke')
+npm_pack = load('pack_npm_tarball')
 
 
 class LicenseResolution(unittest.TestCase):
@@ -107,18 +109,32 @@ class NpmReleaseShape(unittest.TestCase):
             'LICENSE': b'MIT\n',
             'THIRD_PARTY_NOTICES.md': b'notices\n',
         })
+        helper = b'\x7fELFfixture-binary'
+        license_text = b'MIT\n'
+        notices = b'notices\n'
+        sbom = b'{"components":[]}'
+        dependency = b'MIT\n'
+        target = 'x86_64-unknown-linux-gnu'
+        members = {
+            f'helper-{target}/originlm': {'bytes': len(helper), 'sha256': hashlib.sha256(helper).hexdigest()},
+            'LICENSE': {'bytes': len(license_text), 'sha256': hashlib.sha256(license_text).hexdigest()},
+            'THIRD_PARTY_NOTICES.md': {'bytes': len(notices), 'sha256': hashlib.sha256(notices).hexdigest()},
+            'sbom.cdx.json': {'bytes': len(sbom), 'sha256': hashlib.sha256(sbom).hexdigest()},
+            'licenses/x-1.0.0/LICENSE': {'bytes': len(dependency), 'sha256': hashlib.sha256(dependency).hexdigest()},
+        }
         npm_tarball(directory / 'originlm-cli-linux-x64-0.1.0-alpha.20.tgz', {
             'name': '@originlm/cli-linux-x64', 'version': self.version,
             'os': ['linux'], 'cpu': ['x64'], 'bin': {'originlm': 'bin/originlm'},
         }, {
+            'bin/originlm': helper,
             'manifest.json': json.dumps({
-                'version': self.version, 'target': 'x86_64-unknown-linux-gnu',
-                'source': {'commit': 'a' * 40},
+                'version': self.version, 'target': target,
+                'source': {'commit': 'a' * 40}, 'members': members,
             }).encode('utf-8'),
-            'sbom.cdx.json': b'{"components":[]}',
-            'THIRD_PARTY_NOTICES.md': b'notices\n',
-            'LICENSE': b'MIT\n',
-            'licenses/x-1.0.0/LICENSE': b'MIT\n',
+            'sbom.cdx.json': sbom,
+            'THIRD_PARTY_NOTICES.md': notices,
+            'LICENSE': license_text,
+            'licenses/x-1.0.0/LICENSE': dependency,
         })
         return directory
 
@@ -141,6 +157,23 @@ class NpmReleaseShape(unittest.TestCase):
             self.assertEqual(env['PATH'], str(pathlib.Path(directory) / 'empty-bin'))
             for name in ('LAI_HELPER_PATH', 'LAI_BROKER_ADDRESS', 'LAI_BROKER_TOKEN_FILE'):
                 self.assertNotIn(name, env)
+
+
+class NpmPackaging(unittest.TestCase):
+    def test_universal_sdk_pack_is_byte_identical(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = pathlib.Path(directory) / 'package'
+            (package / 'dist').mkdir(parents=True)
+            (package / 'package.json').write_text(json.dumps({
+                'name': 'originlm', 'version': '0.1.0-alpha.20',
+            }), encoding='utf-8')
+            (package / 'dist' / 'index.js').write_text('export {};\n', encoding='utf-8')
+            first = npm_pack.pack(package, pathlib.Path(directory) / 'one')
+            second = npm_pack.pack(package, pathlib.Path(directory) / 'two')
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with tarfile.open(first, 'r:gz') as archive:
+                self.assertEqual(sorted(archive.getnames()), ['package/dist/index.js', 'package/package.json'])
+                self.assertTrue(all(member.mtime == 0 for member in archive.getmembers()))
 
 
 class ArchiveValidation(unittest.TestCase):

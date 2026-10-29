@@ -16,6 +16,9 @@ on:
       - 'scripts/stage_python_package.py'
       - 'scripts/verify_npm_release.py'
       - 'scripts/npm_consumer_smoke.py'
+      - 'scripts/npm_registry_consumer_smoke.py'
+      - 'scripts/pack_npm_tarball.py'
+      - 'scripts/assemble_npm_release.py'
 permissions:
   contents: read
 concurrency:
@@ -83,7 +86,8 @@ jobs:
           node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk \
             --release --all-platforms
           mkdir -p prepared/npm
-          for dir in npm-out/* npm-sdk; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
+          for dir in npm-out/*; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
+          python scripts/pack_npm_tarball.py --package npm-sdk --out prepared/npm
           python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
           (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
       - name: Verify packaged npm release and fresh consumer
@@ -152,3 +156,52 @@ jobs:
           echo 'The npm SDK is one universal originlm tarball with all five exact-version @originlm/cli-* optional dependencies; each platform package carries its native manifest, SBOM, notices and license texts.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise; helper glibc baselines are recorded per archive.' >> "$GITHUB_STEP_SUMMARY"
           echo 'See docs/release/PUBLISHING.md for compatibility, signing and publication gates.' >> "$GITHUB_STEP_SUMMARY"
+
+  assemble-npm:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Download all target npm artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          pattern: prepared-*
+          merge-multiple: false
+      - name: Assemble and verify one universal SDK plus five platform packages
+        shell: bash
+        run: |
+          python scripts/assemble_npm_release.py --artifacts artifacts --out npm-release \
+            --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA"
+      - name: Prove single-package optional dependency resolution
+        shell: bash
+        run: |
+          python scripts/npm_registry_consumer_smoke.py --release-dir npm-release \
+            --version '${{ steps.release.outputs.version }}' \
+            --out npm-release/evidence/registry-consumer.json
+      - name: Preserve the reviewed npm release set
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-release
+          path: npm-release/
+          if-no-files-found: error
+      - name: State npm release-set boundaries
+        shell: bash
+        run: |
+          echo 'One universal originlm SDK and five exact-version platform packages were assembled.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'All five SDK tarballs must be byte-identical; native helper/license hashes are checked against qualified manifests.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A temporary local registry proved single-package `npm install originlm` resolves the optional platform package and starts the bundled helper.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No npm publication or credential use occurred in this workflow.' >> "$GITHUB_STEP_SUMMARY"
