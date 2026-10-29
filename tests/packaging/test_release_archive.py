@@ -1,9 +1,14 @@
+import hashlib
 import importlib.util
+import io
+import json
 import os
 import pathlib
 import sys
+import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -20,6 +25,9 @@ def load(name):
 licenses = load('license_closure')
 verify = load('verify_helper_archive')
 smoke = load('helper_smoke')
+npm_release = load('verify_npm_release')
+npm_consumer = load('npm_consumer_smoke')
+npm_pack = load('pack_npm_tarball')
 
 
 class LicenseResolution(unittest.TestCase):
@@ -76,6 +84,144 @@ class LicenseResolution(unittest.TestCase):
                 licenses._safe_member_path('licenses/a-1', pathlib.Path(relative))
 
 
+def npm_tarball(path, manifest, files):
+    with tarfile.open(path, 'w:gz') as archive:
+        def add(name, data):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+        add('package/package.json', json.dumps(manifest).encode('utf-8'))
+        for name, data in files.items():
+            add(f'package/{name}', data)
+
+
+class NpmReleaseShape(unittest.TestCase):
+    version = '0.1.0-alpha.20'
+
+    def build(self, directory, sdk_optional=None):
+        directory = pathlib.Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        optional = sdk_optional or {name: self.version for name in npm_release.PLATFORM_PACKAGES}
+        npm_tarball(directory / 'originlm-0.1.0-alpha.20.tgz', {
+            'name': 'originlm', 'version': self.version, 'optionalDependencies': optional,
+        }, {
+            'dist/index.js': b'export {};',
+            'node/auto.mjs': b'export {};',
+            'LICENSE': b'MIT\n',
+            'THIRD_PARTY_NOTICES.md': b'notices\n',
+        })
+        helper = b'\x7fELFfixture-binary'
+        license_text = b'MIT\n'
+        notices = b'notices\n'
+        sbom = b'{"components":[]}'
+        dependency = b'MIT\n'
+        target = 'x86_64-unknown-linux-gnu'
+        members = {
+            f'helper-{target}/originlm': {'bytes': len(helper), 'sha256': hashlib.sha256(helper).hexdigest()},
+            'LICENSE': {'bytes': len(license_text), 'sha256': hashlib.sha256(license_text).hexdigest()},
+            'THIRD_PARTY_NOTICES.md': {'bytes': len(notices), 'sha256': hashlib.sha256(notices).hexdigest()},
+            'sbom.cdx.json': {'bytes': len(sbom), 'sha256': hashlib.sha256(sbom).hexdigest()},
+            'licenses/x-1.0.0/LICENSE': {'bytes': len(dependency), 'sha256': hashlib.sha256(dependency).hexdigest()},
+        }
+        npm_tarball(directory / 'originlm-cli-linux-x64-0.1.0-alpha.20.tgz', {
+            'name': 'originlm-cli-linux-x64', 'version': self.version,
+            'os': ['linux'], 'cpu': ['x64'], 'bin': {'originlm': 'bin/originlm'},
+        }, {
+            'bin/originlm': helper,
+            'manifest.json': json.dumps({
+                'version': self.version, 'target': target,
+                'source': {'commit': 'a' * 40}, 'members': members,
+            }).encode('utf-8'),
+            'sbom.cdx.json': sbom,
+            'THIRD_PARTY_NOTICES.md': notices,
+            'LICENSE': license_text,
+            'licenses/x-1.0.0/LICENSE': dependency,
+        })
+        return directory
+
+    def test_universal_sdk_and_platform_metadata_are_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = npm_release.verify(self.build(directory), self.version, 'a' * 40)
+            self.assertEqual(evidence['status'], 'pass')
+            self.assertEqual(evidence['target'], 'x86_64-unknown-linux-gnu')
+            self.assertEqual(evidence['targets'], ['x86_64-unknown-linux-gnu'])
+            self.assertEqual(len(evidence['optionalDependencies']), 5)
+
+    def test_a_partial_platform_set_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            partial = {'originlm-cli-linux-x64': self.version}
+            with self.assertRaises(npm_release.VerifyNpmError):
+                npm_release.verify(self.build(directory, partial), self.version)
+
+    def test_consumer_environment_has_no_ambient_override_or_provider_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = npm_consumer._clean_env(directory)
+            self.assertEqual(env['HOME'], directory)
+            self.assertEqual(env['PATH'], str(pathlib.Path(directory) / 'empty-bin'))
+            for name in ('LAI_HELPER_PATH', 'LAI_BROKER_ADDRESS', 'LAI_BROKER_TOKEN_FILE'):
+                self.assertNotIn(name, env)
+
+
+class NpmPackaging(unittest.TestCase):
+    def test_universal_sdk_pack_is_byte_identical(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = pathlib.Path(directory) / 'package'
+            (package / 'dist').mkdir(parents=True)
+            (package / 'package.json').write_text(json.dumps({
+                'name': 'originlm', 'version': '0.1.0-alpha.20',
+                'files': ['dist', 'LICENSE'],
+            }), encoding='utf-8')
+            (package / 'dist' / 'index.js').write_text('export {};\n', encoding='utf-8')
+            (package / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+            (package / 'src').mkdir()
+            (package / 'src' / 'secret.ts').write_text('secret\n', encoding='utf-8')
+            (package / 'tests').mkdir()
+            (package / 'tests' / 'x.test.mjs').write_text('test\n', encoding='utf-8')
+            (package / 'tsconfig.json').write_text('{}\n', encoding='utf-8')
+            first = npm_pack.pack(package, pathlib.Path(directory) / 'one', require=['dist/index.js', 'LICENSE'])
+            second = npm_pack.pack(package, pathlib.Path(directory) / 'two', require=['dist/index.js', 'LICENSE'])
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with tarfile.open(first, 'r:gz') as archive:
+                self.assertEqual(sorted(archive.getnames()), ['package/LICENSE', 'package/dist/index.js', 'package/package.json'])
+                self.assertTrue(all(member.mtime == 0 for member in archive.getmembers()))
+            with self.assertRaises(npm_pack.PackError):
+                npm_pack.pack(package, pathlib.Path(directory) / 'three', require=['src/secret.ts'])
+
+
+    def test_member_order_is_platform_independent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = pathlib.Path(directory) / 'package'
+            (package / 'dist').mkdir(parents=True)
+            (package / 'package.json').write_text(json.dumps({
+                'name': 'originlm', 'version': '0.1.0-alpha.20',
+                'files': ['dist', 'LICENSE', 'NOTICE'],
+            }), encoding='utf-8')
+            (package / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+            (package / 'NOTICE').write_text('NOTICE\n', encoding='utf-8')
+            (package / 'dist' / 'a.js').write_text('a\n', encoding='utf-8')
+            (package / 'dist' / 'Z.js').write_text('Z\n', encoding='utf-8')
+            # Simulate Windows' case-insensitive rglob order: dist before LICENSE.
+            resolved = package.resolve()
+            windows_order = [
+                resolved / 'dist' / 'a.js',
+                resolved / 'dist' / 'Z.js',
+                resolved / 'LICENSE',
+                resolved / 'NOTICE',
+                resolved / 'package.json',
+            ]
+            with mock.patch.object(pathlib.Path, 'rglob', return_value=iter(windows_order)):
+                archive_path = npm_pack.pack(package, pathlib.Path(directory) / 'out')
+            with tarfile.open(archive_path, 'r:gz') as archive:
+                names = archive.getnames()
+            self.assertEqual(names, [
+                'package/LICENSE',
+                'package/NOTICE',
+                'package/dist/Z.js',
+                'package/dist/a.js',
+                'package/package.json',
+            ])
+
+
 class ArchiveValidation(unittest.TestCase):
     def test_member_names_are_relative_and_never_backslash_paths(self):
         self.assertEqual(verify._safe_name('helper-x/originlm'), 'helper-x/originlm')
@@ -111,6 +257,12 @@ class WorkflowEvidence(unittest.TestCase):
         self.assertIn('shutil.copy2(source, target / source.name)', workflow)
         self.assertIn('path: prepared/', workflow)
         self.assertIn('Assert persisted evidence', workflow)
+        self.assertIn('npm-consumers', workflow)
+        self.assertIn('echo "VERSION=$(', workflow)
+        self.assertIn('--version "$VERSION" --source-commit "$GITHUB_SHA"', workflow)
+        self.assertIn("if [ '${{ matrix.target }}' = 'x86_64-unknown-linux-gnu' ]", workflow)
+        for label in ('linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'):
+            self.assertIn(f'label: {label}', workflow)
 
 
 if __name__ == '__main__':

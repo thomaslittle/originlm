@@ -1,0 +1,335 @@
+name: Qualify Python wheels (manylinux 2.28 + native)
+
+# Qualification only: read-only repository permissions, no registry secrets and
+# no publication. Wheels are built inside the official manylinux_2_28 images so
+# their platform tag is earned, not copied from an Ubuntu build host.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/python-wheels.yml'
+      - 'scripts/stage_python_package.py'
+      - 'scripts/verify_python_wheel.py'
+      - 'scripts/python_consumer_smoke.py'
+      - 'scripts/prepare_helper_archive.py'
+      - 'scripts/license_closure.py'
+      - 'scripts/helper_smoke.py'
+      - 'scripts/release_targets.py'
+      - 'packages/sdk-python/**'
+permissions:
+  contents: read
+concurrency:
+  group: python-wheel-qualify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  manylinux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            image: quay.io/pypa/manylinux_2_28_x86_64
+            plat: manylinux_2_28_x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            image: quay.io/pypa/manylinux_2_28_aarch64
+            plat: manylinux_2_28_aarch64
+    runs-on: ${{ matrix.os }}
+    container:
+      image: ${{ matrix.image }}
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      PYTHONUTF8: '1'
+      PYTHON: /opt/python/cp312-cp312/bin/python
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build prerequisites inside manylinux
+        shell: bash
+        run: |
+          # manylinux images may preinstall Rust under /usr/local. Use isolated
+          # homes so the pinned toolchain never tries to overwrite image shims.
+          export RUSTUP_HOME="$RUNNER_TEMP/rustup"
+          export CARGO_HOME="$RUNNER_TEMP/cargo"
+          export PATH="$CARGO_HOME/bin:$PATH"
+          echo "RUSTUP_HOME=$RUSTUP_HOME" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$CARGO_HOME" >> "$GITHUB_ENV"
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          # Checkout files are owned by the runner user; the container runs as root.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if ! command -v git >/dev/null 2>&1; then
+            (command -v dnf >/dev/null 2>&1 && dnf install -y git) || \
+              (command -v microdnf >/dev/null 2>&1 && microdnf install -y git)
+          fi
+          if ! command -v curl >/dev/null 2>&1; then
+            (command -v dnf >/dev/null 2>&1 && dnf install -y curl) || \
+              (command -v microdnf >/dev/null 2>&1 && microdnf install -y curl)
+          fi
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+            sh -s -- -y --profile minimal --default-toolchain none
+          . "$CARGO_HOME/env"
+          rustup toolchain install 1.98.1 --profile minimal
+          # The repository's rust-toolchain.toml asks for rustfmt/clippy, but the
+          # wheel build does not need them. manylinux images ship conflicting
+          # rustfmt shims, so never auto-install those components here.
+          echo "RUSTUP_TOOLCHAIN=1.98.1" >> "$GITHUB_ENV"
+          echo "RUSTUP_AUTO_INSTALL=0" >> "$GITHUB_ENV"
+          "$PYTHON" -m pip install --disable-pip-version-check --upgrade \
+            'setuptools==84.1.0' 'wheel==0.48.0' build auditwheel twine
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          version="$("$PYTHON" -c "import json; print(json.load(open('package.json'))['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build native helper
+        shell: bash
+        run: |
+          . "$CARGO_HOME/env"
+          cargo build --release --locked -p originlm-cli --bin originlm --target '${{ matrix.target }}'
+      - name: Native helper smoke gate
+        shell: bash
+        run: |
+          "$PYTHON" scripts/helper_smoke.py \
+            --binary "target/${{ matrix.target }}/release/originlm" \
+            --target '${{ matrix.target }}' \
+            --version '${{ steps.release.outputs.version }}' \
+            --out "$RUNNER_TEMP/helper-binary-${{ matrix.target }}.json"
+      - name: Prepare qualified helper metadata
+        shell: bash
+        run: |
+          "$PYTHON" scripts/prepare_helper_archive.py \
+            --binary "target/${{ matrix.target }}/release/originlm" \
+            --target '${{ matrix.target }}' --out prepared/native \
+            --source-commit "$GITHUB_SHA" \
+            --metadata-out "prepared/metadata/${{ matrix.target }}"
+      - name: Stage publishable wheel
+        shell: bash
+        run: |
+          "$PYTHON" scripts/stage_python_package.py \
+            --binary "target/${{ matrix.target }}/release/originlm" \
+            --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' \
+            --metadata "prepared/metadata/${{ matrix.target }}" \
+            --release --source-commit "$GITHUB_SHA" --out wheels
+      - name: Build wheel
+        shell: bash
+        run: |
+          cd wheels/originlm
+          "$PYTHON" setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared
+      - name: Verify wheel metadata, license closure and manylinux tag
+        shell: bash
+        run: |
+          wheel="$(ls prepared/originlm-*.whl | head -1)"
+          test -n "$wheel"
+          "$PYTHON" scripts/verify_python_wheel.py --wheel "$wheel" \
+            --version '${{ steps.release.outputs.version }}' \
+            --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' \
+            --source-commit "$GITHUB_SHA" --release \
+            --out "prepared/evidence/python-wheel-${{ matrix.target }}.json"
+      - name: Fresh consumer proof
+        shell: bash
+        run: |
+          wheel="$(ls prepared/originlm-*.whl | head -1)"
+          test -n "$wheel"
+          "$PYTHON" scripts/python_consumer_smoke.py --wheel "$wheel" \
+            --version '${{ steps.release.outputs.version }}' --python "$PYTHON" \
+            --target '${{ matrix.target }}' --source-commit "$GITHUB_SHA" \
+            --out "prepared/evidence/python-consumer-${{ matrix.target }}.json"
+      - name: Persist native smoke evidence
+        shell: bash
+        run: |
+          "$PYTHON" - <<'PY'
+          import os, pathlib, shutil
+          source = pathlib.Path(os.environ['RUNNER_TEMP']) / f'helper-binary-${{ matrix.target }}.json'
+          target = pathlib.Path('prepared/evidence')
+          target.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(source, target / source.name)
+          PY
+      - name: Assert persisted evidence
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          "$PYTHON" - <<'PY'
+          import json, os, pathlib
+          target = os.environ['TARGET']
+          directory = pathlib.Path('prepared/evidence')
+          for name in ('helper-binary', 'python-wheel', 'python-consumer'):
+              path = directory / f'{name}-{target}.json'
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f'missing persisted evidence: {path}')
+              evidence = json.loads(path.read_text(encoding='utf-8'))
+              if evidence.get('status') != 'pass':
+                  raise SystemExit(f'failed evidence: {path}')
+              if evidence.get('target') not in (None, target):
+                  raise SystemExit(f'wrong target in evidence: {path}')
+              if name == 'python-wheel':
+                  if not evidence.get('manylinux') or evidence.get('platform') != '${{ matrix.plat }}':
+                      raise SystemExit('wheel evidence is not a qualified manylinux wheel')
+                  if not (evidence.get('auditwheel') or {}).get('passed'):
+                      raise SystemExit('auditwheel show did not pass')
+                  if not (evidence.get('twine') or {}).get('passed'):
+                      raise SystemExit('twine check did not pass')
+              if name == 'python-consumer':
+                  if evidence.get('target') != target or evidence.get('sourceCommit') != os.environ.get('GITHUB_SHA'):
+                      raise SystemExit('consumer proof is not bound to target/source')
+                  if evidence.get('inferenceRequests') != 0:
+                      raise SystemExit('consumer performed inference')
+          PY
+      - name: Preserve wheel and evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.target }}
+          path: |
+            prepared/
+            wheels/
+          if-no-files-found: error
+      - name: State qualification boundaries
+        shell: bash
+        run: |
+          echo 'Official manylinux_2_28 qualification only. No registry upload, signing, publication or consumer-repository change was attempted.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The wheel was built inside ${{ matrix.image }}; it was never retagged from an Ubuntu-built artifact.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'auditwheel show confirmed ${{ matrix.plat }} and twine check validated the wheel metadata.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A fresh temporary venv installed the wheel with --no-index and used Client.auto() with an empty HOME/PATH, no shared grant and no LAI_* overrides.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The proof required the bundled private helper from package data, an empty live snapshot and zero provider inference.' >> "$GITHUB_STEP_SUMMARY"
+
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-apple-darwin, os: macos-15-intel, plat: macosx_15_0_x86_64 }
+          - { target: aarch64-apple-darwin, os: macos-15, plat: macosx_15_0_arm64 }
+          - { target: x86_64-pc-windows-msvc, os: windows-2025, plat: win_amd64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Install Python packaging tools
+        run: python -m pip install --disable-pip-version-check --upgrade 'setuptools==84.1.0' 'wheel==0.48.0' build twine
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build native helper
+        shell: bash
+        run: cargo build --release --locked -p originlm-cli --bin originlm --target '${{ matrix.target }}'
+      - name: Native helper smoke gate
+        shell: bash
+        run: |
+          binary="target/${{ matrix.target }}/release/originlm"
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/helper_smoke.py --binary "$binary" --target '${{ matrix.target }}' \
+            --version '${{ steps.release.outputs.version }}' \
+            --out "$RUNNER_TEMP/helper-binary-${{ matrix.target }}.json"
+      - name: Prepare qualified helper metadata
+        shell: bash
+        run: |
+          binary="target/${{ matrix.target }}/release/originlm"
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/prepare_helper_archive.py --binary "$binary" --target '${{ matrix.target }}' \
+            --out prepared/native --source-commit "$GITHUB_SHA" \
+            --metadata-out "prepared/metadata/${{ matrix.target }}"
+      - name: Stage publishable native wheel
+        shell: bash
+        run: |
+          binary="target/${{ matrix.target }}/release/originlm"
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' \
+            --plat-name '${{ matrix.plat }}' --metadata "prepared/metadata/${{ matrix.target }}" \
+            --release --source-commit "$GITHUB_SHA" --out wheels
+      - name: Build native wheel
+        shell: bash
+        run: |
+          cd wheels/originlm
+          python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared
+      - name: Verify native wheel metadata, license closure and binary
+        shell: bash
+        run: |
+          wheel="$(ls prepared/originlm-*.whl | head -1)"
+          test -n "$wheel"
+          python scripts/verify_python_wheel.py --wheel "$wheel" \
+            --version '${{ steps.release.outputs.version }}' \
+            --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' \
+            --source-commit "$GITHUB_SHA" --release \
+            --out "prepared/evidence/python-wheel-${{ matrix.target }}.json"
+      - name: Fresh native consumer proof
+        shell: bash
+        run: |
+          wheel="$(ls prepared/originlm-*.whl | head -1)"
+          test -n "$wheel"
+          PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')"
+          python scripts/python_consumer_smoke.py --wheel "$wheel" \
+            --version '${{ steps.release.outputs.version }}' --python "$PYTHON_BIN" \
+            --target '${{ matrix.target }}' --source-commit "$GITHUB_SHA" \
+            --out "prepared/evidence/python-consumer-${{ matrix.target }}.json"
+      - name: Persist native smoke evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, pathlib, shutil
+          source = pathlib.Path(os.environ['RUNNER_TEMP']) / f'helper-binary-${{ matrix.target }}.json'
+          target = pathlib.Path('prepared/evidence')
+          target.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(source, target / source.name)
+          PY
+      - name: Assert persisted native evidence
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          target = os.environ['TARGET']
+          directory = pathlib.Path('prepared/evidence')
+          for name in ('helper-binary', 'python-wheel', 'python-consumer'):
+              path = directory / f'{name}-{target}.json'
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f'missing persisted evidence: {path}')
+              evidence = json.loads(path.read_text(encoding='utf-8'))
+              if evidence.get('status') != 'pass':
+                  raise SystemExit(f'failed evidence: {path}')
+              if evidence.get('target') not in (None, target):
+                  raise SystemExit(f'wrong target in evidence: {path}')
+              if name == 'python-wheel':
+                  if evidence.get('manylinux') or not (evidence.get('nativeBinary') or {}).get('passed'):
+                      raise SystemExit('native wheel evidence is missing a native binary proof')
+                  if not (evidence.get('twine') or {}).get('passed'):
+                      raise SystemExit('twine check did not pass')
+                  if evidence.get('platform') != '${{ matrix.plat }}':
+                      raise SystemExit('native wheel platform tag is wrong')
+              if name == 'python-consumer':
+                  if evidence.get('target') != target or evidence.get('sourceCommit') != os.environ.get('GITHUB_SHA'):
+                      raise SystemExit('consumer proof is not bound to target/source')
+                  if evidence.get('inferenceRequests') != 0:
+                      raise SystemExit('consumer performed inference')
+          PY
+      - name: Preserve native wheel and evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.target }}
+          path: |
+            prepared/
+            wheels/
+          if-no-files-found: error
+      - name: State native qualification boundaries
+        shell: bash
+        run: |
+          echo 'Native ${{ matrix.target }} release wheel only. No publication, signing or consumer-repo change.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The bundled helper passed native --version, empty-home passive scan and stdio smoke before packaging.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The wheel passed metadata/license/SBOM/provenance verification, native binary format/arch checks and twine check.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A fresh temporary venv installed the wheel and Client.auto() used the bundled helper with empty HOME/PATH, no shared grant and zero inference.' >> "$GITHUB_STEP_SUMMARY"
