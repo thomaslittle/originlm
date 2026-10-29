@@ -257,6 +257,8 @@ class WorkflowEvidence(unittest.TestCase):
         self.assertIn('path: prepared/', workflow)
         self.assertIn('Assert persisted evidence', workflow)
         self.assertIn('npm-consumers', workflow)
+        self.assertIn('echo "VERSION=$(', workflow)
+        self.assertIn('--version "$VERSION" --source-commit "$GITHUB_SHA"', workflow)
         self.assertIn("if [ '${{ matrix.target }}' = 'x86_64-unknown-linux-gnu' ]", workflow)
         for label in ('linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'):
             self.assertIn(f'label: {label}', workflow)

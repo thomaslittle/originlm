@@ -223,12 +223,13 @@ jobs:
           path: npm-release
       - name: Read release version
         shell: bash
-        run: echo "version=$(python -c "import json; print(json.load(open('package.json'))['version'])")" >> "$GITHUB_ENV"
+        run: echo "VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")" >> "$GITHUB_ENV"
       - name: Prove single-package optional dependency resolution on this platform
         shell: bash
         run: |
           python scripts/npm_registry_consumer_smoke.py --release-dir npm-release \
-            --version "$VERSION" --out "npm-consumer-${{ matrix.label }}.json"
+            --version "$VERSION" --source-commit "$GITHUB_SHA" \
+            --out "npm-consumer-${{ matrix.label }}.json"
       - name: Preserve consumer proof
         uses: actions/upload-artifact@v7
         with:

@@ -169,12 +169,13 @@ def _run(args, cwd, env, timeout, label):
     return result.stdout
 
 
-def smoke(release_dir, version, timeout=240):
+def smoke(release_dir, version, source_commit=None, timeout=240):
     release_dir = pathlib.Path(release_dir).resolve()
     sdk = [path for path in release_dir.glob('originlm-*.tgz') if not path.name.startswith('originlm-cli-')]
     if len(sdk) != 1:
         raise RegistryError('release directory must contain exactly one universal originlm tarball')
     sdk = sdk[0]
+    sdk_sha256 = hashlib.sha256(sdk.read_bytes()).hexdigest()
     manifest = _package(sdk)
     optional = manifest.get('optionalDependencies') or {}
     if set(optional) != set(PLATFORM_PACKAGES.values()) or any(value != version for value in optional.values()):
@@ -240,6 +241,8 @@ def smoke(release_dir, version, timeout=240):
     return {
         'status': 'pass',
         'install': 'single-universal-package',
+        'sourceCommit': source_commit,
+        'sdkSha256': sdk_sha256,
         'registry': 'temporary-local-registry',
         'version': version,
         'sdk': sdk.name,
@@ -262,10 +265,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release-dir', type=pathlib.Path, required=True)
     parser.add_argument('--version', required=True)
+    parser.add_argument('--source-commit')
     parser.add_argument('--out', type=pathlib.Path)
     parser.add_argument('--timeout', type=int, default=240)
     args = parser.parse_args()
-    evidence = smoke(args.release_dir, args.version, args.timeout)
+    evidence = smoke(args.release_dir, args.version, args.source_commit, args.timeout)
     text = json.dumps(evidence, indent=2, sort_keys=True) + '\n'
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
