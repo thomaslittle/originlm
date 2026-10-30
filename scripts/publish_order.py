@@ -33,7 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FACADE = "originlm"
 ROOTS = (FACADE, "originlm-cli")
-WORKSPACE_VERSION = "0.1.0-alpha.22"
+WORKSPACE_VERSION = "0.1.0-alpha.23"
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")
 
 

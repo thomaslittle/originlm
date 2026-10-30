@@ -9,8 +9,8 @@ description = "Passive local AI client and provider discovery for OriginLM"
 publish = true
 
 [dependencies]
-originlm-contracts = { version = "0.1.0-alpha.22", path = "../originlm-contracts" }
-originlm-platform = { version = "0.1.0-alpha.22", path = "../originlm-platform" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
+originlm-platform = { version = "0.1.0-alpha.23", path = "../originlm-platform" }
 serde_json.workspace = true
 sha2.workspace = true
 
