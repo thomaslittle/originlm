@@ -2,7 +2,7 @@
 
 The service shares one runtime across granted applications. SDKs can instead own a
 private helper. The service installer installs the helper only, not the dashboard.
-There is no published hosted installer in this source preview.
+The packages are published; there is no hosted installer.
 
 ## Prepare and install
 

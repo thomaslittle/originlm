@@ -1,9 +1,9 @@
 # Release preparation and publication
 
-**This source preview is not published.** The `Prepare release artifacts` workflow
-builds local-installable **unsigned** artifacts. It has read-only repository
-permissions, uses no signing or registry secrets, and cannot publish. A tag does
-not release anything.
+**The packages are published at `0.1.0-alpha.20`; the Rust facade is the final crate in the active crates.io publish.** The `Prepare release artifacts`
+workflow builds local-installable **unsigned** runtime artifacts. It has read-only
+repository permissions, uses no signing or registry secrets, and cannot publish. A
+tag or draft release does not publish packages.
 
 ## Draft releases and tags
 
@@ -259,7 +259,7 @@ extracts the archives outside the checkout, rejects normalized manifests with
 workspace with the declared MSRV. Internal dependencies resolve only to the
 unpacked packages through temporary `[patch.crates-io]` entries. A fresh consumer
 manifest depends only on the public `originlm` crate; the same bootstrap patches
-map the unpublished closure to the reviewed unpacked crates. The gate resolves
+map the closure to the reviewed unpacked crates. The gate resolves
 external registry dependencies online once with the declared MSRV from a new
 lockfile, then fetches and compiles that exact lock with `--locked --offline` for
 both the workspace and the consumer. The generated lock hashes and resolved

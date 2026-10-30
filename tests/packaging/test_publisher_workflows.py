@@ -185,7 +185,7 @@ class PublisherWorkflows(unittest.TestCase):
         self.assertIn('originlm-cli-linux-x64', workflow)
         self.assertNotIn('@originlm/cli-', workflow)
         docs = (ROOT / 'docs/release/REGISTRY-PUBLISHING.md').read_text(encoding='utf-8')
-        self.assertIn('Bootstrap the six packages first', docs)
+        self.assertIn('First publication', docs)
         self.assertIn('OIDC cannot bootstrap', docs)
 
     def test_trusted_publisher_environment_and_workflow_names_are_stable(self):

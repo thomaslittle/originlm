@@ -1,6 +1,6 @@
 # Documentation
 
-New here? Start with the [source install guide](integration/install.md), then choose
+New here? Start with the [install guide](integration/install.md), then choose
 [the dashboard guide](users/dashboard.md) or [SDK/framework quickstarts](integration/quickstarts.md).
 See [troubleshooting and FAQ](integration/troubleshooting.md), [privacy](security/privacy.md),
 and [current architecture](design/architecture.md). The support matrix distinguishes implemented behavior from platform and live qualification.

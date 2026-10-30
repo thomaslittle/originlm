@@ -1,6 +1,6 @@
 # Dependency-first clients
 
-This unpublished source preview supports local packed artifacts and Cargo path dependencies.
+This guide covers the published packages and local packed artifacts/Cargo path dependencies for source development.
 See [quickstarts](quickstarts.md) for concrete local installation. An application can use local AI by installing a dependency. It does not need the
 standalone app, the broker or the control center, and it never installs them.
 
@@ -219,7 +219,7 @@ do:
 ```
 originlm-cli-linux-x64  originlm-cli-linux-arm64
 originlm-cli-darwin-arm64  originlm-cli-darwin-x64
-originlm-cli-win32-x64
+originlm-cli-windows-x64
 ```
 
 The SDK resolves `originlm-cli-<platform>/package.json` and the binary it
@@ -277,6 +277,7 @@ temporary directory with an owner-restricted, per-process name.
 
 ## Publishing
 
-Nothing is published by this repository without the maintainer's approval. The
-release workflow prepares unsigned local artifacts only, with no publication
-authority. See [release gates](../release/PUBLISHING.md).
+Registry publication is handled by the gated release workflows. The packages are
+published at `0.1.0-alpha.20`; the preparation workflow itself still produces
+unsigned local artifacts only and has no publication authority. See
+[release gates](../release/PUBLISHING.md).

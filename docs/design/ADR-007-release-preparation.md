@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-10-28.
 
+> **Update 2026-10-30:** npm, PyPI and crates.io packages are published at `0.1.0-alpha.20`. Preparation remains separate and unsigned; publication is still a gated maintainer action.
+
 The inherited release workflow could publish on a tag, skipped missing signing
 credentials, consumed unsigned binaries even after a signing job, advertised
 unsupported cross targets, and labeled Ubuntu-built wheels as manylinux 2.17.

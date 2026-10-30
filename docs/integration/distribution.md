@@ -1,4 +1,19 @@
-# Installing an unpublished local bundle
+# Installing OriginLM
+
+## From a registry
+
+```sh
+npm install originlm
+pip install originlm==0.1.0a20
+cargo add originlm@=0.1.0-alpha.20
+```
+
+The npm package is the universal SDK; its five `originlm-cli-*` optional
+dependencies carry the platform helper. PyPI publishes one project with five
+platform wheels. The Rust crate is the single facade for the 13-crate closure;
+it is the final crate in the active crates.io publish.
+
+## Local bundle (offline/development)
 
 Build dependencies live in an isolated environment:
 
@@ -11,7 +26,7 @@ python scripts/build_release.py --profile release
 python scripts/package_smoke.py
 ```
 
-The bundle contains the native helper and Native Messaging host, four npm tarballs, a Python wheel, static demo, browser extension, generated API documents, examples, checksums, license notices, and a dependency inventory covering the shipped Rust and JavaScript packages. It does not install itself, register an extension, read accounts, or run inference. No registry publishing or signing is performed.
+The bundle contains the native helper and Native Messaging host, the universal SDK and five platform npm tarballs, a Python wheel, static demo, browser extension, generated API documents, examples, checksums, license notices, and a dependency inventory covering the shipped Rust and JavaScript packages. It does not install itself, register an extension, read accounts, or run inference. The local bundle is for offline/development use; registry publication is handled by the gated release workflows.
 
 Release staging produces one universal `originlm` npm tarball with all five
 platform helper packages as optional dependencies, so a normal consumer installs

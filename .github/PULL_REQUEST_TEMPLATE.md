@@ -14,7 +14,7 @@
 ## Checklist
 
 - [ ] Tests use synthetic homes, fake clients, or mock servers; no real account was consumed.
-- [ ] This PR contains no application-specific or business-specific logic. OriginLM is a universal product; consumer-specific behavior belongs in the consuming application. See [the universal product policy](docs/POLICY-UNIVERSAL-PRODUCT.md).
+- [ ] This PR contains no application-specific or business-specific logic. OriginLM is a universal product; consumer-specific behavior belongs in the consuming application. See [the universal product policy](https://github.com/thomaslittle/originlm/blob/main/docs/POLICY-UNIVERSAL-PRODUCT.md).
 - [ ] Imports and constructors still do no scanning, credential reading, spawning, or network calls.
 - [ ] Unknown and unsupported states are preserved; nothing is guessed or fabricated.
 - [ ] Docs, the [support matrix](https://github.com/thomaslittle/originlm/blob/main/docs/adapters/SUPPORT-MATRIX.md), and `CHANGELOG.md` (Unreleased) are updated where relevant.

@@ -2,6 +2,8 @@
 
 Accepted 2026-10-28, following Thomas's revised motion direction.
 
+> **Update 2026-10-30:** the `media/video` film source was removed from the repository. The film is no longer part of this checkout; the product tour remains in `apps/site`.
+
 The v1 branch owns `apps/site` and `media/video`; no further landing-site branch merges are permitted. The scene has five opaque layers: app, SDK, transport, runtime and providers. Real example-mode app captures supply textures. There are no account captures, translucent placeholder panels, or particle packets.
 
 `apps/site/src/scene/studio.ts` is the shared renderer. The React wrapper supplies scroll and pointer inputs; the dev-only `scene-render.html` entry supplies deterministic timestamps for offline capture. A perspective camera, Z separation, studio lighting, edge highlights and line glints are common to both outputs. The film composites rendered shots with fframes. Hero copy stays in the DOM.

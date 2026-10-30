@@ -17,7 +17,7 @@ PLATFORM_PACKAGES = {
     ('linux', 'aarch64'): 'originlm-cli-linux-arm64',
     ('darwin', 'arm64'): 'originlm-cli-darwin-arm64',
     ('darwin', 'x86_64'): 'originlm-cli-darwin-x64',
-    ('win32', 'amd64'): 'originlm-cli-win32-x64',
+    ('win32', 'amd64'): 'originlm-cli-windows-x64',
 }
 BINARY_NAME = 'originlm.exe' if sys.platform == 'win32' else 'originlm'
 

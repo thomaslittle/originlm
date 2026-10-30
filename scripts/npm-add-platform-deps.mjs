@@ -20,7 +20,7 @@ const PLATFORM_PACKAGES = [
   'originlm-cli-linux-arm64',
   'originlm-cli-darwin-arm64',
   'originlm-cli-darwin-x64',
-  'originlm-cli-win32-x64',
+  'originlm-cli-windows-x64',
 ];
 
 function argument(name) {

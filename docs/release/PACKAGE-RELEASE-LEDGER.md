@@ -1,25 +1,23 @@
 # Official package release ledger
 
-Updated 2026-10-29. This ledger records what is actually built and verified; it
-does not claim registry publication or consumer migration before those happen.
+Updated 2026-10-30. This ledger records what is actually built, verified and
+published; it does not claim consumer migration before that happens.
 
 ## Registry status
 
-| Registry | Package/name state | Credential state |
+| Registry | Published state | Notes |
 | --- | --- | --- |
-| npm | `originlm` and `originlm-cli-*` unclaimed (`404` at check time) | No local npm login (`ENEEDAUTH`); no GitHub repository secret/environment |
-| crates.io | Not published | No local cargo credentials file; no GitHub repository secret/environment |
-| PyPI | `originlm` unclaimed (`404` at check time) | No local `.pypirc` or twine configuration; no GitHub repository secret/environment |
+| npm | `originlm@0.1.0-alpha.20` plus five platform packages | `alpha` dist-tag; the Windows package is `originlm-cli-windows-x64` |
+| crates.io | 12 of 13 live at `0.1.0-alpha.20` | `originlm` is the final crate in the active publish run; the other 12 are live |
+| PyPI | `originlm==0.1.0a20` with five wheels | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
 
-Actual publication must use maintainer/root-worker credentials in a protected
-environment. No credential was created, read or exposed.
+Publication uses the protected `release-npm`, `release-crates` and `release-pypi`
+environments. The preparation workflows remain read-only and secret-free.
 
-## Exact safe publication setup still required
+## Publication setup
 
-Do not paste secrets into chat or commit them. Use the registry's own login flow
-on a maintainer-controlled machine, or add repository/environment secrets for a
-protected release environment. The preparation workflow itself must remain
-read-only.
+The first publication was completed on 2026-10-30. Subsequent versions use the
+gated publisher workflows. No secret belongs in the repository.
 
 ### npm
 
@@ -122,7 +120,7 @@ overrides.
 | App | Repo | Branch | Status |
 | --- | --- | --- | --- |
 | Remotif | `thomaslittle/remotif` | `main` | Not modified |
-| Haiwire | `zomlit/xhw_haiwire` | `continuation/fedora-dev-runtime` | Not modified |
+| Haiwire | `zomlit/xhw_haiwire` | `continuation/fedora-dev-runtime` | PR #13; builds against the published discovery crates; Linux E2E passed |
 | Crntly | `thomaslittle/crntly-desktop` | `feature/gpui-native-rust-studio` | Not modified; general parity paused |
 
 ## Publisher workflows (PR17)

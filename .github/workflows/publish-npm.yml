@@ -101,7 +101,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           for name in originlm originlm-cli-linux-x64 originlm-cli-linux-arm64 \
-            originlm-cli-darwin-arm64 originlm-cli-darwin-x64 originlm-cli-win32-x64; do
+            originlm-cli-darwin-arm64 originlm-cli-darwin-x64 originlm-cli-windows-x64; do
             if ! npm view "$name" version >/dev/null 2>&1; then
               echo "$name has not been bootstrapped; publish it manually first" >&2
               exit 1

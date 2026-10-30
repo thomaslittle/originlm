@@ -19,27 +19,15 @@ The preparation workflows stay read-only and secret-free.
 
 ## npm trusted publishing
 
-### Bootstrap the six packages first
+### First publication
 
-npm trusted publishing requires each package to already exist. The first
-publication of `originlm`, `originlm-cli-linux-x64`, `originlm-cli-linux-arm64`,
-`originlm-cli-darwin-arm64`, `originlm-cli-darwin-x64` and
-`originlm-cli-win32-x64` must therefore be a coordinated manual publication
-from the already-authenticated maintainer PC (`tomlit`), using the exact
-reviewed `npm-release/` tarballs after every source/version/hash gate passes.
-Use the prerelease dist-tag (normally `alpha`) and do not move `latest`.
-
-Example, after verifying `npm-release/SHA256SUMS` and the aggregate manifest:
-
-```sh
-cd npm-release
-for tarball in originlm-cli-*.tgz; do npm publish "$tarball" --tag alpha; done
-npm publish originlm-*.tgz --tag alpha
-```
-
-Only after those packages exist should trusted publishing be configured. The
-`publish-npm.yml` workflow is for subsequent versions; OIDC cannot bootstrap a
-new npm package.
+The six packages were bootstrapped on 2026-10-30 from the reviewed
+`npm-release/` tarballs: `originlm`, `originlm-cli-linux-x64`,
+`originlm-cli-linux-arm64`, `originlm-cli-darwin-arm64`,
+`originlm-cli-darwin-x64` and `originlm-cli-windows-x64`. Subsequent versions use
+`publish-npm.yml` with the `alpha` dist-tag; do not move `latest` without a
+separate decision. OIDC cannot bootstrap a new package, so a re-bootstrap must
+again be a coordinated manual publication from the authenticated maintainer PC.
 
 Configure a trusted publisher for **each** of the six packages:
 
@@ -48,7 +36,7 @@ Configure a trusted publisher for **each** of the six packages:
 - `originlm-cli-linux-arm64`
 - `originlm-cli-darwin-arm64`
 - `originlm-cli-darwin-x64`
-- `originlm-cli-win32-x64`
+- `originlm-cli-windows-x64`
 
 Fields on npmjs.com:
 

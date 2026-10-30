@@ -20,7 +20,7 @@ const TARGETS = {
   'aarch64-unknown-linux-gnu': {name: 'linux-arm64', os: 'linux', cpu: 'arm64'},
   'x86_64-apple-darwin': {name: 'darwin-x64', os: 'darwin', cpu: 'x64'},
   'aarch64-apple-darwin': {name: 'darwin-arm64', os: 'darwin', cpu: 'arm64'},
-  'x86_64-pc-windows-msvc': {name: 'win32-x64', os: 'win32', cpu: 'x64'},
+  'x86_64-pc-windows-msvc': {name: 'windows-x64', os: 'win32', cpu: 'x64'},
 };
 
 function optionalArgument(name) {

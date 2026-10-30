@@ -16,7 +16,7 @@ const PLATFORM_PACKAGES = {
   'linux-arm64': 'originlm-cli-linux-arm64',
   'darwin-arm64': 'originlm-cli-darwin-arm64',
   'darwin-x64': 'originlm-cli-darwin-x64',
-  'win32-x64': 'originlm-cli-win32-x64',
+  'win32-x64': 'originlm-cli-windows-x64',
 };
 
 /** The optional platform package for a target, or undefined when unsupported. */

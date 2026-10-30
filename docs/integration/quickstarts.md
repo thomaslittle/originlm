@@ -1,9 +1,16 @@
 # SDK and framework quickstarts
 
-These are source-preview workflows. No registry package is published. Once the local
-artifacts and framework prerequisites exist, the hello-world programs are small;
-compiling the whole source checkout is not an under-a-minute installation promise.
-Use a synthetic home for verification; these examples never request inference.
+The packages are published at `0.1.0-alpha.20`; the Rust facade is the final crate in the active crates.io publish:
+
+```sh
+npm install originlm
+pip install originlm==0.1.0a20
+cargo add originlm@=0.1.0-alpha.20
+```
+
+The local-artifact flow below remains for source development and offline
+verification. Use a synthetic home for verification; these examples never request
+inference.
 
 ## Prepare local Node and Python artifacts
 
@@ -35,7 +42,13 @@ preparation workflow's x64 artifacts; the helper filename ends in `.exe`.
 
 ## Plain Node
 
-In a fresh directory, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
+Install from the registry:
+
+```sh
+npm install originlm
+```
+
+For offline or source development, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
 
 ```sh
 npm init -y
@@ -62,7 +75,13 @@ iteration, `LAI_HELPER_PATH` can point at an absolute executable instead.
 
 ## Python
 
-In an activated virtual environment, install the matching wheel by its actual path:
+Install from the registry:
+
+```sh
+python -m pip install originlm==0.1.0a20
+```
+
+For offline or source development, install the matching wheel by its actual path:
 
 ```sh
 python -m pip install --no-index /absolute/path/to/originlm-0.1.0a20-py3-none-PLATFORM.whl
@@ -86,9 +105,12 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm --path /absolute/path/to/originlm/crates/originlm
+cargo add originlm@=0.1.0-alpha.20
 cargo run
 ```
+
+For source development, use a path dependency instead:
+`cargo add originlm --path /absolute/path/to/originlm/crates/originlm`.
 
 `src/main.rs`:
 

@@ -21,7 +21,7 @@ test('platform packages mirror esbuild and Biome', () => {
   assert.equal(platformPackage('linux', 'arm64'), 'originlm-cli-linux-arm64');
   assert.equal(platformPackage('darwin', 'arm64'), 'originlm-cli-darwin-arm64');
   assert.equal(platformPackage('darwin', 'x64'), 'originlm-cli-darwin-x64');
-  assert.equal(platformPackage('win32', 'x64'), 'originlm-cli-win32-x64');
+  assert.equal(platformPackage('win32', 'x64'), 'originlm-cli-windows-x64');
   assert.equal(platformPackage('freebsd', 'x64'), undefined);
 });
 
