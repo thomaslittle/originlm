@@ -4,9 +4,11 @@
 ``cargo package --no-verify`` proves the source worktree, not the packaged
 contents. This gate safely unpacks the exact prepared ``.crate`` archives into a
 temporary workspace outside the checkout, resolves internal dependencies only to
-those unpacked packages (plus a bootstrap patch for the unpublished closure), and
-runs ``cargo check`` with the declared MSRV. A fresh consumer manifest depends
-only on the public ``originlm`` crate and is checked with the same local patches.
+those unpacked packages (plus a bootstrap patch for the unpublished closure),
+resolves external registry dependencies freshly online with the declared MSRV,
+and compiles the generated lock with ``--locked --offline``. A fresh consumer
+manifest depends only on the public ``originlm`` crate and is checked with the
+same local patches.
 """
 from __future__ import annotations
 
