@@ -12,6 +12,7 @@ These come from the product's trust model; changes that weaken them will not be 
 - **A signal is not permission.** Scope grants for workspaces, tools, artifacts, and processes. Cancel only work the toolkit owns.
 - **Credentials stay with their owner.** Never export subscription tokens as API keys, read browser cookies, enable paid fallback silently, rotate accounts to evade limits, or race a client's own credential refresh.
 - **No real account data.** Tests use virtual homes, synthetic credentials, fake clients, and mock servers. Never commit real tokens, account details, session logs, or personal paths. Never charge or consume a real AI account in a test; live checks must be opt-in and clearly marked.
+- **Universal product.** OriginLM is not an integration layer for any one application, customer, or business. Do not add consumer app names, branding, routes, IDs, customer/tenant rules, pricing, entitlements, or one-app workflows. Pull requests that do are refused; see [the universal product policy](docs/POLICY-UNIVERSAL-PRODUCT.md).
 
 ## Getting set up
 
@@ -71,6 +72,8 @@ Read the [adapter authoring guide](docs/adapters/AUTHORING.md). A provider contr
 - The demo uses only public SDK APIs and keeps synthetic data visibly separate from live results. `npm run doctor` must stay clean; a suppression needs a written reason next to it.
 
 ## Things we cannot accept
+
+Application- or business-specific logic, including consumer names, branding, routes, IDs, customer/tenant rules, pricing, entitlements, and one-app workflows. OriginLM is a universal product; that logic belongs in the consuming application. See [the universal product policy](docs/POLICY-UNIVERSAL-PRODUCT.md).
 
 Registry publication, release signing, buying or resetting credits, or modifying a user's unrelated client settings are maintainer-only operations and are not part of any pull request.
 
