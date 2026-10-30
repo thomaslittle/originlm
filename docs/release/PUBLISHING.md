@@ -244,10 +244,13 @@ extracts the archives outside the checkout, rejects normalized manifests with
 workspace with the declared MSRV. Internal dependencies resolve only to the
 unpacked packages through temporary `[patch.crates-io]` entries. A fresh consumer
 manifest depends only on the public `originlm` crate; the same bootstrap patches
-map the unpublished closure to the reviewed unpacked crates. The evidence JSON is
-persisted with the crate artifact and checked again before publication. Offline
-resolution uses the runner cargo cache for registry dependencies; no provider,
-credential or publication action is involved.
+map the unpublished closure to the reviewed unpacked crates. The gate resolves
+external registry dependencies online once with the declared MSRV from a new
+lockfile, then fetches and compiles that exact lock with `--locked --offline` for
+both the workspace and the consumer. The generated lock hashes and resolved
+registry versions are recorded in the evidence JSON. No source workspace lock is
+copied into the extracted tree. No provider, credential or publication action is
+involved.
 
 ## Maintainer gates for a signed/stable release
 

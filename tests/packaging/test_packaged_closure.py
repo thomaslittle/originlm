@@ -6,6 +6,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -91,6 +92,71 @@ class PackagedClosureTests(unittest.TestCase):
             (release / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
             with self.assertRaises(closure.PackageClosureError):
                 closure.verify(release, '1.88.0')
+
+
+    def test_gate_resolves_a_fresh_online_lock_before_locked_offline_compiles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            release = pathlib.Path(directory)
+            packages = []
+            for name in closure.EXPECTED_ORDER:
+                version = '0.1.0-alpha.20'
+                path = release / f'{name}-{version}.crate'
+                crate(path, name, version, {
+                    'Cargo.toml': f'[package]\nname = "{name}"\nversion = "{version}"\n'.encode(),
+                })
+                packages.append({
+                    'name': name, 'version': version, 'file': path.name,
+                    'bytes': path.stat().st_size, 'sha256': closure._hash(path),
+                })
+            manifest = {
+                'sourceCommit': 'a' * 40,
+                'order': closure.EXPECTED_ORDER,
+                'packages': packages,
+            }
+            (release / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+
+            calls = []
+
+            def fake_run(command, cwd, timeout=1800):
+                calls.append((list(command), pathlib.Path(cwd)))
+                lock = pathlib.Path(cwd) / 'Cargo.lock'
+                if 'generate-lockfile' in command:
+                    lock.write_text(
+                        'version = 4\n\n[[package]]\nname = "yoke"\nversion = "0.8.4"\n'
+                        'source = "registry+https://github.com/rust-lang/crates.io-index"\n',
+                        encoding='utf-8',
+                    )
+                elif '--offline' in command:
+                    # Cold-cache model: the only cached yoke-derive was the
+                    # yanked 0.8.3. An offline check without the fresh 0.8.4
+                    # lock must fail, exactly like the original release run.
+                    if not lock.is_file() or '0.8.4' not in lock.read_text(encoding='utf-8'):
+                        raise closure.PackageClosureError(
+                            'offline check selected the yanked cached yoke-derive 0.8.3'
+                        )
+                return None
+
+            with mock.patch.object(closure, '_run', side_effect=fake_run):
+                evidence = closure.verify(release, '1.88.0')
+
+            self.assertEqual(len(calls), 6)
+            self.assertEqual(calls[0][0][2:], ['generate-lockfile'])
+            self.assertEqual(calls[1][0][2:], ['fetch', '--locked'])
+            self.assertEqual(
+                calls[2][0][2:], ['check', '--workspace', '--locked', '--offline']
+            )
+            self.assertEqual(calls[3][0][2:], ['generate-lockfile'])
+            self.assertEqual(calls[4][0][2:], ['fetch', '--locked'])
+            self.assertEqual(calls[5][0][2:], ['check', '--locked', '--offline'])
+            self.assertTrue(evidence['checks']['freshRegistryResolution'])
+            self.assertTrue(evidence['checks']['workspaceLockedCheck'])
+            self.assertTrue(evidence['checks']['consumerLockedCheck'])
+            self.assertFalse(evidence['resolution']['sourceLockfileCopied'])
+            resolved = {
+                package['name']: package['version']
+                for package in evidence['resolution']['workspace']['registryPackages']
+            }
+            self.assertEqual(resolved.get('yoke'), '0.8.4')
 
 
 if __name__ == '__main__':

@@ -89,5 +89,8 @@ order, safely unpacked outside the checkout, checked for normalized path
 dependencies and source-path leakage, compiled as a temporary workspace using
 only the unpacked packages, and consumed by a fresh manifest whose only public
 dependency is `originlm`. The declared MSRV toolchain is used for this packaged
-check. Evidence is attached to the crate artifact and publisher gate; no
-registry upload, credential or provider action is involved.
+check. External registry dependencies are freshly resolved online from a new
+lockfile, then fetched and compiled with `--locked --offline`; the lock hashes
+and resolved versions are evidence. No source workspace lock is copied. Evidence
+is attached to the crate artifact and publisher gate; no registry upload,
+credential or provider action is involved.
