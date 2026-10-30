@@ -1,6 +1,6 @@
 # Release preparation and publication
 
-**The packages are published at `0.1.0-alpha.20`; the Rust facade is the final crate in the active crates.io publish.** The `Prepare release artifacts`
+**The packages are published at `0.1.0-alpha.20`, including the Rust facade and its 13-crate closure.** The `Prepare release artifacts`
 workflow builds local-installable **unsigned** runtime artifacts. It has read-only
 repository permissions, uses no signing or registry secrets, and cannot publish. A
 tag or draft release does not publish packages.

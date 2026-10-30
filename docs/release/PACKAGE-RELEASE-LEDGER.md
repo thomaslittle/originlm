@@ -8,7 +8,7 @@ published; it does not claim consumer migration before that happens.
 | Registry | Published state | Notes |
 | --- | --- | --- |
 | npm | `originlm@0.1.0-alpha.20` plus five platform packages | `alpha` dist-tag; the Windows package is `originlm-cli-windows-x64` |
-| crates.io | 12 of 13 live at `0.1.0-alpha.20` | `originlm` is the final crate in the active publish run; the other 12 are live |
+| crates.io | 13 of 13 live at `0.1.0-alpha.20` | The `originlm` facade and the full closure are published |
 | PyPI | `originlm==0.1.0a20` with five wheels | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
 
 Publication uses the protected `release-npm`, `release-crates` and `release-pypi`

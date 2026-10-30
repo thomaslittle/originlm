@@ -11,7 +11,7 @@ cargo add originlm@=0.1.0-alpha.20
 The npm package is the universal SDK; its five `originlm-cli-*` optional
 dependencies carry the platform helper. PyPI publishes one project with five
 platform wheels. The Rust crate is the single facade for the 13-crate closure;
-it is the final crate in the active crates.io publish.
+the whole closure is published at `0.1.0-alpha.20`.
 
 ## Local bundle (offline/development)
 
