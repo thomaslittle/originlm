@@ -56,7 +56,7 @@ jobs:
           SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
-          git fetch origin main --depth=1
+          git fetch origin main
           git merge-base --is-ancestor "$SOURCE_COMMIT" origin/main
           gh run view "$RUN_ID" --json headSha,headBranch,conclusion,status > run.json
           python - <<'PY'
