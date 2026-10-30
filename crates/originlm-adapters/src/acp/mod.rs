@@ -2,9 +2,24 @@
 mod catalog;
 mod config;
 pub use catalog::parse_catalog;
+use crate::process::LaunchSpec;
 use originlm_contracts::*;
 use serde_json::Value;
 pub use wire::acp_mcp_servers;
+
+/// Run one ACP `authenticate` exchange. The caller supplies a browser capture
+/// script in the launch environment; the server writes the authorization URL
+/// there. The future completes when the provider confirms the sign-in.
+pub async fn authenticate(
+    spec: LaunchSpec,
+    provider: String,
+    route: String,
+    method: &str,
+) -> Result<()> {
+    let mut wire = wire::Wire::connect_auth(spec, provider, route, method, &[]).await?;
+    wire.close().await;
+    Ok(())
+}
 pub struct AcpCatalog {
     pub session_id: String,
     pub models: Vec<Model>,

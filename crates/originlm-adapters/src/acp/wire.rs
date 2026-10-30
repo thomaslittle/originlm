@@ -31,6 +31,7 @@ impl Wire {
         provider: String,
         route: String,
         auth: Option<&str>,
+        timeout: Duration,
     ) -> Result<Self> {
         let mut this = Self {
             peer: Peer::spawn(spec).await?,
@@ -78,6 +79,19 @@ impl Wire {
         }
         Ok(this)
     }
+    /// Interactive sign-in: initialize and authenticate, but do not create a
+    /// session. The caller keeps the peer alive until the browser callback.
+    pub async fn connect_auth(
+        spec: LaunchSpec,
+        provider: String,
+        route: String,
+        method: &str,
+        host_mcp_servers: &[HostMcpServer],
+    ) -> Result<Self> {
+        let _ = host_mcp_servers;
+        Self::initialized(spec, provider, route, Some(method), Duration::from_secs(300)).await
+    }
+
     pub async fn connect_with_auth(
         spec: LaunchSpec,
         provider: String,
@@ -86,7 +100,8 @@ impl Wire {
         host_mcp_servers: &[HostMcpServer],
     ) -> Result<Self> {
         let cwd = spec.cwd.clone();
-        let mut this = Self::initialized(spec, provider, route, auth).await?;
+        let mut this =
+            Self::initialized(spec, provider, route, auth, Duration::from_secs(20)).await?;
         let outcome = tokio::time::timeout(Duration::from_secs(20), async {
             let mcp_servers = this.mcp_servers(host_mcp_servers)?;
             this.session = this
@@ -124,7 +139,8 @@ impl Wire {
             return Err(invalid());
         }
         let cwd = spec.cwd.clone();
-        let mut this = Self::initialized(spec, provider, route, auth).await?;
+        let mut this =
+            Self::initialized(spec, provider, route, auth, Duration::from_secs(20)).await?;
         if this.init["agentCapabilities"]["loadSession"].as_bool() != Some(true) {
             this.peer.shutdown().await;
             return Err(DomainError::new(

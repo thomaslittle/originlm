@@ -67,6 +67,18 @@ fn cached_auth(profile: &Path) -> Option<String> {
         })
         .map(str::to_owned)
 }
+fn browser_command_any(path: &Path) -> Result<OsString> {
+    if !file(path) {
+        return Err(error(ErrorCode::IntegrationRestricted));
+    }
+    let text = path
+        .to_str()
+        .ok_or_else(|| error(ErrorCode::IntegrationRestricted))?;
+    if text.contains(['"', '%', ';']) || text.chars().any(char::is_control) {
+        return Err(error(ErrorCode::IntegrationRestricted));
+    }
+    Ok(format!("\"{text}\" %s").into())
+}
 fn browser_command(path: &Path) -> Result<OsString> {
     if !file(path) || !name(path).starts_with("originlm-auth-blocker") {
         return Err(error(ErrorCode::IntegrationRestricted));
@@ -161,20 +173,30 @@ pub fn prepare(
     workspace: &Path,
     browser: Option<&Path>,
 ) -> Result<PreparedLaunch> {
-    prepare_for(profile, workspace, browser, true)
+    prepare_for(profile, workspace, browser, true, false)
 }
 pub fn prepare_execution(
     profile: &NativeProfile,
     workspace: &Path,
     browser: Option<&Path>,
 ) -> Result<PreparedLaunch> {
-    prepare_for(profile, workspace, browser, false)
+    prepare_for(profile, workspace, browser, false, false)
+}
+/// Prepare an interactive sign-in launch. `browser` is a capture script that
+/// receives the authorization URL; it must not be the metadata blocker.
+pub fn prepare_auth(
+    profile: &NativeProfile,
+    workspace: &Path,
+    browser: &Path,
+) -> Result<PreparedLaunch> {
+    prepare_for(profile, workspace, Some(browser), true, true)
 }
 fn prepare_for(
     profile: &NativeProfile,
     workspace: &Path,
     browser: Option<&Path>,
     metadata_probe: bool,
+    auth: bool,
 ) -> Result<PreparedLaunch> {
     if !local_path(&profile.executable)
         || !local_path(&profile.profile_home)
@@ -197,9 +219,18 @@ fn prepare_for(
                 "GEMINI_CLI_HOME".into(),
                 profile.profile_home.clone().into_os_string(),
             );
-            env.insert("NO_BROWSER".into(), "true".into());
-            if let Some(browser) = browser {
-                env.insert("BROWSER".into(), browser_command(browser)?);
+            if auth {
+                env.insert(
+                    "BROWSER".into(),
+                    browser_command_any(
+                        browser.ok_or_else(|| error(ErrorCode::IntegrationRestricted))?,
+                    )?,
+                );
+            } else {
+                env.insert("NO_BROWSER".into(), "true".into());
+                if let Some(browser) = browser {
+                    env.insert("BROWSER".into(), browser_command(browser)?);
+                }
             }
             (executable, args)
         }
@@ -227,10 +258,21 @@ fn prepare_for(
             if name(&profile.profile_home) != "antigravity-acp" {
                 return Err(error(ErrorCode::IntegrationRestricted));
             }
-            env.insert(
-                "BROWSER".into(),
-                browser_command(browser.ok_or_else(|| error(ErrorCode::IntegrationRestricted))?)?,
-            );
+            if auth {
+                env.insert(
+                    "BROWSER".into(),
+                    browser_command_any(
+                        browser.ok_or_else(|| error(ErrorCode::IntegrationRestricted))?,
+                    )?,
+                );
+            } else {
+                env.insert(
+                    "BROWSER".into(),
+                    browser_command(
+                        browser.ok_or_else(|| error(ErrorCode::IntegrationRestricted))?,
+                    )?,
+                );
+            }
             env.insert(
                 "GEMINI_HOME".into(),
                 profile
@@ -247,10 +289,20 @@ fn prepare_for(
             // only a host-declared method or one already recorded by the
             // provider; otherwise the probe reports AUTH_REQUIRED and the host
             // can start sign-in deliberately.
-            auth_method = profile
-                .auth_method
-                .clone()
-                .or_else(|| cached_auth(&profile.profile_home));
+            auth_method = if auth {
+                Some(
+                    profile
+                        .auth_method
+                        .clone()
+                        .or_else(|| cached_auth(&profile.profile_home))
+                        .unwrap_or_else(|| "oauth-personal".into()),
+                )
+            } else {
+                profile
+                    .auth_method
+                    .clone()
+                    .or_else(|| cached_auth(&profile.profile_home))
+            };
             (
                 profile.executable.clone(),
                 if cfg!(target_os = "linux") {

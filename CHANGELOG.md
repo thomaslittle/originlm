@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat(auth): add `originlm auth antigravity`, which starts the installed ACP server, captures the Google authorization URL through a host browser helper, and waits for the callback. Metadata probes no longer start OAuth implicitly.
 - feat(antigravity): add the managed ACP server installer (`originlm install antigravity`), discover the installed `agy_acp_server.par`/harness, and probe discovered ACP clients without a hand-authored profile file. Gemini CLI discovery now includes T3 Code-managed installs. Auth flows and reset credits are the next engine slice.
 - build(desktop): the GPUI control center now consumes the published `originlm-control`, `originlm-platform` and `originlm-contracts` crates at `=0.1.0-alpha.22` instead of path crates, and inherits the workspace version.
 - release(alpha.22): add the host-owned `--allow-identity` opt-in so an app-managed helper can reveal the provider-reported signed-in account label (email); without it the projection still withholds identity. The 14-crate closure is published at `0.1.0-alpha.22`; npm and PyPI remain at `0.1.0-alpha.20`.

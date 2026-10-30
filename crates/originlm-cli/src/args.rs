@@ -9,6 +9,7 @@ pub enum Action {
     Serve,
     Connect,
     Install(String),
+    Auth(String),
 }
 pub struct Args {
     pub action: Action,
@@ -84,6 +85,14 @@ impl Args {
                     .filter(|value| value == "antigravity")
                     .ok_or_else(invalid)?;
                 Action::Install(provider)
+            }
+            Some("auth") => {
+                let provider = input
+                    .next()
+                    .and_then(|value| value.into_string().ok())
+                    .filter(|value| matches!(value.as_str(), "antigravity" | "gemini_cli"))
+                    .ok_or_else(invalid)?;
+                Action::Auth(provider)
             }
             _ => return Err(invalid()),
         };
