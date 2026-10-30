@@ -1,11 +1,11 @@
 # SDK and framework quickstarts
 
-The Rust crates are published at `0.1.0-alpha.21`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
+The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
 
 ```sh
 npm install originlm
 pip install originlm==0.1.0a21
-cargo add originlm@=0.1.0-alpha.21
+cargo add originlm@=0.1.0-alpha.22
 ```
 
 The local-artifact flow below remains for source development and offline
@@ -105,7 +105,7 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm@=0.1.0-alpha.21
+cargo add originlm@=0.1.0-alpha.22
 cargo run
 ```
 

@@ -1,6 +1,6 @@
 # Release preparation and publication
 
-**The Rust crates are published at `0.1.0-alpha.21`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run.** The `Prepare release artifacts`
+**The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run.** The `Prepare release artifacts`
 workflow builds local-installable **unsigned** runtime artifacts. It has read-only
 repository permissions, uses no signing or registry secrets, and cannot publish. A
 tag or draft release does not publish packages.
@@ -11,7 +11,7 @@ Release Drafter maintains a draft GitHub release from merged pull requests. It
 does not publish packages or create a tag until a maintainer publishes the draft.
 
 1. Review the draft release notes and set the exact version/tag (for example
-   `v0.1.0-alpha.21`).
+   `v0.1.0-alpha.22`).
 2. Run the preparation workflows for that source commit.
 3. Review the generated artifacts and evidence.
 4. Publish the draft release. This creates the tag.
@@ -23,7 +23,7 @@ remain the authority for artifacts and credentials.
 ## Prepare
 
 ```sh
-gh workflow run release.yml --ref release/v0.1.0-alpha.21
+gh workflow run release.yml --ref release/v0.1.0-alpha.22
 ```
 
 The workflow also runs when a PR changes packaging or release scripts. Its five

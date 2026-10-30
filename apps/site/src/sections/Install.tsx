@@ -41,10 +41,10 @@ const TRACKS: Record<Track, { title: string; blurb: string; badge: string; comma
       { id: "pnpm", label: "pnpm", command: "pnpm add originlm@0.1.0-alpha.20" },
       { id: "bun", label: "bun", command: "bun add originlm@0.1.0-alpha.20" },
       { id: "yarn", label: "yarn", command: "yarn add originlm@0.1.0-alpha.20" },
-      { id: "cargo", label: "cargo", command: "cargo add originlm@=0.1.0-alpha.21" },
+      { id: "cargo", label: "cargo", command: "cargo add originlm@=0.1.0-alpha.22" },
       { id: "pip", label: "pip", command: "pip install originlm==0.1.0a20" },
     ],
-    foot: "Published packages: the Rust crates are at 0.1.0-alpha.21; npm and PyPI are at 0.1.0-alpha.20. Cargo links the runtime, and the helper crate is cargo install originlm-cli@=0.1.0-alpha.21. npm and Python clients speak the local protocol.",
+    foot: "Published packages: the Rust crates are at 0.1.0-alpha.22; npm and PyPI are at 0.1.0-alpha.20. Cargo links the runtime, and the helper crate is cargo install originlm-cli@=0.1.0-alpha.22. npm and Python clients speak the local protocol.",
   },
 };
 

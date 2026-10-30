@@ -5,13 +5,13 @@
 ```sh
 npm install originlm
 pip install originlm==0.1.0a21
-cargo add originlm@=0.1.0-alpha.21
+cargo add originlm@=0.1.0-alpha.22
 ```
 
 The npm package is the universal SDK; its five `originlm-cli-*` optional
 dependencies carry the platform helper. PyPI publishes one project with five
 platform wheels. The Rust crate is the single facade for the 14-crate closure;
-the whole closure, including `originlm-cli`, is published at `0.1.0-alpha.21`.
+the whole closure, including `originlm-cli`, is published at `0.1.0-alpha.22`.
 
 ## Local bundle (offline/development)
 
