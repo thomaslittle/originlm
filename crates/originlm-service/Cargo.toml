@@ -12,13 +12,13 @@ publish = true
 os-notifications = ["dep:notify-rust"]
 
 [dependencies]
-originlm-runtime = { version = "0.1.0-alpha.20", path = "../originlm-runtime" }
-originlm-contracts = { version = "0.1.0-alpha.20", path = "../originlm-contracts" }
-originlm-core = { version = "0.1.0-alpha.20", path = "../originlm-core" }
-originlm-discovery = { version = "0.1.0-alpha.20", path = "../originlm-discovery" }
-originlm-platform = { version = "0.1.0-alpha.20", path = "../originlm-platform" }
-originlm-chatgpt-auth = { version = "0.1.0-alpha.20", path = "../originlm-chatgpt-auth" }
-originlm-store = { version = "0.1.0-alpha.20", path = "../originlm-store" }
+originlm-runtime = { version = "0.1.0-alpha.21", path = "../originlm-runtime" }
+originlm-contracts = { version = "0.1.0-alpha.21", path = "../originlm-contracts" }
+originlm-core = { version = "0.1.0-alpha.21", path = "../originlm-core" }
+originlm-discovery = { version = "0.1.0-alpha.21", path = "../originlm-discovery" }
+originlm-platform = { version = "0.1.0-alpha.21", path = "../originlm-platform" }
+originlm-chatgpt-auth = { version = "0.1.0-alpha.21", path = "../originlm-chatgpt-auth" }
+originlm-store = { version = "0.1.0-alpha.21", path = "../originlm-store" }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

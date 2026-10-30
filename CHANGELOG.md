@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- release(alpha.21): wire the OpenCode 2 text execution client into the service builder, dispatch 2.x sessions to the owner's local service API, accept the service's default model variant, and surface provider failure text. The 13-crate closure, npm platform packages and PyPI wheels are published at `0.1.0-alpha.21` / `0.1.0a21`.
 - release(alpha.20): publish `originlm@0.1.0-alpha.20` to npm with five platform packages, `originlm==0.1.0a20` to PyPI with five wheels, and the 13-crate Rust closure to crates.io. The Windows npm package is `originlm-cli-windows-x64`. Runtime archives remain unsigned.
 - feat(rust): mark the `originlm` facade dependency closure publishable with exact `version`/`path` pairs, add deterministic Cargo-metadata publication ordering and packaging checks, and expose session, turn, event, approval, execution-grant, and client-close APIs without weakening consent boundaries.
 - release(npm): stage one universal `originlm` SDK tarball with all five exact-version platform optional dependencies, propagate native manifest/SBOM/notices/license texts into each platform package, and prove a fresh `createLocalAI()` consumer with empty home, no PATH helper and no overrides.

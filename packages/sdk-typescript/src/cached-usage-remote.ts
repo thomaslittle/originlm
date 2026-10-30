@@ -79,7 +79,7 @@ export function createCachedUsageRemoteMcp(options: CachedUsageRemoteOptions) {
       const error=(code:number,message:string)=>response(200,{jsonrpc:'2.0',id,error:{code,message}});
       if(packet.method==='initialize') {
         if(typeof params.protocolVersion!=='string' || !object(params.capabilities) || !object(params.clientInfo)) return error(-32602,'Invalid initialization');
-        return success({protocolVersion:protocol,capabilities:{tools:{listChanged:false}},serverInfo:{name:'originlm-usage',version:'0.1.0-alpha.20'}});
+        return success({protocolVersion:protocol,capabilities:{tools:{listChanged:false}},serverInfo:{name:'originlm-usage',version:'0.1.0-alpha.21'}});
       }
       if(packet.method==='ping') return success({});
       if(packet.method==='tools/list') {

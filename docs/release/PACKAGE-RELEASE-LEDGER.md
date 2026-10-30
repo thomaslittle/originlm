@@ -7,9 +7,9 @@ published; it does not claim consumer migration before that happens.
 
 | Registry | Published state | Notes |
 | --- | --- | --- |
-| npm | `originlm@0.1.0-alpha.20` plus five platform packages | `alpha` dist-tag; the Windows package is `originlm-cli-windows-x64` |
-| crates.io | 13 of 13 live at `0.1.0-alpha.20` | The `originlm` facade and the full closure are published |
-| PyPI | `originlm==0.1.0a20` with five wheels | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
+| npm | `originlm@0.1.0-alpha.21` prepared; publication pending | `alpha` dist-tag; the Windows package is `originlm-cli-windows-x64` |
+| crates.io | 14 crates prepared at `0.1.0-alpha.21`; publication pending | The `originlm` facade and the `originlm-cli` helper crate are in the closure |
+| PyPI | `originlm==0.1.0a21` prepared; publication pending | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
 
 Publication uses the protected `release-npm`, `release-crates` and `release-pypi`
 environments. The preparation workflows remain read-only and secret-free.
@@ -34,7 +34,7 @@ gated publisher workflows. No secret belongs in the repository.
 
 ### crates.io
 
-1. Confirm the intended crates.io account owns `originlm` and the 13-crate
+1. Confirm the intended crates.io account owns `originlm` and the 14-crate
    publishable closure, or is authorized to claim the names.
 2. Authenticate interactively with `cargo login`, or use a scoped API token in
    `CARGO_REGISTRY_TOKEN` in the protected release environment. Do not commit
@@ -132,7 +132,7 @@ overrides.
   publishing, verifies the assembled `npm-release` set and publishes platform
   packages before the universal SDK.
 - `.github/workflows/prepare-crates.yml` + `publish-crates.yml` — environment
-  `release-crates`; 13-crate order, prepared `.crate` hashes, bootstrap
+  `release-crates`; 14-crate order, prepared `.crate` hashes, bootstrap
   `CARGO_REGISTRY_TOKEN` or post-bootstrap OIDC trusted publishing.
 - `.github/workflows/publish-pypi.yml` — environment `release-pypi`, PyPI
   trusted publishing for the two qualified manylinux wheels only.

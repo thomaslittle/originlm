@@ -1,11 +1,11 @@
 # SDK and framework quickstarts
 
-The packages are published at `0.1.0-alpha.20`, including the Rust facade and its 13-crate closure:
+The packages are published at `0.1.0-alpha.21`, including the Rust facade and its 14-crate closure:
 
 ```sh
 npm install originlm
-pip install originlm==0.1.0a20
-cargo add originlm@=0.1.0-alpha.20
+pip install originlm==0.1.0a21
+cargo add originlm@=0.1.0-alpha.21
 ```
 
 The local-artifact flow below remains for source development and offline
@@ -78,13 +78,13 @@ iteration, `LAI_HELPER_PATH` can point at an absolute executable instead.
 Install from the registry:
 
 ```sh
-python -m pip install originlm==0.1.0a20
+python -m pip install originlm==0.1.0a21
 ```
 
 For offline or source development, install the matching wheel by its actual path:
 
 ```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a20-py3-none-PLATFORM.whl
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a21-py3-none-PLATFORM.whl
 python hello.py
 ```
 
@@ -105,7 +105,7 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm@=0.1.0-alpha.20
+cargo add originlm@=0.1.0-alpha.21
 cargo run
 ```
 

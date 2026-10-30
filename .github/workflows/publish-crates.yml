@@ -101,9 +101,10 @@ jobs:
               'originlm-chatgpt-auth', 'originlm-discovery', 'originlm-runtime',
               'originlm-store', 'originlm-service', 'originlm-transports',
               'originlm-control', 'originlm-adapters', 'originlm-kit', 'originlm',
+              'originlm-cli',
           ]
-          if manifest.get('order') != expected or len(manifest.get('packages') or []) != 13:
-              raise SystemExit('crate release set is not the reviewed 13-crate closure')
+          if manifest.get('order') != expected or len(manifest.get('packages') or []) != 14:
+              raise SystemExit('crate release set is not the reviewed 14-crate closure')
           print('\\n'.join(manifest['order']))
           PY
       - name: Fetch locked dependencies for offline repackaging
@@ -214,7 +215,7 @@ jobs:
       - name: State publication result
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo 'Dry run: all 13 crate payloads verified; nothing was published.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Dry run: all 14 crate payloads verified; nothing was published.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'Published the 13-crate closure in dependency order.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Published the 14-crate closure in dependency order.' >> "$GITHUB_STEP_SUMMARY"
           fi

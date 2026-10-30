@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the packaged 13-crate closure compiles from its .crate archives.
+"""Verify the packaged 14-crate closure compiles from its .crate archives.
 
 ``cargo package --no-verify`` proves the source worktree, not the packaged
 contents. This gate safely unpacks the exact prepared ``.crate`` archives into a
@@ -148,8 +148,8 @@ def verify(release_dir, toolchain, source_commit=None, out=None):
         raise PackageClosureError('crate release manifest is missing')
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     packages = manifest.get('packages')
-    if not isinstance(packages, list) or len(packages) != 13:
-        raise PackageClosureError('crate release set is not the 13-crate closure')
+    if not isinstance(packages, list) or len(packages) != 14:
+        raise PackageClosureError('crate release set is not the 14-crate closure')
     order = [item.get('name') for item in packages]
     if order != EXPECTED_ORDER or manifest.get('order') != EXPECTED_ORDER:
         raise PackageClosureError('crate release order is not the reviewed dependency-first order')

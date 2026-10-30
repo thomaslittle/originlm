@@ -1,6 +1,6 @@
 # Migrating to OriginLM
 
-This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. npm, PyPI and crates.io packages are published at `0.1.0-alpha.20`; signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
+This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. npm, PyPI and crates.io packages are published at `0.1.0-alpha.21`; signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
 
 ## Provisional package identities
 

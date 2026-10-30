@@ -1,6 +1,6 @@
 # Release preparation and publication
 
-**The packages are published at `0.1.0-alpha.20`, including the Rust facade and its 13-crate closure.** The `Prepare release artifacts`
+**The packages are published at `0.1.0-alpha.21`, including the Rust facade and its 14-crate closure.** The `Prepare release artifacts`
 workflow builds local-installable **unsigned** runtime artifacts. It has read-only
 repository permissions, uses no signing or registry secrets, and cannot publish. A
 tag or draft release does not publish packages.
@@ -23,7 +23,7 @@ remain the authority for artifacts and credentials.
 ## Prepare
 
 ```sh
-gh workflow run release.yml --ref release/v0.1.0-alpha.20
+gh workflow run release.yml --ref release/v0.1.0-alpha.21
 ```
 
 The workflow also runs when a PR changes packaging or release scripts. Its five
@@ -234,12 +234,12 @@ docker run --rm -v "$PWD:/work" -w /work \
     (cd wheels/originlm && "$PYTHON" setup.py bdist_wheel \
       --plat-name manylinux_2_28_x86_64 --dist-dir ../../prepared)
     "$PYTHON" scripts/verify_python_wheel.py \
-      --wheel prepared/originlm-0.1.0a20-py3-none-manylinux_2_28_x86_64.whl \
-      --version 0.1.0a20 --target x86_64-unknown-linux-gnu \
+      --wheel prepared/originlm-0.1.0a21-py3-none-manylinux_2_28_x86_64.whl \
+      --version 0.1.0a21 --target x86_64-unknown-linux-gnu \
       --plat-name manylinux_2_28_x86_64 --release
     "$PYTHON" scripts/python_consumer_smoke.py \
-      --wheel prepared/originlm-0.1.0a20-py3-none-manylinux_2_28_x86_64.whl \
-      --version 0.1.0a20 --python "$PYTHON"
+      --wheel prepared/originlm-0.1.0a21-py3-none-manylinux_2_28_x86_64.whl \
+      --version 0.1.0a21 --python "$PYTHON"
   '
 ```
 

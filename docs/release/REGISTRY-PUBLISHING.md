@@ -63,7 +63,7 @@ Official reference: <https://docs.npmjs.com/trusted-publishers/>
 ## crates.io
 
 Crates.io trusted publishing **cannot bootstrap a crate that does not yet
-exist**. The first publication of each of the 13 crates therefore uses a
+exist**. The first publication of each of the 14 crates therefore uses a
 scoped crates.io API token stored as the `release-crates` environment secret
 `CARGO_REGISTRY_TOKEN`. After each crate exists and is owned by the intended
 account, configure its trusted publisher:
@@ -94,7 +94,7 @@ originlm
 
 The preparation job runs `cargo fetch --locked` before offline packaging, so a
 cold runner has the complete locked dependency set. The publisher verifies
-`crates-release/SHA256SUMS`, the source commit, the exact 13-crate order, and
+`crates-release/SHA256SUMS`, the source commit, the exact 14-crate order, and
 that a fresh `cargo package` reproduces every prepared `.crate` hash. For each
 crate it then runs `cargo publish --dry-run` and checks the exact archive Cargo
 produced in `<target-dir>/package/tmp-crate/` against that hash before the real

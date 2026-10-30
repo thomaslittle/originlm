@@ -4,7 +4,7 @@
 The order is derived from ``cargo metadata``, never from a hand-maintained list:
 
 * the publishable set is the normal/build dependency closure of the public
-  ``originlm`` facade;
+  ``originlm`` facade and the ``originlm-cli`` helper crate;
 * every intra-workspace dependency of a publishable crate must declare both the
   workspace version and a path;
 * dependencies are emitted before their dependents (stable alphabetical DFS);
@@ -32,7 +32,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FACADE = "originlm"
-WORKSPACE_VERSION = "0.1.0-alpha.20"
+ROOTS = (FACADE, "originlm-cli")
+WORKSPACE_VERSION = "0.1.0-alpha.21"
 VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")
 
 
@@ -101,10 +102,13 @@ def is_publishable(package: WorkspacePackage) -> bool:
     return package.publish is None or bool(package.publish)
 
 
-def publishable_closure(packages: dict[str, WorkspacePackage], root: str) -> list[str]:
-    """Stable dependency-first closure of ``root`` over workspace packages."""
-    if root not in packages:
-        raise PublishOrderError(f"facade crate {root!r} is not a workspace member")
+def publishable_closure(
+    packages: dict[str, WorkspacePackage], roots: tuple[str, ...]
+) -> list[str]:
+    """Stable dependency-first closure of the public roots over workspace packages."""
+    for root in roots:
+        if root not in packages:
+            raise PublishOrderError(f"publish root {root!r} is not a workspace member")
 
     order: list[str] = []
     state: dict[str, str] = {}
@@ -132,7 +136,8 @@ def publishable_closure(packages: dict[str, WorkspacePackage], root: str) -> lis
         state[name] = "done"
         order.append(name)
 
-    visit(root, ())
+    for root in roots:
+        visit(root, ())
     return order
 
 
@@ -159,7 +164,7 @@ def _dependency_version_problem(dependency: dict) -> str | None:
 
 def validate(metadata: dict) -> tuple[list[str], dict[str, WorkspacePackage]]:
     packages = workspace_packages(metadata)
-    order = publishable_closure(packages, FACADE)
+    order = publishable_closure(packages, ROOTS)
     publishable = set(order)
     problems: list[str] = []
     package_by_manifest_dir = {
