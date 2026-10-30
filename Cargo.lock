@@ -5134,7 +5134,7 @@ version = "0.1.0-alpha.23"
 dependencies = [
  "axum",
  "chrono",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "originlm-contracts",
  "originlm-discovery",
  "originlm-platform",
@@ -5160,7 +5160,7 @@ dependencies = [
  "aws-lc-rs",
  "base64",
  "fs4",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "jsonwebtoken",
  "keyring",
  "reqwest",
@@ -5308,7 +5308,7 @@ version = "0.1.0-alpha.23"
 dependencies = [
  "base64",
  "chrono",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "notify-rust",
  "originlm-chatgpt-auth",
  "originlm-contracts",
@@ -5328,7 +5328,7 @@ dependencies = [
 name = "originlm-store"
 version = "0.1.0-alpha.23"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "originlm-contracts",
  "rusqlite",
  "serde",
@@ -5343,7 +5343,7 @@ version = "0.1.0-alpha.23"
 dependencies = [
  "async-stream",
  "axum",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "interprocess",
  "originlm-contracts",
  "originlm-core",
@@ -5364,7 +5364,7 @@ version = "0.1.0-alpha.23"
 dependencies = [
  "base64",
  "fs4",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "originlm-contracts",
  "ring",
  "semver",
