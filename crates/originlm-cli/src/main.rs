@@ -10,7 +10,7 @@ mod status;
 use args::{Action, Args};
 use originlm_contracts::{DomainError, ErrorCode, Result};
 use serde_json::json;
-use std::{sync::Arc, time::Duration};
+use std::{path::{Path, PathBuf}, sync::Arc, time::Duration};
 
 const HELP: &str = "OriginLM - native discovery and SDK helper
 Usage:
@@ -115,6 +115,9 @@ async fn warm_metadata(
 }
 
 async fn execute(args: Args) -> Result<()> {
+    if let Action::Install(provider) = &args.action {
+        return install_provider(provider, args.home.as_deref()).await;
+    }
     if matches!(args.action, Action::Connect) {
         return broker_cli::connect(args.ipc.as_deref().unwrap()).await;
     }
@@ -272,6 +275,52 @@ async fn execute(args: Args) -> Result<()> {
         _ => Ok(()),
     }
 }
+async fn install_provider(provider: &str, home: Option<&Path>) -> Result<()> {
+    if provider != "antigravity" {
+        return Err(DomainError::new(
+            ErrorCode::InvalidRequest,
+            "Only the Antigravity ACP server has a managed installer",
+        ));
+    }
+    let base = home
+        .map(|home| home.join(".gemini/antigravity-acp"))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(PathBuf::from)
+                .map(|home| home.join(".gemini/antigravity-acp"))
+        })
+        .ok_or_else(|| {
+            DomainError::new(ErrorCode::LocalAccessDenied, "Home directory is unavailable")
+        })?;
+    let platform = match std::env::consts::OS {
+        "macos" => "darwin",
+        "windows" => "win32",
+        other => other,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    let release =
+        originlm_adapters::native_clients::antigravity_install::release_for(platform, arch)
+            .ok_or_else(|| {
+                DomainError::new(
+                    ErrorCode::CapabilityUnsupported,
+                    "Antigravity is unavailable for this platform",
+                )
+            })?;
+    let path =
+        originlm_adapters::native_clients::antigravity_install::install(&base, release).await?;
+    println!(
+        "Antigravity ACP server {} installed at {}",
+        release.version,
+        path.display()
+    );
+    Ok(())
+}
+
 fn main() -> std::process::ExitCode {
     let result = (|| -> originlm_contracts::Result<u8> {
         let args = Args::parse(std::env::args_os().skip(1))?;

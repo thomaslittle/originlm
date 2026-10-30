@@ -33,7 +33,7 @@ pub fn definitions() -> &'static [ProviderDefinition] {
         ProviderDefinition {
             id: "antigravity",
             name: "Antigravity",
-            commands: &["antigravity", "agy"],
+            commands: &["antigravity", "agy", "agy_acp_server", "agy_acp_server.par"],
             profile_prefix: None,
         },
         ProviderDefinition {
@@ -107,6 +107,10 @@ impl ProviderDefinition {
             // T3 Code installs the Gemini CLI under its managed tools directory.
             // A Rust host that shares the same machine can use that install
             // without requiring a second copy on PATH.
+            ("antigravity", _) => vec![
+                crate::join_relative(&env.home, ".gemini/antigravity-acp"),
+                crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
+            ],
             ("gemini_cli", _) => {
                 let mut dirs = vec![crate::join_relative(&env.home, ".local/bin")];
                 let tools = crate::join_relative(&env.home, ".t3/tools/gemini");

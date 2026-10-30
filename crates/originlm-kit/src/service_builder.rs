@@ -252,6 +252,16 @@ async fn probe_metadata(
     if let Some(provider) = NativeProvider::from_id(&located.provider_id)
         && let Some(executable) = located.executable.clone()
     {
+        // The Antigravity ACP server is installed into its own profile home;
+        // the generic discovery root points at the CLI profile instead.
+        let mut located = located;
+        if provider == NativeProvider::Antigravity
+            && executable.file_name().and_then(|name| name.to_str())
+                == Some("agy_acp_server.par")
+            && let Some(parent) = executable.parent()
+        {
+            located.profile_home = parent.to_path_buf();
+        }
         let profile = NativeProfile {
             id: connection.clone(),
             label: provider.id().to_owned(),

@@ -8,6 +8,7 @@ pub enum Action {
     Status,
     Serve,
     Connect,
+    Install(String),
 }
 pub struct Args {
     pub action: Action,
@@ -76,6 +77,14 @@ impl Args {
             Some("scan") => Action::Scan,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
+            Some("install") => {
+                let provider = input
+                    .next()
+                    .and_then(|value| value.into_string().ok())
+                    .filter(|value| value == "antigravity")
+                    .ok_or_else(invalid)?;
+                Action::Install(provider)
+            }
             _ => return Err(invalid()),
         };
         let mut args = Self {
