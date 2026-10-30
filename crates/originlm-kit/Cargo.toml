@@ -9,13 +9,13 @@ description = "In-process OriginLM kit with explicit consent boundaries"
 publish = true
 
 [dependencies]
-originlm-contracts = { version = "0.1.0-alpha.21", path = "../originlm-contracts" }
-originlm-core = { version = "0.1.0-alpha.21", path = "../originlm-core" }
-originlm-service = { version = "0.1.0-alpha.21", path = "../originlm-service" }
-originlm-adapters = { version = "0.1.0-alpha.21", path = "../originlm-adapters" }
-originlm-discovery = { version = "0.1.0-alpha.21", path = "../originlm-discovery" }
-originlm-platform = { version = "0.1.0-alpha.21", path = "../originlm-platform" }
-originlm-chatgpt-auth = { version = "0.1.0-alpha.21", path = "../originlm-chatgpt-auth" }
+originlm-contracts = { version = "0.1.0-alpha.22", path = "../originlm-contracts" }
+originlm-core = { version = "0.1.0-alpha.22", path = "../originlm-core" }
+originlm-service = { version = "0.1.0-alpha.22", path = "../originlm-service" }
+originlm-adapters = { version = "0.1.0-alpha.22", path = "../originlm-adapters" }
+originlm-discovery = { version = "0.1.0-alpha.22", path = "../originlm-discovery" }
+originlm-platform = { version = "0.1.0-alpha.22", path = "../originlm-platform" }
+originlm-chatgpt-auth = { version = "0.1.0-alpha.22", path = "../originlm-chatgpt-auth" }
 tempfile = "3"
 serde.workspace = true
 serde_json.workspace = true
@@ -23,7 +23,7 @@ tokio = { version = "1", features = ["rt"] }
 
 [dev-dependencies]
 axum = "0.8.9"
-originlm-runtime = { version = "0.1.0-alpha.21", path = "../originlm-runtime" }
+originlm-runtime = { version = "0.1.0-alpha.22", path = "../originlm-runtime" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
 

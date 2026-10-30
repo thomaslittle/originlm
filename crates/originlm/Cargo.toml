@@ -13,17 +13,17 @@ name = "originlm"
 path = "src/lib.rs"
 
 [dependencies]
-originlm-platform = { version = "0.1.0-alpha.21", path = "../originlm-platform" }
-originlm-contracts = { version = "0.1.0-alpha.21", path = "../originlm-contracts" }
-originlm-control = { version = "0.1.0-alpha.21", path = "../originlm-control", default-features = false }
-originlm-kit = { version = "0.1.0-alpha.21", path = "../originlm-kit" }
-originlm-transports = { version = "0.1.0-alpha.21", path = "../originlm-transports" }
+originlm-platform = { version = "0.1.0-alpha.22", path = "../originlm-platform" }
+originlm-contracts = { version = "0.1.0-alpha.22", path = "../originlm-contracts" }
+originlm-control = { version = "0.1.0-alpha.22", path = "../originlm-control", default-features = false }
+originlm-kit = { version = "0.1.0-alpha.22", path = "../originlm-kit" }
+originlm-transports = { version = "0.1.0-alpha.22", path = "../originlm-transports" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
 
 [dev-dependencies]
-originlm-discovery = { version = "0.1.0-alpha.21", path = "../originlm-discovery" }
+originlm-discovery = { version = "0.1.0-alpha.22", path = "../originlm-discovery" }
 tempfile = "3"
 
 [lints]

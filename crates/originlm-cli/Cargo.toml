@@ -15,16 +15,16 @@ name = "originlm"
 path = "src/main.rs"
 
 [dependencies]
-originlm-kit = { version = "0.1.0-alpha.21", path = "../originlm-kit" }
-originlm-adapters = { version = "0.1.0-alpha.21", path = "../originlm-adapters" }
-originlm-contracts = { version = "0.1.0-alpha.21", path = "../originlm-contracts" }
-originlm-core = { version = "0.1.0-alpha.21", path = "../originlm-core" }
-originlm-discovery = { version = "0.1.0-alpha.21", path = "../originlm-discovery" }
-originlm-platform = { version = "0.1.0-alpha.21", path = "../originlm-platform" }
-originlm-service = { version = "0.1.0-alpha.21", path = "../originlm-service" }
-originlm-control = { version = "0.1.0-alpha.21", path = "../originlm-control", default-features = false }
-originlm-transports = { version = "0.1.0-alpha.21", path = "../originlm-transports" }
-originlm-chatgpt-auth = { version = "0.1.0-alpha.21", path = "../originlm-chatgpt-auth" }
+originlm-kit = { version = "0.1.0-alpha.22", path = "../originlm-kit" }
+originlm-adapters = { version = "0.1.0-alpha.22", path = "../originlm-adapters" }
+originlm-contracts = { version = "0.1.0-alpha.22", path = "../originlm-contracts" }
+originlm-core = { version = "0.1.0-alpha.22", path = "../originlm-core" }
+originlm-discovery = { version = "0.1.0-alpha.22", path = "../originlm-discovery" }
+originlm-platform = { version = "0.1.0-alpha.22", path = "../originlm-platform" }
+originlm-service = { version = "0.1.0-alpha.22", path = "../originlm-service" }
+originlm-control = { version = "0.1.0-alpha.22", path = "../originlm-control", default-features = false }
+originlm-transports = { version = "0.1.0-alpha.22", path = "../originlm-transports" }
+originlm-chatgpt-auth = { version = "0.1.0-alpha.22", path = "../originlm-chatgpt-auth" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "io-std", "io-util", "signal", "macros", "time"] }

@@ -9,7 +9,7 @@ description = "Policy projection and selection validation for OriginLM"
 publish = true
 
 [dependencies]
-originlm-contracts = { version = "0.1.0-alpha.21", path = "../originlm-contracts" }
+originlm-contracts = { version = "0.1.0-alpha.22", path = "../originlm-contracts" }
 serde.workspace = true
 serde_json.workspace = true
 

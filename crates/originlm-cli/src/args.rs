@@ -18,6 +18,7 @@ pub struct Args {
     pub chatgpt_app_name: Option<String>,
     pub billing_declarations: Option<PathBuf>,
     pub allow_passive: bool,
+    pub allow_identity: bool,
     pub allow_codex_metadata: bool,
     pub warm_metadata: bool,
     pub no_metadata_cache: bool,
@@ -86,6 +87,7 @@ impl Args {
             chatgpt_app_name: None,
             billing_declarations: None,
             allow_passive: false,
+            allow_identity: false,
             allow_codex_metadata: false,
             warm_metadata: false,
             no_metadata_cache: false,
@@ -191,6 +193,9 @@ impl Args {
                 }
                 "--allow-passive-discovery" if matches!(args.action, Action::Serve) => {
                     args.allow_passive = true
+                }
+                "--allow-identity" if matches!(args.action, Action::Serve) => {
+                    args.allow_identity = true
                 }
                 "--executable-only-provider"
                     if matches!(args.action, Action::Serve | Action::Scan) =>

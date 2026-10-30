@@ -23,7 +23,7 @@ Usage:
   originlm status [--json] [--ipc ADDRESS] [--token-file ABSOLUTE_FILE]
       Prints the running helper, its providers and connected apps.
       Exit: 0 running, 3 not running, 4 credential rejected.
-  originlm serve --stdio [--allow-passive-discovery] [--allow-codex-metadata] [--home ABSOLUTE_DIRECTORY]
+  originlm serve --stdio [--allow-passive-discovery] [--allow-identity] [--allow-codex-metadata] [--home ABSOLUTE_DIRECTORY]
   originlm serve --http --port 4499 --assets ABSOLUTE_DIST_DIRECTORY
       [--allow-passive-discovery] [--allow-codex-metadata]
       [--allow-codex-execution --workspace ABSOLUTE_DIRECTORY]
@@ -54,7 +54,7 @@ Serving never scans on startup unless the host passes --warm-metadata (HTTP only
 with --allow-passive-discovery and a metadata provider grant): the helper then runs
 one passive scan and the already-permitted metadata checks in the background, so
 results are ready when a browser pairs. Providers are checked concurrently; the
-profiles of one provider are checked in order. --allow-passive-discovery explicitly
+profiles of one provider are checked in order. --allow-identity reveals the signed-in account label (email) that the provider reported; without it the projection withholds identity. --allow-passive-discovery explicitly
 authorizes metadata-only scans requested by the owning SDK. No credentials or inference.
 --allow-codex-metadata separately permits explicit connections.probe requests
 through the installed Codex client. This may read its login and contact its
