@@ -76,7 +76,7 @@ def _compare_sources(prepared, published):
         extra = sorted(set(right) - set(left))
         raise VerifyError(f'crate member list differs: missing={missing} extra={extra}')
     for name in sorted(left):
-        if name == 'Cargo.lock':
+        if name in ('Cargo.lock', '.cargo_vcs_info.json'):
             continue
         if left[name] != right[name]:
             raise VerifyError(f'crate member differs: {name}')

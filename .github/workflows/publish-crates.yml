@@ -158,7 +158,7 @@ jobs:
           PY
           while IFS=$'\t' read -r name version sha; do
             test -n "$name"
-            if curl -fsS -o /dev/null "https://crates.io/api/v1/crates/$name/$version"; then
+            if curl -fsS -A 'originlm-release (https://github.com/thomaslittle/originlm)' -o /dev/null "https://crates.io/api/v1/crates/$name/$version"; then
               echo "$name $version is already published; skipping"
               continue
             fi
