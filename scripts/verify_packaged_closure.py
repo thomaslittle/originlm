@@ -51,6 +51,35 @@ def _hash(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
+def _lock_summary(path):
+    data = tomllib.loads(pathlib.Path(path).read_text(encoding='utf-8'))
+    registry = [
+        {'name': package['name'], 'version': package['version']}
+        for package in data.get('package', [])
+        if str(package.get('source', '')).startswith('registry+')
+    ]
+    return {'sha256': _hash(path), 'registryPackages': registry}
+
+
+def _resolve_and_check(cwd, toolchain, workspace=False):
+    """Resolve registry dependencies online, then compile only that fresh lock.
+
+    A copied workspace lock would hide a cold-cache/yanked candidate. A new lock
+    proves what a clean registry consumer on the declared MSRV resolves today;
+    the subsequent offline check proves the exact generated lock compiles.
+    """
+    _run(['cargo', f'+{toolchain}', 'generate-lockfile'], cwd)
+    _run(['cargo', f'+{toolchain}', 'fetch', '--locked'], cwd)
+    command = ['cargo', f'+{toolchain}', 'check', '--locked', '--offline']
+    if workspace:
+        command.insert(3, '--workspace')
+    _run(command, cwd)
+    lock = pathlib.Path(cwd) / 'Cargo.lock'
+    if not lock.is_file():
+        raise PackageClosureError('fresh dependency resolution produced no lockfile')
+    return _lock_summary(lock)
+
+
 def _safe_members(archive, crate, name, version):
     expected_root = f'{name}-{version}'
     for member in archive.getmembers():
@@ -152,7 +181,9 @@ def verify(release_dir, toolchain, source_commit=None, out=None):
             + ''.join(f'{name} = {{ path = "{base / name}" }}\n' for name in EXPECTED_ORDER),
             encoding='utf-8',
         )
-        _run(['cargo', f'+{toolchain}', 'check', '--workspace', '--offline'], base)
+        if (base / 'Cargo.lock').exists():
+            raise PackageClosureError('a pre-existing workspace lock would hide fresh resolution')
+        workspace_resolution = _resolve_and_check(base, toolchain, workspace=True)
         consumer = base / 'consumer'
         (consumer / 'src').mkdir(parents=True)
         (consumer / 'Cargo.toml').write_text(
@@ -165,9 +196,9 @@ def verify(release_dir, toolchain, source_commit=None, out=None):
         (consumer / 'src' / 'main.rs').write_text(
             'fn main() { let _ = originlm::LocalAi::start; }\n', encoding='utf-8'
         )
-        _run(['cargo', f'+{toolchain}', 'check', '--offline'], consumer)
+        consumer_resolution = _resolve_and_check(consumer, toolchain)
         evidence = {
-            'schemaVersion': 1,
+            'schemaVersion': 2,
             'kind': 'originlm-packaged-crate-closure',
             'status': 'pass',
             'sourceCommit': manifest.get('sourceCommit'),
@@ -178,16 +209,23 @@ def verify(release_dir, toolchain, source_commit=None, out=None):
                 {'name': name, 'version': records[name][0], 'sha256': records[name][2]}
                 for name in EXPECTED_ORDER
             ],
+            'resolution': {
+                'sourceLockfileCopied': False,
+                'workspace': workspace_resolution,
+                'consumer': consumer_resolution,
+            },
             'checks': {
                 'archiveHashes': True,
                 'safeExtraction': True,
                 'sourcePathLeakage': False,
-                'workspaceCheck': True,
+                'freshRegistryResolution': True,
+                'workspaceLockedCheck': True,
                 'singleFacadeConsumerCheck': True,
+                'consumerLockedCheck': True,
             },
             'limits': [
-                'Offline resolution uses the runner cargo cache for registry dependencies.',
-                'The consumer bootstrap patch maps the unpublished closure to the unpacked reviewed crates.',
+                'Registry dependencies are resolved online once with the declared MSRV, then compiled with --locked --offline from that generated lock.',
+                'The fresh consumer bootstrap patch maps the unpublished closure to the unpacked reviewed crates.',
                 'No runtime/provider action, publication or credential use occurs.',
             ],
         }
