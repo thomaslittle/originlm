@@ -28,6 +28,6 @@ If a consumer needs behavior that OriginLM lacks, propose a **generic** capabili
 ## Enforcement
 
 - Every pull request must attest to this policy in the pull-request template.
-- CI runs `.github/scripts/check_universal_policy.py` against the added lines. It rejects known consumer/business names and fails the PR with the exact match and the refusal reason.
-- Reviewers apply the broader rule for logic that cannot be detected by a name scan. A green CI check does not override this policy.
-- The CI guard posts the refusal reason on the pull request when it fails.
+- Maintainers refuse a pull request that adds application- or business-specific logic, citing the refusal reason above.
+- This is a semantic policy, not a name denylist. The repository does not hardcode consumer names or scan for a fixed list of applications.
+- As real pull requests arrive, we may add generic structural checks. We will not add a consumer-name list.

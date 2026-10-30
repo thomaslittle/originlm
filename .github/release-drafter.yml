@@ -53,7 +53,6 @@ autolabeler:
   - label: policy
     files:
       - 'docs/POLICY-UNIVERSAL-PRODUCT.md'
-      - '.github/scripts/check_universal_policy.py'
   - label: feature
     title:
       - '/^feat/i'

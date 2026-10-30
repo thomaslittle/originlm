@@ -61,7 +61,7 @@ Contract changes start in `crates/originlm-contracts`; `protocol/` and both SDKs
 - Release Drafter keeps a draft release from merged PRs. A maintainer reviews the notes and version and publishes the draft when ready; publishing creates the tag. Registry publication remains the separate gated workflows.
 - Inactive issues and PRs get a 60-day stale warning and close after 21 more days unless pinned, security-related, good first issue, or help wanted.
 - First-time contributors get a welcome message.
-- The only hard block is the universal-product policy. See [contributor automation](docs/CONTRIBUTOR-AUTOMATION.md) for how these rules are tuned as real PRs arrive.
+- The only hard block is the universal-product policy, enforced by the PR attestation and maintainer review; there is no consumer-name denylist. See [contributor automation](docs/CONTRIBUTOR-AUTOMATION.md) for how these rules are tuned as real PRs arrive.
 
 ### Adding or changing a provider
 

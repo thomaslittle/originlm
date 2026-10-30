@@ -40,9 +40,6 @@ policy:
   - changed-files:
       - any-glob-to-any-file:
           - 'docs/POLICY-UNIVERSAL-PRODUCT.md'
-          - '.github/scripts/check_universal_policy.py'
-          - '.github/app-specific-terms.txt'
-          - '.github/workflows/policy.yml'
           - 'CONTRIBUTING.md'
 demo:
   - changed-files:
