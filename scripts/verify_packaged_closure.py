@@ -29,6 +29,7 @@ EXPECTED_ORDER = [
     'originlm-chatgpt-auth', 'originlm-discovery', 'originlm-runtime',
     'originlm-store', 'originlm-service', 'originlm-transports',
     'originlm-control', 'originlm-adapters', 'originlm-kit', 'originlm',
+    'originlm-cli',
 ]
 
 
@@ -190,7 +191,8 @@ def verify(release_dir, toolchain, source_commit=None, out=None):
         (consumer / 'src').mkdir(parents=True)
         (consumer / 'Cargo.toml').write_text(
             '[package]\nname = "originlm-packaged-consumer"\nversion = "0.0.0"\n'
-            'edition = "2024"\n\n[workspace]\n\n[dependencies]\noriginlm = "=0.1.0-alpha.20"\n\n'
+            'edition = "2024"\n\n[workspace]\n\n[dependencies]\n'
+            f'originlm = "={records["originlm"][0]}"\n\n'
             '[patch.crates-io]\n'
             + ''.join(f'{name} = {{ path = "{base / name}" }}\n' for name in EXPECTED_ORDER),
             encoding='utf-8',
