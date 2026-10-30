@@ -158,12 +158,18 @@ jobs:
           PY
           while IFS=$'\t' read -r name version sha; do
             test -n "$name"
+            if curl -fsS -o /dev/null "https://crates.io/api/v1/crates/$name/$version"; then
+              echo "$name $version is already published; skipping"
+              continue
+            fi
             echo "checking cargo publish payload for $name"
             target="$RUNNER_TEMP/cargo-publish-$name"
             rm -rf "$target"
             CARGO_TARGET_DIR="$target" cargo publish --dry-run --package "$name" --locked --no-verify
             python scripts/verify_cargo_publish_payload.py --target-dir "$target" \
-              --name "$name" --version "$version" --expected-sha256 "$sha"
+              --name "$name" --version "$version" --expected-sha256 "$sha" \
+              --prepared-crate "crates-release/$name-$version.crate" \
+              --allow-lock-resolution
             echo "publishing $name"
             cargo publish --package "$name" --locked --no-verify
           done < order.tsv
@@ -171,7 +177,10 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           python scripts/verify_published_crates.py \
-            --manifest crates-release/manifest.json --out crate-publication-evidence.json
+            --manifest crates-release/manifest.json \
+            --prepared-dir crates-release \
+            --allow-lock-resolution \
+            --out crate-publication-evidence.json
       - name: Preserve publication evidence
         if: always()
         uses: actions/upload-artifact@v7
