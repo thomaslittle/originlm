@@ -35,16 +35,16 @@ const TRACKS: Record<Track, { title: string; blurb: string; badge: string; comma
   project: {
     title: "Add to your project",
     blurb: "The SDK speaks to the service, or bundles the helper itself.",
-    badge: "pre-release",
+    badge: "alpha",
     commands: [
-      { id: "npm", label: "npm", command: "npm install ./originlm-sdk.tgz" },
-      { id: "pnpm", label: "pnpm", command: "pnpm add ./originlm-sdk.tgz" },
-      { id: "bun", label: "bun", command: "bun add ./originlm-sdk.tgz" },
-      { id: "yarn", label: "yarn", command: "yarn add ./originlm-sdk.tgz" },
-      { id: "cargo", label: "cargo", command: "cargo add originlm --path ./originlm/crates/originlm" },
-      { id: "pip", label: "pip", command: "pip install ./originlm_preview.whl" },
+      { id: "npm", label: "npm", command: "npm install originlm@0.1.0-alpha.20" },
+      { id: "pnpm", label: "pnpm", command: "pnpm add originlm@0.1.0-alpha.20" },
+      { id: "bun", label: "bun", command: "bun add originlm@0.1.0-alpha.20" },
+      { id: "yarn", label: "yarn", command: "yarn add originlm@0.1.0-alpha.20" },
+      { id: "cargo", label: "cargo", command: "cargo add originlm@=0.1.0-alpha.21" },
+      { id: "pip", label: "pip", command: "pip install originlm==0.1.0a20" },
     ],
-    foot: "Use the actual tarball or wheel filename from your local bundle; the filenames above illustrate local installation. Registry packages are not published. Cargo links the runtime; npm and Python clients speak the local protocol.",
+    foot: "Published packages: the Rust crates are at 0.1.0-alpha.21; npm and PyPI are at 0.1.0-alpha.20. Cargo links the runtime, and the helper crate is cargo install originlm-cli@=0.1.0-alpha.21. npm and Python clients speak the local protocol.",
   },
 };
 
