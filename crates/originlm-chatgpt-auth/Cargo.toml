@@ -9,7 +9,7 @@ description = "Local ChatGPT sign-in and credential handling for OriginLM"
 publish = true
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 getrandom = "0.3"
 fs4 = "0.13"
 jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }

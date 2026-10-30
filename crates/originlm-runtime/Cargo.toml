@@ -8,7 +8,7 @@ repository.workspace = true
 description = "In-process session, turn, and event runtime for OriginLM"
 publish = true
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
 serde.workspace = true
 serde_json.workspace = true
