@@ -485,8 +485,9 @@ fn build_execution(
                                 "Native executable unavailable",
                             )
                         })?;
-                        return originlm_adapters::opencode::server::open_session(
+                        return originlm_adapters::opencode::open_session(
                             &executable,
+                            input.located.scope.as_ref(),
                             input.model,
                             input.route_provider_id,
                             input.workspace,

@@ -49,8 +49,12 @@ pub async fn open(
     let response = endpoint.json("api/session", Some(json!({"title":"OriginLM text session", "location":{"directory":directory}, "model":selected, "permissions":permissions()}))).await?;
     let session = &response["data"];
     let id = safe_id(&session["id"])?;
+    // The service adds its default variant to the returned model; compare the
+    // fields the caller selected instead of requiring exact object equality.
+    let confirmed_model = session["model"]["providerID"] == selected["providerID"]
+        && session["model"]["id"] == selected["id"];
     if session["permissions"] != permissions()
-        || session["model"] != selected
+        || !confirmed_model
         || session["location"]["directory"] != directory
     {
         let _ = endpoint.delete(&format!("api/session/{id}"), &[]).await;
@@ -298,9 +302,25 @@ impl Client {
                     return Ok(());
                 }
                 "session.execution.failed" => {
+                    let error = &body["error"];
+                    let message = error["message"]
+                        .as_str()
+                        .unwrap_or("text generation failed");
+                    let status = error["status"].as_u64();
+                    let bounded: String = message
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .take(400)
+                        .collect();
+                    let code = match (error["type"].as_str(), status) {
+                        (Some("provider.quota"), _)
+                        | (_, Some(402))
+                        | (_, Some(429)) => ErrorCode::RateLimited,
+                        _ => ErrorCode::ProviderUnavailable,
+                    };
                     return Err(DomainError::new(
-                        ErrorCode::ProviderUnavailable,
-                        "OpenCode 2 text generation failed",
+                        code,
+                        format!("OpenCode 2: {bounded}"),
                     ));
                 }
                 "session.execution.interrupted" => {

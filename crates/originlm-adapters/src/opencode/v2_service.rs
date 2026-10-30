@@ -4,8 +4,8 @@
 //! owner-only service descriptor, asks the running service for its provider
 //! catalog and workspace limits, and reports those observations. It does not
 //! start a second service, import credentials, or contact a remote account
-//! service itself. Execution remains unavailable until the v2 ACP/text client
-//! is independently wired.
+//! service itself. Text execution reuses the same owner-only service through
+//! the v2 session/prompt/event API.
 
 use crate::{
     http::{Authentication, Endpoint},
@@ -14,6 +14,7 @@ use crate::{
 use chrono::DateTime;
 use originlm_contracts::*;
 use originlm_discovery::ProfileScope;
+use originlm_runtime::Agent;
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
@@ -263,6 +264,31 @@ pub async fn probe_scoped(
     probe_endpoint(&url, &password, connection, route, version).await
 }
 
+/// Open a text-only session on the installed OpenCode 2 service. Starts the
+/// owner's own background service only when its descriptor is missing or stale;
+/// the service supplies its own credentials.
+pub async fn open_session(
+    executable: &Path,
+    scope: Option<&ProfileScope>,
+    model: Model,
+    provider: String,
+    workspace: PathBuf,
+) -> Result<Box<dyn Agent>> {
+    let (url, password) = match service(scope) {
+        Ok(value) => value,
+        Err(_) => {
+            ensure_service(executable, scope).await?;
+            service(scope)?
+        }
+    };
+    let endpoint = Endpoint::new(
+        &format!("{url}/"),
+        Authentication::Basic("opencode".into(), password),
+        true,
+    )?;
+    super::client_v2::open(endpoint, model, provider, workspace).await
+}
+
 /// Probe the installed OpenCode 2 service, starting the owner's own background
 /// service when the descriptor is missing or points at a stopped process. The
 /// service supplies its own credentials; none are read or replaced here.
@@ -365,10 +391,7 @@ async fn probe_endpoint(
             .map(|route| route.id.clone());
         metadata.quota_pools = quota_windows(connection, route, go_route.as_deref(), limits)?;
     }
-    metadata.diagnostics = vec![
-        "OPENCODE_2_METADATA_FROM_LOCAL_SERVICE".into(),
-        "OPENCODE_2_EXECUTION_NOT_WIRED".into(),
-    ];
+    metadata.diagnostics = vec!["OPENCODE_2_METADATA_FROM_LOCAL_SERVICE".into()];
     Ok(metadata)
 }
 
