@@ -54,6 +54,15 @@ Contract changes start in `crates/originlm-contracts`; `protocol/` and both SDKs
 5. Update the docs you affect: the [support matrix](docs/adapters/SUPPORT-MATRIX.md), the relevant [integration guide](docs/integration/), the [changelog](CHANGELOG.md) under *Unreleased*, and generated files.
 6. Open a pull request using the template. Do not force-push over other people's work.
 
+### PR automation (soft start)
+
+- Conventional PR titles (`feat:`, `fix:`, `docs:`, ...) are recommended; the title check is advisory for now.
+- Labels are applied from changed paths and PR titles. They are suggestions, not gates.
+- Release Drafter keeps a draft release from merged PRs. A maintainer reviews the notes and version and publishes the draft when ready; publishing creates the tag. Registry publication remains the separate gated workflows.
+- Inactive issues and PRs get a 60-day stale warning and close after 21 more days unless pinned, security-related, good first issue, or help wanted.
+- First-time contributors get a welcome message.
+- The only hard block is the universal-product policy. See [contributor automation](docs/CONTRIBUTOR-AUTOMATION.md) for how these rules are tuned as real PRs arrive.
+
 ### Adding or changing a provider
 
 Read the [adapter authoring guide](docs/adapters/AUTHORING.md). A provider contribution needs:

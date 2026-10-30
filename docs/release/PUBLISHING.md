@@ -5,6 +5,21 @@ builds local-installable **unsigned** artifacts. It has read-only repository
 permissions, uses no signing or registry secrets, and cannot publish. A tag does
 not release anything.
 
+## Draft releases and tags
+
+Release Drafter maintains a draft GitHub release from merged pull requests. It
+does not publish packages or create a tag until a maintainer publishes the draft.
+
+1. Review the draft release notes and set the exact version/tag (for example
+   `v0.1.0-alpha.21`).
+2. Run the preparation workflows for that source commit.
+3. Review the generated artifacts and evidence.
+4. Publish the draft release. This creates the tag.
+5. Run the gated registry publishers with the release version.
+
+A tag or draft release is not a registry publication. The publish workflows
+remain the authority for artifacts and credentials.
+
 ## Prepare
 
 ```sh

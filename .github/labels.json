@@ -1,0 +1,23 @@
+[
+  {"name": "bug", "color": "d73a4a", "description": "Something is not working"},
+  {"name": "enhancement", "color": "a2eeef", "description": "New feature or request"},
+  {"name": "feature", "color": "a2eeef", "description": "New capability"},
+  {"name": "documentation", "color": "0075ca", "description": "Documentation"},
+  {"name": "dependencies", "color": "0366d6", "description": "Dependency updates"},
+  {"name": "rust", "color": "dea584", "description": "Rust crates"},
+  {"name": "typescript", "color": "3178c6", "description": "TypeScript and JavaScript packages"},
+  {"name": "python", "color": "3572A5", "description": "Python SDK or scripts"},
+  {"name": "ci", "color": "ededed", "description": "CI and workflows"},
+  {"name": "release", "color": "fbca04", "description": "Release preparation and publishing"},
+  {"name": "policy", "color": "5319e7", "description": "Universal product policy"},
+  {"name": "demo", "color": "c5def5", "description": "React showcase"},
+  {"name": "adapters", "color": "1d76db", "description": "Provider adapters"},
+  {"name": "needs-info", "color": "d876e3", "description": "Waiting for more information"},
+  {"name": "stale", "color": "ededed", "description": "Inactive; will close"},
+  {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+  {"name": "help wanted", "color": "008672", "description": "Extra attention is welcome"},
+  {"name": "pinned", "color": "000000", "description": "Exempt from stale handling"},
+  {"name": "security", "color": "b60205", "description": "Security-sensitive"},
+  {"name": "breaking", "color": "b60205", "description": "Breaking change"},
+  {"name": "skip-changelog", "color": "ffffff", "description": "Exclude from release notes"}
+]
