@@ -5102,12 +5102,12 @@ dependencies = [
 name = "originlm"
 version = "0.1.0-alpha.22"
 dependencies = [
- "originlm-contracts",
- "originlm-control",
- "originlm-discovery",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-control 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
  "originlm-kit",
- "originlm-platform",
- "originlm-transports",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-transports 0.1.0-alpha.22",
  "serde",
  "serde_json",
  "tempfile",
@@ -5121,10 +5121,10 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.3.4",
- "originlm-contracts",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-runtime 0.1.0-alpha.22",
  "process-wrap",
  "reqwest",
  "rusqlite",
@@ -5160,19 +5160,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm-chatgpt-auth"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42e9f505eac6b3fc4028766169c294b2c1277cc301e4b15bb08cdfe86cc60bff"
+dependencies = [
+ "aws-lc-rs",
+ "base64",
+ "fs4",
+ "getrandom 0.3.4",
+ "jsonwebtoken",
+ "keyring",
+ "reqwest",
+ "ring",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "originlm-cli"
 version = "0.1.0-alpha.22"
 dependencies = [
  "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-control",
- "originlm-core",
- "originlm-discovery",
+ "originlm-chatgpt-auth 0.1.0-alpha.22",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-control 0.1.0-alpha.22",
+ "originlm-core 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
  "originlm-kit",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-service 0.1.0-alpha.22",
+ "originlm-transports 0.1.0-alpha.22",
  "serde",
  "serde_json",
  "tempfile",
@@ -5193,17 +5217,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm-contracts"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54f0a07287a64355df00657dec23d4c5f36a79ad2e1aa1034230c4b1e1664a45"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "originlm-control"
 version = "0.1.0-alpha.22"
 dependencies = [
  "chrono",
  "crossterm",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-service",
- "originlm-transports",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-core 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-service 0.1.0-alpha.22",
+ "originlm-transports 0.1.0-alpha.22",
  "ratatui",
  "serde",
  "serde_json",
@@ -5212,24 +5251,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm-control"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72c1be4a83e1bba32ca3b211e8a1e6bb8410d0bd1411f065f85f2e133ea3bf71"
+dependencies = [
+ "chrono",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-platform 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-transports 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "originlm-core"
 version = "0.1.0-alpha.22"
 dependencies = [
- "originlm-contracts",
+ "originlm-contracts 0.1.0-alpha.22",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "originlm-core"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da7b8ec88e1d447cf72ea6630819845e4df9f794b23c0062d864a8e1a56b87ea"
+dependencies = [
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "originlm-desktop"
-version = "0.1.0-alpha.18"
+version = "0.1.0-alpha.22"
 dependencies = [
  "chrono",
  "gpui-kit",
  "image",
- "originlm-contracts",
- "originlm-control",
- "originlm-platform",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-control 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-platform 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -5238,11 +5303,23 @@ dependencies = [
 name = "originlm-discovery"
 version = "0.1.0-alpha.22"
 dependencies = [
- "originlm-contracts",
- "originlm-platform",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-platform 0.1.0-alpha.22",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+]
+
+[[package]]
+name = "originlm-discovery"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "952b56b282bb95ae0787940dab1d61f81b9491f5663593488725413fbecb50e1"
+dependencies = [
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-platform 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -5251,13 +5328,13 @@ version = "0.1.0-alpha.22"
 dependencies = [
  "axum",
  "originlm-adapters",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-service",
+ "originlm-chatgpt-auth 0.1.0-alpha.22",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-core 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-runtime 0.1.0-alpha.22",
+ "originlm-service 0.1.0-alpha.22",
  "serde",
  "serde_json",
  "tempfile",
@@ -5271,8 +5348,20 @@ dependencies = [
  "file-id",
  "libc",
  "notify",
- "originlm-contracts",
+ "originlm-contracts 0.1.0-alpha.22",
  "tempfile",
+]
+
+[[package]]
+name = "originlm-platform"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00b81375e0bfd303596189a28a0c0154021ed221bc106e5f86f63de182028fe0"
+dependencies = [
+ "file-id",
+ "libc",
+ "notify",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5280,7 +5369,20 @@ name = "originlm-runtime"
 version = "0.1.0-alpha.22"
 dependencies = [
  "base64",
- "originlm-contracts",
+ "originlm-contracts 0.1.0-alpha.22",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "originlm-runtime"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd979fb9be86b19b47577568335a73ffb18f39894d6d3d87e1ff0a94d7fbb533"
+dependencies = [
+ "base64",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "tokio",
@@ -5294,13 +5396,13 @@ dependencies = [
  "chrono",
  "getrandom 0.3.4",
  "notify-rust",
- "originlm-chatgpt-auth",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-platform",
- "originlm-runtime",
- "originlm-store",
+ "originlm-chatgpt-auth 0.1.0-alpha.22",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-core 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
+ "originlm-platform 0.1.0-alpha.22",
+ "originlm-runtime 0.1.0-alpha.22",
+ "originlm-store 0.1.0-alpha.22",
  "ring",
  "serde",
  "serde_json",
@@ -5309,15 +5411,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm-service"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0135d7b129edafc213c91c1a9eba086ec921078cda4eec51614ef7d6e0fcf447"
+dependencies = [
+ "base64",
+ "chrono",
+ "getrandom 0.3.4",
+ "originlm-chatgpt-auth 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-core 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-discovery 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-platform 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-runtime 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-store 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ring",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "originlm-store"
 version = "0.1.0-alpha.22"
 dependencies = [
  "getrandom 0.3.4",
- "originlm-contracts",
+ "originlm-contracts 0.1.0-alpha.22",
  "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "originlm-store"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce49f6d3b84f2bbbb97193dba82bf1f5ae6f64a7c49c4fbce3406f3f3fea228"
+dependencies = [
+ "getrandom 0.3.4",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusqlite",
+ "serde",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 
@@ -5329,12 +5467,32 @@ dependencies = [
  "axum",
  "getrandom 0.3.4",
  "interprocess",
- "originlm-contracts",
- "originlm-core",
- "originlm-discovery",
- "originlm-runtime",
- "originlm-service",
+ "originlm-contracts 0.1.0-alpha.22",
+ "originlm-core 0.1.0-alpha.22",
+ "originlm-discovery 0.1.0-alpha.22",
+ "originlm-runtime 0.1.0-alpha.22",
+ "originlm-service 0.1.0-alpha.22",
  "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "widestring",
+]
+
+[[package]]
+name = "originlm-transports"
+version = "0.1.0-alpha.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb574c5e845020c2b4d2b33d5e6669fb0b4ed7d21f316da4c8e7f9e15c967c48"
+dependencies = [
+ "async-stream",
+ "axum",
+ "getrandom 0.3.4",
+ "interprocess",
+ "originlm-contracts 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-core 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "originlm-service 0.1.0-alpha.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -5349,7 +5507,7 @@ dependencies = [
  "base64",
  "fs4",
  "getrandom 0.3.4",
- "originlm-contracts",
+ "originlm-contracts 0.1.0-alpha.22",
  "ring",
  "semver",
  "serde",

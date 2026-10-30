@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- build(desktop): the GPUI control center now consumes the published `originlm-control`, `originlm-platform` and `originlm-contracts` crates at `=0.1.0-alpha.22` instead of path crates, and inherits the workspace version.
 - release(alpha.22): add the host-owned `--allow-identity` opt-in so an app-managed helper can reveal the provider-reported signed-in account label (email); without it the projection still withholds identity. The 14-crate closure is published at `0.1.0-alpha.22`; npm and PyPI remain at `0.1.0-alpha.20`.
 - release(alpha.21): wire the OpenCode 2 text execution client into the service builder, dispatch 2.x sessions to the owner's local service API, accept the service's default model variant, and surface provider failure text. The 13-crate closure, npm platform packages and PyPI wheels are published at `0.1.0-alpha.21` / `0.1.0a21`.
 - release(alpha.20): publish `originlm@0.1.0-alpha.20` to npm with five platform packages, `originlm==0.1.0a20` to PyPI with five wheels, and the 13-crate Rust closure to crates.io. The Windows npm package is `originlm-cli-windows-x64`. Runtime archives remain unsigned.
