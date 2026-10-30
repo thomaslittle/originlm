@@ -29,16 +29,16 @@
     "doctor": "npm run doctor -w @originlm/demo"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.13.0",
-    "@playwright/test": "1.63.0",
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "@types/node": "22.20.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "esbuild": "0.28.2",
     "jsdom": "29.1.1",
-    "react": "19.3.0",
-    "react-doctor": "0.9.14",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-doctor": "0.9.18",
+    "react-dom": "19.3.1",
     "typescript": "7.0.2"
   },
   "overrides": {
