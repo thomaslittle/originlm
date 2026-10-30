@@ -104,6 +104,22 @@ impl ProviderDefinition {
             // OpenCode's own installer places the binary here even when it is
             // not on PATH. T3 Code treats this path as a native install.
             ("opencode", _) => vec![crate::join_relative(&env.home, ".opencode/bin")],
+            // T3 Code installs the Gemini CLI under its managed tools directory.
+            // A Rust host that shares the same machine can use that install
+            // without requiring a second copy on PATH.
+            ("gemini_cli", _) => {
+                let mut dirs = vec![crate::join_relative(&env.home, ".local/bin")];
+                let tools = crate::join_relative(&env.home, ".t3/tools/gemini");
+                if let Ok(entries) = std::fs::read_dir(&tools) {
+                    for entry in entries.flatten() {
+                        let dir = entry.path().join("npm/bin");
+                        if dir.is_dir() {
+                            dirs.push(dir);
+                        }
+                    }
+                }
+                dirs
+            }
             _ => vec![],
         }
     }

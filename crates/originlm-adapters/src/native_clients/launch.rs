@@ -117,9 +117,11 @@ fn gemini_executable(candidate: &Path) -> Result<(PathBuf, Vec<OsString>)> {
     let mut entries = vec![
         parent.join("node_modules/@google/gemini-cli/dist/index.js"),
         parent.join("../lib/node_modules/@google/gemini-cli/dist/index.js"),
+        parent.join("node_modules/@google/gemini-cli/bundle/gemini.js"),
+        parent.join("../lib/node_modules/@google/gemini-cli/bundle/gemini.js"),
     ];
     if let Ok(real) = candidate.canonicalize()
-        && name(&real) == "index.js"
+        && matches!(name(&real).as_str(), "index.js" | "gemini.js")
     {
         entries.push(real);
     }
