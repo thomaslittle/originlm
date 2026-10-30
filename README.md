@@ -13,7 +13,7 @@ operation-specific.
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
 
-> **Published alpha.** The API can change between `0.1.0-alpha.N` revisions. npm `originlm` and PyPI `originlm` are published at `0.1.0-alpha.21`; the Rust `originlm` facade and its 13-crate closure are published at `0.1.0-alpha.21`. Start with the [install guide](docs/integration/install.md) or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+> **Published alpha.** The API can change between `0.1.0-alpha.N` revisions. The Rust `originlm` facade, the `originlm-cli` helper and their 14-crate closure are published at `0.1.0-alpha.21`; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run. Start with the [install guide](docs/integration/install.md) or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
 
 ```sh
 npm install originlm

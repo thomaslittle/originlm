@@ -2,7 +2,7 @@
 
 OriginLM has two equal entry points: a control center to see your AI, and SDKs
 for apps built on the AI a user already has. Neither requires an OriginLM account.
-The packages are published at `0.1.0-alpha.21`, including the Rust facade and its 14-crate closure:
+The Rust crates are published at `0.1.0-alpha.21`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
 
 ```sh
 npm install originlm
