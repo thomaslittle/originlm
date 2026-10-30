@@ -243,13 +243,14 @@ fn prepare_for(
             env.insert("ANTIGRAVITY_HARNESS_PATH".into(), harness.into_os_string());
             env.insert("PYTHONUNBUFFERED".into(), "1".into());
             env.insert("ELECTRON_RUN_AS_NODE".into(), "1".into());
-            auth_method = Some(
-                profile
-                    .auth_method
-                    .clone()
-                    .or_else(|| cached_auth(&profile.profile_home))
-                    .unwrap_or_else(|| "oauth-personal".into()),
-            );
+            // Metadata probes must not start an interactive OAuth flow. Use
+            // only a host-declared method or one already recorded by the
+            // provider; otherwise the probe reports AUTH_REQUIRED and the host
+            // can start sign-in deliberately.
+            auth_method = profile
+                .auth_method
+                .clone()
+                .or_else(|| cached_auth(&profile.profile_home));
             (
                 profile.executable.clone(),
                 if cfg!(target_os = "linux") {
