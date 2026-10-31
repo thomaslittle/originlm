@@ -89,7 +89,14 @@ impl Wire {
         host_mcp_servers: &[HostMcpServer],
     ) -> Result<Self> {
         let _ = host_mcp_servers;
-        Self::initialized(spec, provider, route, Some(method), Duration::from_secs(300)).await
+        Self::initialized(
+            spec,
+            provider,
+            route,
+            Some(method),
+            Duration::from_secs(300),
+        )
+        .await
     }
 
     pub async fn connect_with_auth(
