@@ -9,7 +9,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 fn path_key(path: &Path) -> String {
-    format!("{:x}", Sha256::digest(path.as_os_str().as_encoded_bytes()))
+    Sha256::digest(path.as_os_str().as_encoded_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 fn preferred_executable(
     binaries: &BTreeSet<std::path::PathBuf>,
