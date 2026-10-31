@@ -227,10 +227,22 @@ fn start_local() -> Result<(String, String), String> {
                         return;
                     }
                 };
+                let mut policy = ClientPolicy::passive();
+                policy.admin = true;
+                // The private runtime exists to show this machine's AI. Allow
+                // read-only metadata probes for the providers discovery knows
+                // about; execution, identity reveal and paid options stay off.
+                policy.probe_provider_ids = originlm_discovery::definitions()
+                    .iter()
+                    .map(|definition| definition.id.to_owned())
+                    .collect();
                 let service = kit.service();
-                // The credential grants passive discovery, so let the runtime
-                // populate its in-memory inventory without waiting for Reload.
+                // Keep the verified state fresh: passive inventory plus the
+                // same provider metadata grants the window uses for its one-shot
+                // probes. Without this lane, auth evidence goes stale after the
+                // provider freshness window and the UI falls back to 0 verified.
                 service.enable_inventory_refresh(true);
+                service.enable_autonomous_refresh(policy.probe_provider_ids.clone());
                 service.start_background_tasks();
                 let broker = match Broker::start_with(service, &address, BrokerOptions::default())
                     .await
@@ -243,15 +255,6 @@ fn start_local() -> Result<(String, String), String> {
                         return;
                     }
                 };
-                let mut policy = ClientPolicy::passive();
-                policy.admin = true;
-                // The private runtime exists to show this machine's AI. Allow
-                // read-only metadata probes for the providers discovery knows
-                // about; execution, identity reveal and paid options stay off.
-                policy.probe_provider_ids = originlm_discovery::definitions()
-                    .iter()
-                    .map(|definition| definition.id.to_owned())
-                    .collect();
                 let token = match broker.authorize_shared(policy, None) {
                     Ok(token) => token,
                     Err(_) => {
@@ -284,6 +287,10 @@ mod tests {
         let mut client = BrokerClient::connect(&address, &token).expect("connect");
         client.snapshot().expect("snapshot");
         client.apps().expect("administrative apps list");
+        let health = client
+            .call("runtime.health", serde_json::json!({}))
+            .expect("runtime health");
+        assert_eq!(health["autonomousRefresh"], true);
         client.close();
     }
 
