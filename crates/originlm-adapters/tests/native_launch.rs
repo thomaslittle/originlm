@@ -1,6 +1,6 @@
 use originlm_adapters::native_clients::{
     config::*,
-    launch::{prepare, prepare_execution},
+    launch::{prepare, prepare_auth, prepare_execution},
 };
 use originlm_contracts::*;
 use std::{fs, path::Path};
@@ -72,7 +72,9 @@ fn google_acp_requires_native_harness_and_blocked_interactive_browser() {
             .env
             .contains_key(std::ffi::OsStr::new("GEMINI_API_KEY"))
     );
-    assert_eq!(launch.auth_method.as_deref(), Some("oauth-personal"));
+    assert!(launch.auth_method.is_none());
+    let auth_launch = prepare_auth(&p, root.path(), &blocker).unwrap();
+    assert_eq!(auth_launch.auth_method.as_deref(), Some("oauth-personal"));
     assert!(launch.scratch.path().is_dir());
 }
 #[test]
