@@ -43,7 +43,7 @@ pub struct NativeProfile {
     #[serde(default)]
     pub billing: Option<BillingMode>,
 }
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NativeRegistry {
     pub profiles: BTreeMap<String, NativeProfile>,
     pub browser_blocker: Option<PathBuf>,
@@ -156,6 +156,7 @@ pub fn inject_managed_codex(scan: &mut ScanResult, state_dir: &Path) {
             provider_id: "codex_managed".into(),
             profile_home: home,
             executable: Some(executable),
+            scope: None,
         },
     );
 }
@@ -265,6 +266,7 @@ impl NativeRegistry {
                     provider_id: provider.into(),
                     profile_home: p.profile_home.clone(),
                     executable: Some(p.executable.clone()),
+                    scope: None,
                 },
             );
         }

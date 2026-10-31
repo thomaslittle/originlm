@@ -11,7 +11,7 @@ See the [migration guide](../../docs/integration/migration.md) before connecting
 
 ## Brand assets
 
-The sidebar and window icon use the supplied full-color GPUI PNG. Horizontal light/dark lockups and standalone amber/ink/white marks remain available for exports. [Provenance](assets/brand/PROVENANCE.md) records the replacement source. Platform ICO, ICNS, Linux and tray resources are under `brand/native/`; wiring platform installers remains a release task. Existing Red Hat Display and provider icon notices are preserved.
+The sidebar and window icon use the supplied full-color GPUI PNG. Horizontal light/dark lockups and standalone amber/ink/white marks remain available for exports. [Provenance](assets/brand/PROVENANCE.md) records the replacement source. Platform ICO, ICNS, Linux and tray resources are under `brand/native/`; wiring platform installers remains a release task. Existing Red Hat Display and provider icon notices are preserved. The in-app inner opening follows the pointer while the outer icon stays fixed; reduced motion keeps the original static image. Set `ORIGINLM_REDUCED_MOTION=1` to disable decorative motion, or `0` to override the startup OS preference.
 
 Built on [GPUI Kit](https://gpui-kit.com) with the
 [GPUI Fast](https://github.com/longbridge/gpui-fast) backend: one dependency

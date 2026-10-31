@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Close, Github, Menu } from "./Icon";
-import logo from "../assets/brand/originlm-horizontal-dark.svg";
+import { BrandLogo } from "./BrandLogo";
 
 const LINKS = [
   { label: "See your AI", href: "#paths-title" },
@@ -33,7 +33,7 @@ export function Nav() {
     <nav className="nav" data-scrolled={scrolled} aria-label="Primary">
       <div className="container nav-bar">
         <a className="nav-logo" href="#top" aria-label="OriginLM home">
-          <img src={logo} alt="OriginLM" width={906} height={208} />
+          <BrandLogo />
         </a>
 
         <ul className="nav-links">

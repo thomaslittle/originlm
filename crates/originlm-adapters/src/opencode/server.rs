@@ -11,6 +11,7 @@ use crate::{
     process::{LaunchSpec, ManagedChild, capture},
 };
 use originlm_contracts::*;
+use originlm_discovery::ProfileScope;
 use originlm_runtime::{Agent, BoxFuture, TurnContext};
 use serde_json::Value;
 use std::{
@@ -105,7 +106,19 @@ pub struct ManagedServer {
 /// Start `opencode serve` in `cwd` and wait until its authenticated
 /// `/provider` endpoint answers.
 pub async fn start(located_executable: &Path, cwd: &Path) -> Result<ManagedServer> {
+    start_scoped(located_executable, cwd, None).await
+}
+
+/// Start `opencode serve` with an exact account scope. When `scope` is present,
+/// HOME/XDG roots are replaced inside the child instead of inherited from the
+/// host process.
+pub async fn start_scoped(
+    located_executable: &Path,
+    cwd: &Path,
+    scope: Option<&ProfileScope>,
+) -> Result<ManagedServer> {
     let executable = resolve_executable(located_executable)?;
+    let environment = scope.map(super::scope_environment).unwrap_or_default();
     // OpenCode 2 uses a different launch and HTTP/event protocol. Do not
     // start it with legacy flags or infer a generation from a 200 HTML page.
     let version = capture(
@@ -113,7 +126,7 @@ pub async fn start(located_executable: &Path, cwd: &Path) -> Result<ManagedServe
             executable: executable.clone(),
             args: vec!["--version".into()],
             cwd: cwd.into(),
-            env: BTreeMap::new(),
+            env: environment.clone(),
         },
         Duration::from_secs(4),
     )
@@ -121,6 +134,8 @@ pub async fn start(located_executable: &Path, cwd: &Path) -> Result<ManagedServe
     super::version::require_legacy(&version)?;
     let port = free_port()?;
     let secret = password();
+    let mut environment = environment;
+    environment.insert("OPENCODE_SERVER_PASSWORD".into(), secret.clone().into());
     let mut child = ManagedChild::spawn(LaunchSpec {
         executable,
         args: vec![
@@ -130,7 +145,7 @@ pub async fn start(located_executable: &Path, cwd: &Path) -> Result<ManagedServe
             format!("--port={port}").into(),
         ],
         cwd: cwd.into(),
-        env: BTreeMap::from([("OPENCODE_SERVER_PASSWORD".into(), secret.clone().into())]),
+        env: environment,
     })?;
     let endpoint = Endpoint::new(
         &format!("http://127.0.0.1:{port}/"),
@@ -176,6 +191,18 @@ pub async fn probe(
     connection: &str,
     route: &str,
 ) -> Result<ConnectionMetadata> {
+    probe_scoped(located_executable, None, connection, route).await
+}
+
+/// Probe with an exact account scope. A scoped OpenCode request reads and
+/// starts only that account's service descriptor; it never falls back to the
+/// process-global HOME/XDG service.
+pub async fn probe_scoped(
+    located_executable: &Path,
+    scope: Option<&ProfileScope>,
+    connection: &str,
+    route: &str,
+) -> Result<ConnectionMetadata> {
     let executable = resolve_executable(located_executable)?;
     let cwd = std::env::current_dir().map_err(|_| {
         DomainError::new(
@@ -183,18 +210,26 @@ pub async fn probe(
             "OpenCode working directory is unavailable",
         )
     })?;
+    let environment = scope.map(super::scope_environment).unwrap_or_default();
     let version = capture(
         LaunchSpec {
-            executable,
+            executable: executable.clone(),
             args: vec!["--version".into()],
             cwd,
-            env: BTreeMap::new(),
+            env: environment,
         },
         Duration::from_secs(4),
     )
     .await?;
     if super::version::installed_major(&version) == Some(2) {
-        return super::v2_service::probe(connection, route, &version).await;
+        return super::v2_service::probe_with_install(
+            &executable,
+            scope,
+            connection,
+            route,
+            &version,
+        )
+        .await;
     }
     let dir = tempfile::Builder::new()
         .prefix("originlm-opencode-probe-")
@@ -205,7 +240,7 @@ pub async fn probe(
                 "Isolated workspace unavailable",
             )
         })?;
-    let mut server = start(located_executable, dir.path()).await?;
+    let mut server = start_scoped(&executable, dir.path(), scope).await?;
     let result = super::catalog(connection, route, &server.providers, &BTreeMap::new());
     server.child.shutdown().await;
     result

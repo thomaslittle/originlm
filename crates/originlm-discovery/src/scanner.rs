@@ -53,6 +53,19 @@ impl<F: LocalFilesystem> Scanner<F> {
         &self,
         env: &ScanEnvironment,
         cancel: &AtomicBool,
+        progress: impl FnMut(&Snapshot),
+    ) -> Result<ScanResult> {
+        self.scan_selected(env, &[], cancel, progress)
+    }
+
+    /// Scan only the named providers. An empty slice keeps the full registry.
+    /// This is the supported path for a host-owned per-account scope; it does
+    /// not widen discovery to unrelated providers under the same home.
+    pub fn scan_selected(
+        &self,
+        env: &ScanEnvironment,
+        providers: &[&str],
+        cancel: &AtomicBool,
         mut progress: impl FnMut(&Snapshot),
     ) -> Result<ScanResult> {
         cancelled(cancel)?;
@@ -101,6 +114,9 @@ impl<F: LocalFilesystem> Scanner<F> {
         };
         let mut installations = BTreeSet::new();
         for definition in definitions() {
+            if !providers.is_empty() && !providers.contains(&definition.id) {
+                continue;
+            }
             cancelled(cancel)?;
             let executable_only = self.executable_only_providers.contains(definition.id);
             let mut binaries = BTreeSet::new();
@@ -213,6 +229,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                             provider_id: definition.id.into(),
                             profile_home: env.home.clone(),
                             executable: Some(executable),
+                            scope: None,
                         },
                     );
                 }
@@ -380,6 +397,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                             provider_id: definition.id.into(),
                             profile_home: root.clone(),
                             executable,
+                            scope: None,
                         },
                     );
                 }

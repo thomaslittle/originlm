@@ -200,6 +200,9 @@ name = "arbitrary"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed"
+dependencies = [
+ "derive_arbitrary",
+]
 
 [[package]]
 name = "arc-swap"
@@ -1376,6 +1379,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 
 [[package]]
+name = "derive_arbitrary"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b034bd7d5f032402a2479444dcc6f74e36a03f31854d41680fb240ef682a1ac"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "derive_more"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1458,7 +1472,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.3",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1672,7 +1686,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3880,9 +3894,9 @@ dependencies = [
 
 [[package]]
 name = "jsonwebtoken"
-version = "10.3.0"
+version = "11.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0529410abe238729a60b108898784df8984c87f6054c9c4fcacc47e4803c1ce1"
+checksum = "e75fe14a82d81e5f5af639997db37d8b96045938a7ac6ab18cdbe1c7467e05e1"
 dependencies = [
  "aws-lc-rs",
  "base64",
@@ -3893,6 +3907,7 @@ dependencies = [
  "serde_json",
  "signature",
  "simple_asn1",
+ "zeroize",
 ]
 
 [[package]]
@@ -5099,10 +5114,11 @@ dependencies = [
 
 [[package]]
 name = "originlm"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "originlm-contracts",
  "originlm-control",
+ "originlm-discovery",
  "originlm-kit",
  "originlm-platform",
  "originlm-transports",
@@ -5114,7 +5130,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-adapters"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "axum",
  "chrono",
@@ -5128,16 +5144,18 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "tempfile",
  "tokio",
  "tokio-stream",
  "windows 0.62.2",
  "zeroize",
+ "zip",
 ]
 
 [[package]]
 name = "originlm-chatgpt-auth"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "aws-lc-rs",
  "base64",
@@ -5159,7 +5177,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-cli"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "originlm-adapters",
  "originlm-chatgpt-auth",
@@ -5179,7 +5197,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-contracts"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5192,7 +5210,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-control"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "chrono",
  "crossterm",
@@ -5211,7 +5229,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-core"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "originlm-contracts",
  "serde",
@@ -5220,7 +5238,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-desktop"
-version = "0.1.0-alpha.18"
+version = "0.1.0-alpha.23"
 dependencies = [
  "chrono",
  "gpui-kit",
@@ -5234,7 +5252,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-discovery"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "originlm-contracts",
  "originlm-platform",
@@ -5245,7 +5263,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-kit"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "axum",
  "originlm-adapters",
@@ -5264,7 +5282,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-platform"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "file-id",
  "libc",
@@ -5275,7 +5293,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-runtime"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "base64",
  "originlm-contracts",
@@ -5286,7 +5304,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-service"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "base64",
  "chrono",
@@ -5308,7 +5326,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-store"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "getrandom 0.3.4",
  "originlm-contracts",
@@ -5321,7 +5339,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-transports"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "async-stream",
  "axum",
@@ -5342,7 +5360,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-update"
-version = "0.1.0-alpha.20"
+version = "0.1.0-alpha.23"
 dependencies = [
  "base64",
  "fs4",
@@ -5878,7 +5896,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6539,7 +6557,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7096,7 +7114,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7378,7 +7396,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7823,7 +7841,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8529,7 +8547,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9163,7 +9181,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d6f32a0ff4a9f6f01231eb2059cc85479330739333e0e58cadf03b6af2cca10"
 dependencies = [
  "cfg-if",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9599,6 +9617,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "zip"
+version = "4.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa8cd6af31c3b31c6631b8f483848b91589021b28fffe50adada48d4f4d2ed1"
+dependencies = [
+ "arbitrary",
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "zopfli",
+]
+
+[[package]]
 name = "zlib-rs"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9609,6 +9641,18 @@ name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b"
+
+[[package]]
+name = "zopfli"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaf7fc5d30c28483d93805c4a5e12b05bbb52407fa67c5f8bd552374cd01fb11"
+dependencies = [
+ "bumpalo",
+ "crc32fast",
+ "log",
+ "simd-adler32",
+]
 
 [[package]]
 name = "zune-core"

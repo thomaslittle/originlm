@@ -4,10 +4,12 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "In-process session, turn, and event runtime for OriginLM"
+publish = true
 [dependencies]
 base64 = "0.22"
-originlm-contracts = { path = "../originlm-contracts" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

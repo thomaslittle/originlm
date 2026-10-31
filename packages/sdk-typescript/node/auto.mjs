@@ -12,11 +12,11 @@ import {processOptions, spawnHelper} from './process.mjs';
 const fail = code => new LocalAIError(code);
 const require = createRequire(import.meta.url);
 const PLATFORM_PACKAGES = {
-  'linux-x64': '@originlm/cli-linux-x64',
-  'linux-arm64': '@originlm/cli-linux-arm64',
-  'darwin-arm64': '@originlm/cli-darwin-arm64',
-  'darwin-x64': '@originlm/cli-darwin-x64',
-  'win32-x64': '@originlm/cli-win32-x64',
+  'linux-x64': 'originlm-cli-linux-x64',
+  'linux-arm64': 'originlm-cli-linux-arm64',
+  'darwin-arm64': 'originlm-cli-darwin-arm64',
+  'darwin-x64': 'originlm-cli-darwin-x64',
+  'win32-x64': 'originlm-cli-windows-x64',
 };
 
 /** The optional platform package for a target, or undefined when unsupported. */

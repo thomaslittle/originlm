@@ -35,6 +35,7 @@ fn inventory() -> ScanResult {
                     provider_id: "codex".into(),
                     profile_home: std::env::temp_dir().join(&c.id),
                     executable: None,
+                    scope: None,
                 },
             )
         })

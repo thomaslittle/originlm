@@ -1,0 +1,64 @@
+name-template: 'Draft release'
+tag-template: 'draft'
+categories:
+  - title: 'Features'
+    labels:
+      - feature
+      - enhancement
+  - title: 'Fixes'
+    labels:
+      - bug
+  - title: 'Provider adapters'
+    labels:
+      - adapters
+  - title: 'Documentation'
+    labels:
+      - documentation
+  - title: 'Dependencies'
+    labels:
+      - dependencies
+  - title: 'Maintenance'
+    labels:
+      - ci
+      - release
+      - policy
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+exclude-labels:
+  - skip-changelog
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
+autolabeler:
+  - label: documentation
+    files:
+      - 'docs/**'
+      - '**/*.md'
+  - label: dependencies
+    files:
+      - 'Cargo.lock'
+      - 'package-lock.json'
+      - '**/pyproject.toml'
+  - label: ci
+    files:
+      - '.github/**'
+  - label: release
+    files:
+      - 'docs/release/**'
+  - label: policy
+    files:
+      - 'docs/POLICY-UNIVERSAL-PRODUCT.md'
+  - label: feature
+    title:
+      - '/^feat/i'
+  - label: bug
+    title:
+      - '/^fix/i'
+  - label: breaking
+    title:
+      - '/^feat!|^fix!|BREAKING CHANGE/i'

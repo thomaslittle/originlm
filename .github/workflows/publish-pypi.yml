@@ -1,0 +1,110 @@
+name: Publish Python wheels
+
+# Manual, protected publisher. Defaults to dry-run; an actual publish requires
+# the release-pypi environment approval and confirm=PUBLISH. Exactly the five
+# qualified platform wheels that passed the qualification workflow are uploaded.
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Qualify Python wheels run ID containing python-wheel-* artifacts'
+        required: true
+        type: string
+      source_commit:
+        description: 'Full integrated main commit SHA used to build the wheels'
+        required: true
+        type: string
+      dry_run:
+        description: 'Verify only; do not upload to PyPI'
+        required: true
+        default: true
+        type: boolean
+      confirm:
+        description: 'Type PUBLISH to allow an actual upload when dry_run is false'
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release-pypi
+    steps:
+      - name: Require explicit publication confirmation
+        if: ${{ !inputs.dry_run && inputs.confirm != 'PUBLISH' }}
+        run: |
+          echo 'Refusing to publish: set confirm=PUBLISH.' >&2
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify the artifact came from integrated main at this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git fetch origin main
+          git merge-base --is-ancestor "$SOURCE_COMMIT" origin/main
+          gh run view "$RUN_ID" --json headSha,headBranch,conclusion,status > run.json
+          python - <<'PY'
+          import json, os
+          run = json.load(open('run.json'))
+          if run.get('headSha') != os.environ['SOURCE_COMMIT']:
+              raise SystemExit('artifact run head SHA does not match source_commit')
+          if run.get('headBranch') != 'main' or run.get('conclusion') != 'success':
+              raise SystemExit('artifact run is not a successful integrated-main run')
+          PY
+      - name: Download qualified wheel artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+        run: gh run download "$RUN_ID" --pattern 'python-wheel-*' --dir artifacts
+      - name: Verify exactly five qualified wheels, evidence and native proofs
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          python -m pip install --disable-pip-version-check auditwheel twine
+          version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
+          python scripts/verify_python_release_set.py --artifacts artifacts \
+            --version "$version" --source-commit "$SOURCE_COMMIT" \
+            --dist dist --reports reports
+          if find dist -type f ! -name '*.whl' | grep -q .; then
+            echo 'dist contains non-wheel upload inputs' >&2
+            exit 1
+          fi
+          cat reports/python-wheel-SHA256SUMS
+      - name: Preserve verification reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-verification-reports
+          path: |
+            reports/
+          if-no-files-found: warn
+      - name: Publish to PyPI with trusted publishing
+        if: ${{ !inputs.dry_run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          print-hash: true
+          attestations: true
+      - name: State publication result
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo 'Dry run: all five qualified wheels passed verification; nothing was uploaded.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Uploaded the five qualified platform wheels using PyPI trusted publishing.' >> "$GITHUB_STEP_SUMMARY"
+          fi

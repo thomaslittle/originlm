@@ -1,9 +1,18 @@
-# Install OriginLM from source
+# Install OriginLM
 
 OriginLM has two equal entry points: a control center to see your AI, and SDKs
 for apps built on the AI a user already has. Neither requires an OriginLM account.
-This is an unpublished source preview: there are no registry packages, signed app
-installers or hosted one-line downloads yet. Compilation is not a 60-second install.
+The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
+
+```sh
+npm install originlm
+pip install originlm==0.1.0a21
+cargo add originlm@=0.1.0-alpha.22
+```
+
+There are no signed app installers or hosted one-line downloads yet. The source
+build below is for development and offline use; compilation is not a 60-second
+install.
 
 ## See your AI
 
@@ -36,9 +45,10 @@ Ctrl+Shift+M opens a mini-view inside its window. See the [dashboard guide](../u
 
 ## Build with it
 
-Use [the SDK and framework quickstarts](quickstarts.md) with local packed
-artifacts. Rust uses a path dependency; Node/Electron and Python can auto-start
-the packaged helper. Explicit local helper paths are also supported.
+Use [the SDK and framework quickstarts](quickstarts.md) with the published
+packages, or with local packed artifacts for source development. Rust can use
+`originlm = "=0.1.0-alpha.22"` or a path dependency; Node/Electron and Python can
+auto-start the packaged helper. Explicit local helper paths are also supported.
 
 The SDK does not install the dashboard or a background service. A granted,
 compatible shared broker is preferred; otherwise the app owns a private helper.

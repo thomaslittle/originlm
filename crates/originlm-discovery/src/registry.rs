@@ -33,7 +33,7 @@ pub fn definitions() -> &'static [ProviderDefinition] {
         ProviderDefinition {
             id: "antigravity",
             name: "Antigravity",
-            commands: &["antigravity", "agy"],
+            commands: &["antigravity", "agy", "agy_acp_server", "agy_acp_server.par"],
             profile_prefix: None,
         },
         ProviderDefinition {
@@ -104,15 +104,37 @@ impl ProviderDefinition {
             // OpenCode's own installer places the binary here even when it is
             // not on PATH. T3 Code treats this path as a native install.
             ("opencode", _) => vec![crate::join_relative(&env.home, ".opencode/bin")],
+            // T3 Code installs the Gemini CLI under its managed tools directory.
+            // A Rust host that shares the same machine can use that install
+            // without requiring a second copy on PATH.
+            ("antigravity", _) => vec![
+                crate::join_relative(&env.home, ".gemini/antigravity-acp"),
+                crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
+            ],
+            ("gemini_cli", _) => {
+                let mut dirs = vec![crate::join_relative(&env.home, ".local/bin")];
+                let tools = crate::join_relative(&env.home, ".t3/tools/gemini");
+                if let Ok(entries) = std::fs::read_dir(&tools) {
+                    for entry in entries.flatten() {
+                        let dir = entry.path().join("npm/bin");
+                        if dir.is_dir() {
+                            dirs.push(dir);
+                        }
+                    }
+                }
+                dirs
+            }
             _ => vec![],
         }
     }
     /// An explicitly configured executable that replaces the search.
     pub(crate) fn executable_override<'a>(&self, env: &'a ScanEnvironment) -> Option<&'a PathBuf> {
-        match self.id {
-            "muse" => env.overrides.get(MUSE_BINARY_OVERRIDE),
-            _ => None,
-        }
+        env.executable_overrides
+            .get(self.id)
+            .or_else(|| match self.id {
+                "muse" => env.overrides.get(MUSE_BINARY_OVERRIDE),
+                _ => None,
+            })
     }
     pub(crate) fn has_override(&self, env: &ScanEnvironment) -> bool {
         crate::knowledge::has_profile_override(self.id, env)

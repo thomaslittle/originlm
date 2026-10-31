@@ -13,7 +13,13 @@ operation-specific.
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
 
-> **Source preview.** The API can change between `0.1.0-alpha.N` revisions. Nothing is published to npm, PyPI, or crates.io yet. Start with the [source install guide](docs/integration/install.md) or [local SDK quickstarts](docs/integration/quickstarts.md). Registry publication, signing and release qualification remain pending. Provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+> **Published alpha.** The API can change between `0.1.0-alpha.N` revisions. The Rust `originlm` facade, the `originlm-cli` helper and their 14-crate closure are published at `0.1.0-alpha.22`; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run. Start with the [install guide](docs/integration/install.md) or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+
+```sh
+npm install originlm
+pip install originlm==0.1.0a21
+cargo add originlm@=0.1.0-alpha.22
+```
 
 ## What it does
 
@@ -128,7 +134,7 @@ try {
 
 | Integration | Where to start |
 |---|---|
-| Install a built bundle (helper, npm tarballs, Python wheel) | [Distribution](docs/integration/distribution.md) |
+| Install from npm, PyPI, crates.io or a local bundle | [Distribution](docs/integration/distribution.md) |
 | Native helper CLI, stdio / HTTP / broker transports | [Native helper](docs/integration/native-helper.md), [pairing](docs/integration/pairing.md), [shared broker](docs/integration/shared-broker.md) |
 | Prompt-driven desktop app (provider/model selection, grants, streaming) | [Prompt-app guide](docs/integration/prompt-app.md) |
 | Register Gemini CLI / Antigravity / Grok profiles; declare billing | [Native profiles](docs/integration/native-profiles.md) |
@@ -161,9 +167,9 @@ try {
 
 | Platform | Status |
 |---|---|
-| Windows x64 | Source implementation retained; OriginLM binaries are not yet released. |
-| Linux x64 | Verified on Ubuntu (WSL2) and exercised in CI; no release bundle yet. |
-| macOS | Built and tested in CI only; not manually qualified. |
+| Windows x64 | Runtime host implemented; unsigned x64 helper archive prepared by the release workflow. Older Windows versions are not independently qualified. |
+| Linux x64 | Runtime host supported; unsigned x86_64 and ARM64 glibc archives prepared on Ubuntu 24.04. Manylinux and older-glibc compatibility are not claimed. |
+| macOS | Intel and Apple-silicon helpers built and smoke-tested in CI with a macOS 15 deployment target; not manually qualified. |
 
 Status words in this repository are deliberate: **planned**, **implemented**, **fixture-tested**, **platform-executed**, and **live-qualified** mean different things. Most provider paths are fixture-tested; live qualification is called out per provider in the [support matrix](docs/adapters/SUPPORT-MATRIX.md).
 

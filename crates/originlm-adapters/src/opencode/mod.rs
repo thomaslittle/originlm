@@ -5,14 +5,96 @@ pub mod client_v2;
 pub mod server;
 pub mod v2_service;
 mod version;
+use crate::process::{LaunchSpec, capture};
 use originlm_contracts::*;
+use originlm_discovery::ProfileScope;
+use originlm_runtime::Agent;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ffi::OsString,
+    path::{Path, PathBuf},
+    time::Duration,
+};
+
+/// Environment for an exact OpenCode account. Global account roots are never
+/// inherited; only executable/temp lookup variables come from the process.
+pub(crate) fn scope_environment(scope: &ProfileScope) -> BTreeMap<OsString, OsString> {
+    let mut environment = BTreeMap::new();
+    for (key, value) in [
+        ("HOME", &scope.config_home),
+        ("USERPROFILE", &scope.config_home),
+        ("OPENCODE_CONFIG_DIR", &scope.config_home),
+        ("XDG_CONFIG_HOME", &scope.config_home),
+        ("XDG_DATA_HOME", &scope.data_home),
+        ("XDG_STATE_HOME", &scope.state_home),
+    ] {
+        environment.insert(OsString::from(key), value.as_os_str().to_owned());
+    }
+    // Keep any Windows app-data fallback inside the scoped config root.
+    environment.insert(
+        OsString::from("APPDATA"),
+        scope.config_home.join("AppData/Roaming").into_os_string(),
+    );
+    environment.insert(
+        OsString::from("LOCALAPPDATA"),
+        scope.config_home.join("AppData/Local").into_os_string(),
+    );
+    for key in [
+        "PATH",
+        "Path",
+        "SystemRoot",
+        "SYSTEMROOT",
+        "WINDIR",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+    ] {
+        if let Some(value) = std::env::var_os(key) {
+            environment.insert(OsString::from(key), value);
+        }
+    }
+    environment
+}
 fn invalid() -> DomainError {
     DomainError::new(
         ErrorCode::ProtocolIncompatible,
         "OpenCode metadata is invalid",
     )
+}
+
+/// Open a text-only session on the installed OpenCode client. 2.x uses the
+/// owner's local service API; 1.x keeps the kit-owned legacy server.
+pub async fn open_session(
+    executable: &Path,
+    scope: Option<&ProfileScope>,
+    model: Model,
+    provider: String,
+    workspace: PathBuf,
+    persistent: bool,
+    resume: Option<String>,
+) -> Result<Box<dyn Agent>> {
+    let cwd = std::env::current_dir().map_err(|_| invalid())?;
+    let version = capture(
+        LaunchSpec {
+            executable: executable.to_owned(),
+            args: vec!["--version".into()],
+            cwd,
+            env: scope.map(scope_environment).unwrap_or_default(),
+        },
+        Duration::from_secs(4),
+    )
+    .await?;
+    if version::installed_major(&version) == Some(2) {
+        if persistent || resume.is_some() {
+            return Err(DomainError::new(
+                ErrorCode::CapabilityUnsupported,
+                "OpenCode 2 text sessions do not support native resumption",
+            ));
+        }
+        return v2_service::open_session(executable, scope, model, provider, workspace).await;
+    }
+    server::open_session(executable, model, provider, workspace, persistent, resume).await
 }
 fn text(v: &Value) -> Result<String> {
     v.as_str()

@@ -1,9 +1,16 @@
 # SDK and framework quickstarts
 
-These are source-preview workflows. No registry package is published. Once the local
-artifacts and framework prerequisites exist, the hello-world programs are small;
-compiling the whole source checkout is not an under-a-minute installation promise.
-Use a synthetic home for verification; these examples never request inference.
+The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
+
+```sh
+npm install originlm
+pip install originlm==0.1.0a21
+cargo add originlm@=0.1.0-alpha.22
+```
+
+The local-artifact flow below remains for source development and offline
+verification. Use a synthetic home for verification; these examples never request
+inference.
 
 ## Prepare local Node and Python artifacts
 
@@ -28,12 +35,20 @@ python scripts/stage_python_package.py --binary "$PWD/target/release/originlm" \
 ```
 
 The wheel defaults to the host's platform when built, not a claimed manylinux baseline.
-Windows can use the preparation workflow's x64 artifacts; the helper filename ends
-in `.exe`. [Release preparation](../release/PUBLISHING.md) lists the exact target set.
+Use the manylinux 2.28 qualification workflow for a publishable Linux wheel;
+`--release` is required to remove the private publication guard. Windows can use the
+preparation workflow's x64 artifacts; the helper filename ends in `.exe`.
+[Release preparation](../release/PUBLISHING.md) lists the exact target set.
 
 ## Plain Node
 
-In a fresh directory, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
+Install from the registry:
+
+```sh
+npm install originlm
+```
+
+For offline or source development, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
 
 ```sh
 npm init -y
@@ -60,10 +75,16 @@ iteration, `LAI_HELPER_PATH` can point at an absolute executable instead.
 
 ## Python
 
-In an activated virtual environment, install the matching wheel by its actual path:
+Install from the registry:
 
 ```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a20-py3-none-PLATFORM.whl
+python -m pip install originlm==0.1.0a21
+```
+
+For offline or source development, install the matching wheel by its actual path:
+
+```sh
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a21-py3-none-PLATFORM.whl
 python hello.py
 ```
 
@@ -84,9 +105,12 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm --path /absolute/path/to/originlm/crates/originlm
+cargo add originlm@=0.1.0-alpha.22
 cargo run
 ```
+
+For source development, use a path dependency instead:
+`cargo add originlm --path /absolute/path/to/originlm/crates/originlm`.
 
 `src/main.rs`:
 
@@ -129,7 +153,7 @@ input. For repeated use, retain the owned client in host state and close it on e
 Install the same local tarballs in your existing Electron app. Run the Node example
 from a trusted main-process Connect handler after `app.whenReady()`. Expose only a
 narrow snapshot command through preload; keep context isolation enabled. Include
-`node_modules/@originlm/cli-*/bin/**` in the packager's `asarUnpack`. The helper must
+`node_modules/originlm-cli-*/bin/**` in the packager's `asarUnpack`. The helper must
 be a real executable outside the asar archive. The SDK resolves Electron’s
 `.asar.unpacked` path; `HELPER_NOT_UNPACKED` means the binary was not unpacked.
 Close the client when its owner exits.

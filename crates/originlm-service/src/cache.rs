@@ -24,7 +24,7 @@ const METADATA_PROBE_CACHE_TTL: Duration = Duration::from_secs(60);
 const METADATA_FRESHNESS_TTL: Duration = Duration::from_secs(15 * 60);
 /// Authoritative usage/reset observations are polled on their own, faster
 /// cadence. This never advances a reset; it only re-reads provider evidence.
-const USAGE_FRESHNESS_TTL: Duration = Duration::from_secs(60);
+pub(crate) const USAGE_FRESHNESS_TTL: Duration = Duration::from_secs(60);
 const JOURNAL_LIMIT: usize = 2048;
 const JOURNAL_PAGE: usize = 256;
 
@@ -1009,6 +1009,21 @@ impl InventoryCache {
         }
     }
 
+    /// Signal the currently running inventory source, whether host- or
+    /// background-owned. The source still decides how soon it observes the
+    /// flag; a non-cooperative callback cannot be aborted in Rust.
+    pub(crate) fn cancel_active_refresh(&self) {
+        if let Ok(mut state) = self.state.lock() {
+            state.flight_host_cancelled = true;
+            if let Some(cancel) = &state.flight_cancel {
+                cancel.store(true, Ordering::SeqCst);
+            }
+            if let Some(wake) = &state.flight_cancel_wake {
+                wake.notify_one();
+            }
+        }
+    }
+
     pub(crate) fn set_inventory_refresh(&self, enabled: bool) {
         if let Ok(mut state) = self.state.lock() {
             state.inventory_enabled = enabled;
@@ -1513,6 +1528,7 @@ mod refresh_generation_tests {
                         provider_id: "test".into(),
                         profile_home: PathBuf::from("synthetic"),
                         executable: None,
+                        scope: None,
                     },
                 )]),
                 metadata_probes: 0,

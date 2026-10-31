@@ -36,6 +36,7 @@ fn scan() -> ScanResult {
                     provider_id: c.provider_id.clone(),
                     profile_home: std::path::PathBuf::from("synthetic").join(&c.id),
                     executable: None,
+                    scope: None,
                 },
             )
         })
@@ -273,15 +274,23 @@ async fn usage_backoff_retains_stale_data_and_does_not_stale_a_healthy_peer() {
         "fresh"
     );
     assert!(!after.to_string().contains("private-provider-text"));
-    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    let after_attempt = calls.load(Ordering::SeqCst);
+    assert!(
+        after_attempt >= 2,
+        "the failing usage probe must be attempted"
+    );
     advance(100).await;
-    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert!(
+        calls.load(Ordering::SeqCst) <= after_attempt + 1,
+        "Retry-After must still bound retries after the faster usage cadence"
+    );
     s.stop_background_tasks();
 }
 
 #[tokio::test]
-async fn closing_clients_reduces_usage_work_and_stop_cancels_owned_probes() {
-    // Polling always at active cadence wastes idle work; detached probes outlive stop.
+async fn idle_usage_refreshes_inside_the_freshness_ttl_and_stop_cancels_owned_probes() {
+    // Idle monitors must not wait for the old 300s cadence while readings expire
+    // after 60s; stopping still cancels owned probes.
     let calls = Arc::new(AtomicUsize::new(0));
     let c = calls.clone();
     let s = ready(Arc::new(move |_, id, route| {
@@ -294,10 +303,14 @@ async fn closing_clients_reduces_usage_work_and_stop_cancels_owned_probes() {
     .await;
     s.close_client("app");
     advance(65).await;
-    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    let first = calls.load(Ordering::SeqCst);
+    assert!(
+        first >= 4,
+        "idle usage must refresh before the 60s freshness threshold"
+    );
     advance(240).await;
     assert!(
-        calls.load(Ordering::SeqCst) > 2,
+        calls.load(Ordering::SeqCst) > first,
         "idle clients still get bounded reconciliation"
     );
     s.stop_background_tasks();
@@ -307,10 +320,57 @@ async fn closing_clients_reduces_usage_work_and_stop_cancels_owned_probes() {
 }
 
 #[tokio::test]
+async fn idle_usage_keeps_advancing_across_multiple_freshness_intervals() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let seen = calls.clone();
+    let s = ready(Arc::new(move |_, id, route| {
+        let seen = seen.clone();
+        Box::pin(async move {
+            let n = {
+                let mut calls = seen.lock().unwrap();
+                calls.push(id.clone());
+                calls.iter().filter(|call| **call == id).count()
+            };
+            Ok(report(&id, &route, true, &(79 + n).to_string()))
+        })
+    }))
+    .await;
+    s.close_client("app");
+    advance(65).await;
+    advance(65).await;
+    advance(65).await;
+    s.register_client("observer", ClientPolicy::passive())
+        .unwrap();
+    let after = s
+        .handle("observer", "snapshot.get", json!({}))
+        .await
+        .unwrap();
+    let reading = &named(&after, "quotaPools", "pool-personal")["windows"][0]["reading"];
+    assert_eq!(
+        reading["value"]["used"], "84",
+        "three idle intervals should publish three newer observations"
+    );
+    assert_eq!(
+        reading["freshness"], "fresh",
+        "idle usage must not expire between polls"
+    );
+    s.stop_background_tasks();
+}
+
+#[tokio::test]
 async fn idle_usage_expiry_publishes_a_stale_event_without_inventing_zero() {
-    // Dynamic snapshot-only freshness would leave subscribers without an event.
-    let s = ready(Arc::new(|_, id, route| {
-        Box::pin(async move { Ok(report(&id, &route, true, "80")) })
+    // A refresh that has not returned yet must still expose the old reading as
+    // stale rather than extending its freshness or inventing zero.
+    let calls = Arc::new(AtomicUsize::new(0));
+    let c = calls.clone();
+    let s = ready(Arc::new(move |_, id, route| {
+        let c = c.clone();
+        Box::pin(async move {
+            if c.fetch_add(1, Ordering::SeqCst) > 0 {
+                tokio::time::sleep(Duration::from_secs(120)).await;
+            }
+            Ok(report(&id, &route, true, "80"))
+        })
     }))
     .await;
     let before = snapshot(&s).await;
@@ -793,6 +853,7 @@ async fn healthy_work_beyond_sixty_four_failed_connections_and_usage_both_progre
                 provider_id: "test".into(),
                 profile_home: std::path::PathBuf::from(id),
                 executable: None,
+                scope: None,
             },
         );
     }

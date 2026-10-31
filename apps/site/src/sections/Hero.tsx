@@ -194,7 +194,7 @@ export function Hero() {
           </div>
 
           <p className="hero-note">
-            MIT-licensed source preview. No OriginLM account or telemetry.
+            MIT-licensed alpha. No OriginLM account or telemetry.
           </p>
         </div>
 

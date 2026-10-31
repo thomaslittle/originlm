@@ -10,7 +10,7 @@ mod status;
 use args::{Action, Args};
 use originlm_contracts::{DomainError, ErrorCode, Result};
 use serde_json::json;
-use std::{sync::Arc, time::Duration};
+use std::{path::{Path, PathBuf}, sync::Arc, time::Duration};
 
 const HELP: &str = "OriginLM - native discovery and SDK helper
 Usage:
@@ -23,7 +23,7 @@ Usage:
   originlm status [--json] [--ipc ADDRESS] [--token-file ABSOLUTE_FILE]
       Prints the running helper, its providers and connected apps.
       Exit: 0 running, 3 not running, 4 credential rejected.
-  originlm serve --stdio [--allow-passive-discovery] [--allow-codex-metadata] [--home ABSOLUTE_DIRECTORY]
+  originlm serve --stdio [--allow-passive-discovery] [--allow-identity] [--allow-codex-metadata] [--home ABSOLUTE_DIRECTORY]
   originlm serve --http --port 4499 --assets ABSOLUTE_DIST_DIRECTORY
       [--allow-passive-discovery] [--allow-codex-metadata]
       [--allow-codex-execution --workspace ABSOLUTE_DIRECTORY]
@@ -54,7 +54,7 @@ Serving never scans on startup unless the host passes --warm-metadata (HTTP only
 with --allow-passive-discovery and a metadata provider grant): the helper then runs
 one passive scan and the already-permitted metadata checks in the background, so
 results are ready when a browser pairs. Providers are checked concurrently; the
-profiles of one provider are checked in order. --allow-passive-discovery explicitly
+profiles of one provider are checked in order. --allow-identity reveals the signed-in account label (email) that the provider reported; without it the projection withholds identity. --allow-passive-discovery explicitly
 authorizes metadata-only scans requested by the owning SDK. No credentials or inference.
 --allow-codex-metadata separately permits explicit connections.probe requests
 through the installed Codex client. This may read its login and contact its
@@ -115,6 +115,12 @@ async fn warm_metadata(
 }
 
 async fn execute(args: Args) -> Result<()> {
+    if let Action::Install(provider) = &args.action {
+        return install_provider(provider, args.home.as_deref()).await;
+    }
+    if let Action::Auth(provider) = &args.action {
+        return auth_provider(provider, args.home.as_deref()).await;
+    }
     if matches!(args.action, Action::Connect) {
         return broker_cli::connect(args.ipc.as_deref().unwrap()).await;
     }
@@ -272,6 +278,199 @@ async fn execute(args: Args) -> Result<()> {
         _ => Ok(()),
     }
 }
+async fn install_provider(provider: &str, home: Option<&Path>) -> Result<()> {
+    if provider != "antigravity" {
+        return Err(DomainError::new(
+            ErrorCode::InvalidRequest,
+            "Only the Antigravity ACP server has a managed installer",
+        ));
+    }
+    let base = home
+        .map(|home| home.join(".gemini/antigravity-acp"))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(PathBuf::from)
+                .map(|home| home.join(".gemini/antigravity-acp"))
+        })
+        .ok_or_else(|| {
+            DomainError::new(ErrorCode::LocalAccessDenied, "Home directory is unavailable")
+        })?;
+    let platform = match std::env::consts::OS {
+        "macos" => "darwin",
+        "windows" => "win32",
+        other => other,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    let release =
+        originlm_adapters::native_clients::antigravity_install::release_for(platform, arch)
+            .ok_or_else(|| {
+                DomainError::new(
+                    ErrorCode::CapabilityUnsupported,
+                    "Antigravity is unavailable for this platform",
+                )
+            })?;
+    let path =
+        originlm_adapters::native_clients::antigravity_install::install(&base, release).await?;
+    println!(
+        "Antigravity ACP server {} installed at {}",
+        release.version,
+        path.display()
+    );
+    Ok(())
+}
+
+fn home_directory(home: Option<&Path>) -> Result<PathBuf> {
+    home.map(Path::to_path_buf)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(PathBuf::from)
+        })
+        .ok_or_else(|| {
+            DomainError::new(ErrorCode::LocalAccessDenied, "Home directory is unavailable")
+        })
+}
+
+fn gemini_executable(home: &Path) -> Option<PathBuf> {
+    let tools = home.join(".t3/tools/gemini");
+    if let Ok(entries) = std::fs::read_dir(&tools) {
+        let mut candidates: Vec<_> = entries
+            .flatten()
+            .map(|entry| entry.path().join("npm/bin/gemini"))
+            .filter(|path| path.is_file())
+            .collect();
+        candidates.sort();
+        if let Some(path) = candidates.pop() {
+            return Some(path);
+        }
+    }
+    std::env::var_os("PATH").and_then(|path| {
+        std::env::split_paths(&path)
+            .map(|root| root.join("gemini"))
+            .find(|path| path.is_file())
+    })
+}
+
+async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
+    let home = home_directory(home)?;
+    let (native, executable, profile_home) = match provider {
+        "antigravity" => {
+            let profile_home = home.join(".gemini/antigravity-acp");
+            let executable = profile_home.join(if cfg!(windows) {
+                "agy_acp_server.exe"
+            } else {
+                "agy_acp_server.par"
+            });
+            (
+                originlm_adapters::native_clients::config::NativeProvider::Antigravity,
+                executable,
+                profile_home,
+            )
+        }
+        "gemini_cli" => {
+            let executable = gemini_executable(&home).ok_or_else(|| {
+                DomainError::new(ErrorCode::RuntimeMissing, "Gemini CLI is not installed")
+            })?;
+            (
+                originlm_adapters::native_clients::config::NativeProvider::GeminiCli,
+                executable,
+                home.join(".gemini"),
+            )
+        }
+        _ => {
+            return Err(DomainError::new(
+                ErrorCode::InvalidRequest,
+                "Unsupported provider for interactive auth",
+            ));
+        }
+    };
+    if !executable.is_file() {
+        return Err(DomainError::new(
+            ErrorCode::RuntimeMissing,
+            "The provider runtime is not installed; run `originlm install antigravity` first",
+        ));
+    }
+    let scratch = tempfile::Builder::new()
+        .prefix("originlm-auth-")
+        .tempdir()
+        .map_err(|_| {
+            DomainError::new(ErrorCode::ProviderUnavailable, "Auth workspace is unavailable")
+        })?;
+    let url_file = scratch.path().join("authorization-url");
+    let browser = scratch.path().join(if cfg!(windows) {
+        "browser.cmd"
+    } else {
+        "browser.sh"
+    });
+    let script = if cfg!(windows) {
+        format!(
+            "@echo off\r\necho %~1>\"{}\"\r\n",
+            url_file.to_string_lossy()
+        )
+    } else {
+        format!(
+            "#!/bin/sh\nprintf '%s' \"$1\" > \"{}\"\n",
+            url_file.to_string_lossy()
+        )
+    };
+    std::fs::write(&browser, script)
+        .map_err(|_| DomainError::new(ErrorCode::LocalAccessDenied, "Auth helper is unavailable"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&browser, std::fs::Permissions::from_mode(0o700)).map_err(
+            |_| DomainError::new(ErrorCode::LocalAccessDenied, "Auth helper is unavailable"),
+        )?;
+    }
+    let profile = originlm_adapters::native_clients::config::NativeProfile {
+        id: provider.to_owned(),
+        label: provider.to_owned(),
+        provider: native,
+        executable,
+        profile_home,
+        auth_method: Some("oauth-personal".into()),
+        billing: None,
+    };
+    let prepared = originlm_adapters::native_clients::launch::prepare_auth(
+        &profile,
+        scratch.path(),
+        &browser,
+    )?;
+    let method = prepared
+        .auth_method
+        .clone()
+        .unwrap_or_else(|| "oauth-personal".into());
+    let spec = prepared.spec;
+    let _scratch = prepared.scratch;
+    let auth = originlm_adapters::acp::authenticate(spec, provider.to_owned(), "auth".into(), &method);
+    tokio::pin!(auth);
+    let mut printed = false;
+    loop {
+        tokio::select! {
+            result = &mut auth => {
+                result?;
+                println!("AUTHENTICATED");
+                break;
+            }
+            _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                if !printed
+                    && let Ok(url) = std::fs::read_to_string(&url_file)
+                    && !url.trim().is_empty()
+                {
+                    println!("AUTHORIZATION_URL={}", url.trim());
+                    printed = true;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn main() -> std::process::ExitCode {
     let result = (|| -> originlm_contracts::Result<u8> {
         let args = Args::parse(std::env::args_os().skip(1))?;

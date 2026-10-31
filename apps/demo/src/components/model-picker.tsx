@@ -184,13 +184,13 @@ export function ModelPicker({ side = 'bottom', align = 'start', className, disab
             disabled={disabled || !all.length}
             aria-label={selected ? `Model: ${selected.model.name}, ${selected.connection.displayName}` : 'Choose a model and account'}
             title={selected ? `${selected.model.name} · ${selected.connection.displayName}` : undefined}
-            className={cn('min-w-0 max-w-64 shrink justify-between gap-1.5 text-muted-foreground hover:text-foreground', className)}
+            className={cn('min-w-0 max-w-64 shrink justify-between gap-1.5 text-foreground/75 hover:text-foreground', className)}
           />
         }
       >
         {selected ? <ProviderMark id={selected.route.providerId} className="size-4 shrink-0 text-foreground" /> : null}
         <span className="min-w-0 truncate">{selected ? selected.model.name : 'Choose a model'}</span>
-        {selected ? <span className="hidden min-w-0 truncate text-xs text-text-faint sm:inline">{selected.connection.displayName}</span> : null}
+        {selected ? <span className="hidden min-w-0 truncate text-xs text-foreground/60 sm:inline">{selected.connection.displayName}</span> : null}
         <CaretDownIcon aria-hidden="true" className="size-3 shrink-0 opacity-60" />
       </PopoverTrigger>
       <PopoverContent side={side} align={align} sideOffset={6} className="w-[min(30rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0">

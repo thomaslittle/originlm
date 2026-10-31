@@ -4,19 +4,21 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "Shared local AI service and JSON-RPC dispatch for OriginLM"
+publish = true
 
 [features]
 os-notifications = ["dep:notify-rust"]
 
 [dependencies]
-originlm-runtime = { path = "../originlm-runtime" }
-originlm-contracts = { path = "../originlm-contracts" }
-originlm-core = { path = "../originlm-core" }
-originlm-discovery = { path = "../originlm-discovery" }
-originlm-platform = { path = "../originlm-platform" }
-originlm-chatgpt-auth = { path = "../originlm-chatgpt-auth" }
-originlm-store = { path = "../originlm-store" }
+originlm-runtime = { version = "0.1.0-alpha.23", path = "../originlm-runtime" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
+originlm-core = { version = "0.1.0-alpha.23", path = "../originlm-core" }
+originlm-discovery = { version = "0.1.0-alpha.23", path = "../originlm-discovery" }
+originlm-platform = { version = "0.1.0-alpha.23", path = "../originlm-platform" }
+originlm-chatgpt-auth = { version = "0.1.0-alpha.23", path = "../originlm-chatgpt-auth" }
+originlm-store = { version = "0.1.0-alpha.23", path = "../originlm-store" }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

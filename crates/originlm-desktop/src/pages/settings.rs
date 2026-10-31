@@ -252,7 +252,7 @@ impl Desktop {
                             .h_flex()
                             .gap_2()
                             .child(
-                                crate::brand::app_tile(30.),
+                                self.brand_marks[2].clone(),
                             )
                             .child(
                                 div()

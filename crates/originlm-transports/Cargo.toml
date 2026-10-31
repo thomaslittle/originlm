@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "Owner-only local transports for the OriginLM service"
+publish = true
 
 [dependencies]
 interprocess = { version = "2.4.4", features = ["tokio"] }
@@ -12,17 +14,17 @@ axum = "0.8.9"
 async-stream = "0.3"
 getrandom = "0.3"
 sha2.workspace = true
-originlm-contracts = { path = "../originlm-contracts" }
-originlm-core = { path = "../originlm-core" }
-originlm-service = { path = "../originlm-service" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
+originlm-core = { version = "0.1.0-alpha.23", path = "../originlm-core" }
+originlm-service = { version = "0.1.0-alpha.23", path = "../originlm-service" }
 serde.workspace = true
 serde_json.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "io-std", "net", "fs"] }
 
 [dev-dependencies]
-originlm-runtime = { path = "../originlm-runtime" }
+originlm-runtime = { version = "0.1.0-alpha.23", path = "../originlm-runtime" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
-originlm-discovery = { path = "../originlm-discovery" }
+originlm-discovery = { version = "0.1.0-alpha.23", path = "../originlm-discovery" }
 
 [lints]
 workspace = true

@@ -4,10 +4,12 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish = false
+repository.workspace = true
+description = "Owner-scoped local filesystem primitives for OriginLM"
+publish = true
 
 [dependencies]
-originlm-contracts = { path = "../originlm-contracts" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
 file-id = "=0.2.3"
 notify = { version = "=8.2.0", default-features = false, features = ["macos_kqueue"] }
 

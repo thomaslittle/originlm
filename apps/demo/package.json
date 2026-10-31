@@ -1,7 +1,7 @@
 {
   "name": "@originlm/demo",
   "private": true,
-  "version": "0.1.0-alpha.20",
+  "version": "0.1.0-alpha.21",
   "type": "module",
   "description": "Developer showcase for OriginLM. Consumes only the public SDK and selector core.",
   "scripts": {
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
-    "originlm": "0.1.0-alpha.20",
-    "@originlm/selector-core": "0.1.0-alpha.20",
+    "originlm": "0.1.0-alpha.21",
+    "@originlm/selector-core": "0.1.0-alpha.21",
     "@phosphor-icons/react": "2.1.10",
     "@shadcn/react": "^0.3.1",
     "@tailwindcss/typography": "0.5.20",

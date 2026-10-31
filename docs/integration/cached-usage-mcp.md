@@ -17,4 +17,4 @@ The remote handler mounts on an existing approved HTTPS host and uses its authen
 
 See [MCP examples](../../examples/mcp/) for a synthetic local demonstration and optional host integrations. The SQLite example requires explicit owner approval and reads only the owner-designated cache; it must not bypass a running broker's ownership boundary.
 
-Packages are private source previews. Build the SDK first with `npm run build --workspace originlm`; registry installation becomes available only after publication.
+Install the published `originlm` package (`npm install originlm`), or build the SDK from source with `npm run build --workspace originlm` for development.
