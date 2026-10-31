@@ -5245,9 +5245,13 @@ dependencies = [
  "image",
  "originlm-contracts",
  "originlm-control",
+ "originlm-discovery",
+ "originlm-kit",
  "originlm-platform",
+ "originlm-transports",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

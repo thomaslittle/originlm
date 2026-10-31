@@ -1,3 +1,4 @@
+use crate::bootstrap::Credential;
 use crate::broker::{self, BrokerHandle, Bundle, ExecEvent, ExecHandle, ModelChoice};
 use crate::history::Sample;
 use crate::theme;
@@ -219,7 +220,7 @@ pub struct Desktop {
     pub mini_view: bool,
     pub broker: BrokerHandle,
     pub executor: ExecHandle,
-    pub token_path: PathBuf,
+    pub credential: Credential,
     pub poll_task: Option<Task<()>>,
     focus: FocusHandle,
     initial_focus: bool,
@@ -240,7 +241,7 @@ impl Desktop {
     pub fn new(
         window: &mut Window,
         cx: &mut Context<Self>,
-        token_path: PathBuf,
+        credential: Credential,
         refresh_seconds: u64,
         example: bool,
     ) -> Self {
@@ -252,11 +253,11 @@ impl Desktop {
         };
         theme::install(cx, dark);
         let broker = broker::spawn(
-            token_path.clone(),
+            credential.clone(),
             Duration::from_secs(refresh_seconds),
             example,
         );
-        let executor = broker::spawn_executor(token_path.clone(), example);
+        let executor = broker::spawn_executor(credential.clone(), example);
         let palette_input = cx
             .new(|cx| InputState::new(window, cx).placeholder("Jump to a page, model or action…"));
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search models…"));
@@ -376,7 +377,7 @@ impl Desktop {
             mini_view: example && std::env::var_os("LAI_DESKTOP_MINI_VIEW").is_some(),
             broker,
             executor,
-            token_path,
+            credential,
             poll_task: None,
             focus,
             initial_focus: true,
@@ -535,9 +536,13 @@ impl Desktop {
         if changed {
             cx.notify();
         }
-        // One bounded metadata probe per authenticated connection that has no
-        // quota pool in the cached snapshot. This restores usage after a broker
-        // restart without polling or starting any inference.
+        // One bounded metadata probe per connection that still needs evidence.
+        // The private runtime starts from a passive scan, where every auth state
+        // is "not checked"; probing once turns that into verified, cached or
+        // sign-in-required. A shared broker is only asked for authenticated
+        // connections that are missing a quota pool. Neither path starts
+        // inference or repeats a failed probe within this session.
+        let local = self.credential.is_local();
         let mut missing = Vec::new();
         if let Some(bundle) = &self.bundle {
             for connection in &bundle.snapshot.connections {
@@ -553,7 +558,8 @@ impl Desktop {
                     .quota_pools
                     .iter()
                     .any(|pool| pool.connection_ids.contains(&connection.id));
-                if verified && !pooled && self.startup_probes.insert(connection.id.clone()) {
+                let needed = (local && !verified) || (verified && !pooled);
+                if needed && self.startup_probes.insert(connection.id.clone()) {
                     missing.push(connection.id.clone());
                 }
             }
@@ -1507,8 +1513,9 @@ impl Desktop {
                                 .text_size(px(10.))
                                 .text_color(theme.muted_foreground)
                                 .child(format!(
-                                    "Retrying with {}. Start the shared broker or pass --token-file.",
-                                    self.token_path.display()
+                                    "Retrying with {}. {}",
+                                    self.credential.label(),
+                                    self.credential.recovery_hint()
                                 )),
                         ),
                 )

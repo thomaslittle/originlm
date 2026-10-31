@@ -1,4 +1,5 @@
 mod app;
+mod bootstrap;
 mod brand;
 mod brand_tokens;
 mod broker;
@@ -15,7 +16,7 @@ use gpui_kit::component::TitleBar;
 use gpui_kit::*;
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-fn parse_args() -> (PathBuf, u64, bool) {
+fn parse_args() -> (Option<PathBuf>, u64, bool) {
     let mut token: Option<PathBuf> = None;
     let mut refresh = 30u64;
     let mut example = false;
@@ -34,7 +35,8 @@ fn parse_args() -> (PathBuf, u64, bool) {
             "--help" | "-h" => {
                 println!(
                     "originlm-desktop [--token-file PATH] [--refresh SECONDS] [--example]\n\
-                     Reads the shared broker over its public authenticated API."
+                     Attaches to this user's shared broker, or hosts a private local runtime.\n\
+                     Reads the broker over its public authenticated API."
                 );
                 std::process::exit(0);
             }
@@ -42,32 +44,21 @@ fn parse_args() -> (PathBuf, u64, bool) {
         }
     }
     if example {
-        return (PathBuf::from("example-mode-no-credential"), refresh, true);
+        return (None, refresh, true);
     }
     let token = token
         .or_else(|| std::env::var_os("LAI_DESKTOP_TOKEN_FILE").map(PathBuf::from))
-        .or_else(default_token_file)
-        // No implicit credential lookup in the current working directory.
-        .unwrap_or_default();
+        .or_else(|| std::env::var_os("LAI_BROKER_TOKEN_FILE").map(PathBuf::from));
     (token, refresh, example)
-}
-
-fn default_token_file() -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("LAI_BROKER_TOKEN_FILE") {
-        return Some(PathBuf::from(path));
-    }
-    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
-    let state = PathBuf::from(home).join(".originlm");
-    [
-        state.join("broker-admin-token.json"),
-        state.join("broker-token.json"),
-    ]
-    .into_iter()
-    .find(|path| path.is_file())
 }
 
 fn main() {
     let (token_path, refresh, example) = parse_args();
+    let credential = if example {
+        bootstrap::Credential::Unavailable("Example mode has no runtime.".into())
+    } else {
+        bootstrap::Credential::acquire(token_path)
+    };
     let application = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
     application.run(move |cx| {
         let _ = cx
@@ -78,7 +69,7 @@ fn main() {
         gpui_kit::init(cx);
         cx.set_reduce_motion(brand::preferred_reduce_motion());
         theme::install(cx, true);
-        let token = token_path.clone();
+        let credential = credential.clone();
         let (width, height) = std::env::var("LAI_DESKTOP_WINDOW")
             .ok()
             .and_then(|value| {
@@ -108,7 +99,7 @@ fn main() {
         }
         options.icon = icon;
         gpui_kit::open_window(options, cx, move |window, cx| {
-            cx.new(|cx| Desktop::new(window, cx, token, refresh, example))
+            cx.new(|cx| Desktop::new(window, cx, credential, refresh, example))
         })
         .expect("desktop window");
     });

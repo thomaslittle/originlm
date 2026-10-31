@@ -32,8 +32,16 @@ cargo run --locked -p originlm-desktop -- --example
 ```
 
 The real web flow uses `npm run dev -- --port 5176`, starts the local helper and
-pairs through the UI. Provider operations remain subject to grants. A native
-control center connects using an explicitly issued administrator descriptor:
+pairs through the UI. Provider operations remain subject to grants. The native
+control center needs no setup on first run:
+
+```sh
+cargo run --locked -p originlm-desktop
+```
+
+It uses an existing shared broker descriptor when one is reachable, and
+otherwise hosts a private in-process runtime for the window. To attach to a
+specific shared broker, pass its administrator descriptor explicitly:
 
 ```sh
 cargo run --locked -p originlm-desktop -- --token-file /absolute/path/to/control-admin-token.json

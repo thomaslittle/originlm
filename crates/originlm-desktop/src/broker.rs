@@ -1,12 +1,14 @@
 //! Broker I/O. Both workers use the public authenticated JSON-RPC surface and
 //! never touch the broker store or provider credentials directly.
 
-use crate::history::{History, Sample};
+use crate::{
+    bootstrap::Credential,
+    history::{History, Sample},
+};
 use originlm_contracts::{CostReport, ModelPrice, Snapshot, estimate_cost};
 use originlm_control::BrokerClient;
 use serde_json::{Value, json};
 use std::{
-    path::{Path, PathBuf},
     sync::mpsc::{Receiver, Sender, TryRecvError},
     thread,
     time::{Duration, Instant},
@@ -37,7 +39,7 @@ pub struct BrokerHandle {
     pub updates: Receiver<Bundle>,
 }
 
-pub fn spawn(token_file: PathBuf, refresh: Duration, example: bool) -> BrokerHandle {
+pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> BrokerHandle {
     let (command_tx, command_rx) = std::sync::mpsc::channel();
     let (update_tx, update_rx) = std::sync::mpsc::channel();
     thread::Builder::new()
@@ -113,7 +115,7 @@ pub fn spawn(token_file: PathBuf, refresh: Duration, example: bool) -> BrokerHan
                     }
                 }
             } else {
-                worker(token_file, refresh, command_rx, update_tx);
+                worker(credential, refresh, command_rx, update_tx);
             }
         })
         .expect("broker worker");
@@ -146,11 +148,11 @@ fn rebase_example_times(value: &mut Value, offset: chrono::Duration) {
     }
 }
 
-fn connect(token_file: &Path) -> Result<BrokerClient, String> {
+fn connect(credential: &Credential) -> Result<BrokerClient, String> {
     if std::env::var_os("LAI_DEBUG").is_some() {
-        eprintln!("[debug] connecting with {}", token_file.display());
+        eprintln!("[debug] connecting with {}", credential.label());
     }
-    let result = BrokerClient::from_token_file(token_file, None);
+    let result = credential.connect();
     if std::env::var_os("LAI_DEBUG").is_some() {
         eprintln!(
             "[debug] connect result: {}",
@@ -201,7 +203,7 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
 }
 
 fn worker(
-    token_file: PathBuf,
+    credential: Credential,
     refresh: Duration,
     commands: Receiver<Command>,
     updates: Sender<Bundle>,
@@ -209,11 +211,18 @@ fn worker(
     let mut history = History::load();
     let mut client: Option<BrokerClient> = None;
     let mut last_error: Option<String> = None;
+    let mut scanned = false;
 
     loop {
         if client.is_none() {
-            match connect(&token_file) {
+            match connect(&credential) {
                 Ok(mut connected) => {
+                    // A private runtime starts empty. One passive scan gives the
+                    // first window real local inventory instead of an empty page.
+                    if !scanned && credential.is_local() {
+                        let _ = connected.call("discovery.refresh", json!({"level": "passive"}));
+                        scanned = true;
+                    }
                     match fetch(&mut connected, &mut history) {
                         Ok(bundle) => {
                             let _ = updates.send(bundle);
@@ -374,7 +383,7 @@ pub struct ExecHandle {
     pub events: Receiver<ExecEvent>,
 }
 
-pub fn spawn_executor(token_file: PathBuf, example: bool) -> ExecHandle {
+pub fn spawn_executor(credential: Credential, example: bool) -> ExecHandle {
     let (command_tx, command_rx) = std::sync::mpsc::channel();
     let (event_tx, event_rx) = std::sync::mpsc::channel();
     thread::Builder::new()
@@ -386,7 +395,7 @@ pub fn spawn_executor(token_file: PathBuf, example: bool) -> ExecHandle {
                         error: "Execution is disabled in example mode. Connect a granted runtime to run a turn.".into(),
                     });
                 }
-            } else { executor(token_file, command_rx, event_tx); }
+            } else { executor(credential, command_rx, event_tx); }
         })
         .expect("execution worker");
     ExecHandle {
@@ -395,7 +404,7 @@ pub fn spawn_executor(token_file: PathBuf, example: bool) -> ExecHandle {
     }
 }
 
-fn executor(token_file: PathBuf, commands: Receiver<ExecCommand>, events: Sender<ExecEvent>) {
+fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sender<ExecEvent>) {
     let mut client: Option<BrokerClient> = None;
     #[allow(unused_assignments)]
     let mut current_session: Option<String> = None;
@@ -412,7 +421,7 @@ fn executor(token_file: PathBuf, commands: Receiver<ExecCommand>, events: Sender
                     continue;
                 }
                 if client.is_none() {
-                    match connect(&token_file) {
+                    match connect(&credential) {
                         Ok(connected) => client = Some(connected),
                         Err(error) => {
                             let _ = events.send(ExecEvent::Failed { error });

@@ -12,16 +12,7 @@ use gpui_kit::*;
 impl Desktop {
     pub fn page_settings(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let address = originlm_platform::read_private_file(&self.token_path, 16 * 1024)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .and_then(|value| {
-                value
-                    .get("address")
-                    .and_then(|address| address.as_str())
-                    .map(|address| address.to_string())
-            })
-            .unwrap_or_else(|| "unavailable".into());
+        let address = self.credential.address();
         let state_dir = crate::history::state_dir()
             .map(|path| path.display().to_string())
             .unwrap_or_else(|| "Unavailable; preferences are not persisted".into());
@@ -99,14 +90,14 @@ impl Desktop {
                     .bg(theme.colors.list)
                     .child(ui::section_title("Data source", &theme))
                     .child(row(
-                        "Broker socket",
+                        "Broker endpoint",
                         &address,
                         false,
                         &theme,
                     ))
                     .child(row(
-                        "Credential file",
-                        &self.token_path.display().to_string(),
+                        "Credential",
+                        &self.credential.descriptor_label(),
                         true,
                         &theme,
                     ))
@@ -289,7 +280,7 @@ impl Desktop {
                         div()
                             .text_size(px(10.))
                             .text_color(theme.muted_foreground)
-                            .child("Reads the shared broker through its public authenticated API. It never opens the broker database, reads provider credentials or starts discovery on its own."),
+                            .child("Reads the broker through its public authenticated API. When no broker is running it hosts a private local runtime for this app and runs passive discovery plus read-only metadata probes. It never opens the broker database or reads provider credentials; execution, paid options and identity reveal stay off."),
                     ),
             )
             .into_any_element()

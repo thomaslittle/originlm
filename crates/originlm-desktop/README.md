@@ -20,16 +20,27 @@ graph, one component system, one theme.
 ## Run
 
 ```sh
-cargo build -p originlm-desktop
-./target/debug/originlm-desktop --token-file ~/.local/state/originlm/fedora-shared/control-admin-token.json
+cargo run -p originlm-desktop
 ```
 
-Without `--token-file` the app looks for:
+No token file is required for a first run. On launch the app looks for an
+existing shared broker credential, most privileged first:
 
-1. `$LAI_DESKTOP_TOKEN_FILE`
-2. `~/.local/state/originlm/fedora-shared/control-admin-token.json`
-3. `~/.local/state/originlm/fedora-shared/control-token.json`
-4. `~/.originlm/broker-admin-token.json`
+1. `$LAI_DESKTOP_TOKEN_FILE`, then `$LAI_BROKER_TOKEN_FILE`
+2. the platform state directory (`%LOCALAPPDATA%\originlm` on Windows,
+   `~/.local/state/originlm` on Linux, `~/Library/Application Support/originlm`
+   on macOS): `broker-admin-token.json`, then `broker-token.json`
+3. `~/.originlm/broker-admin-token.json`, then `~/.originlm/broker-token.json`
+4. the documented control-center path
+   (`~/.local/state/originlm/fedora-shared/control-admin-token.json`)
+
+Each candidate is probed. When none answers, the app hosts a private broker
+in-process and mints an in-memory administrative credential for this window; no
+credential is written to disk and the runtime ends with the app. Passive
+discovery plus read-only metadata probes for the discovered providers are
+enabled so the window fills in and can verify sign-in state. Execution, paid
+options and account-identity reveal remain off. An explicit `--token-file`
+always fails closed instead: it is never replaced by a local runtime.
 
 An admin descriptor enables the Connected apps view. An application descriptor
 still works for everything else; apps management then explains why it is

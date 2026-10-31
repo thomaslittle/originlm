@@ -96,8 +96,14 @@ opens SQLite or calls a provider. See the
 ### Native desktop manager
 
 ```sh
-cargo run -p originlm-desktop -- --token-file ~/.local/state/originlm/fedora-shared/control-admin-token.json
+cargo run -p originlm-desktop
 ```
+
+The app attaches to a shared broker whose owner or administrator descriptor
+already exists. When none is running it hosts a private in-process runtime for
+the window, so a first run needs no token file; that runtime runs passive
+discovery and read-only metadata probes. Pass `--token-file` to select a
+specific shared broker.
 
 A GPUI client built on [GPUI Kit](https://gpui-kit.com) with the
 [GPUI Fast](https://github.com/longbridge/gpui-fast) backend: overview,
