@@ -140,7 +140,9 @@ pub fn digest(bytes: &[u8]) -> String {
 /// native launcher validates. Existing complete installs are reused.
 pub async fn install(base_dir: &Path, release: Release) -> Result<PathBuf> {
     if base_dir.file_name().and_then(|name| name.to_str()) != Some("antigravity-acp") {
-        return Err(invalid("Antigravity profile home must be named antigravity-acp"));
+        return Err(invalid(
+            "Antigravity profile home must be named antigravity-acp",
+        ));
     }
     let record = base_dir.join(".install-complete.json");
     if let Ok(text) = std::fs::read_to_string(&record)
@@ -153,7 +155,8 @@ pub async fn install(base_dir: &Path, release: Release) -> Result<PathBuf> {
     {
         return Ok(base_dir.to_path_buf());
     }
-    std::fs::create_dir_all(base_dir).map_err(|_| unavailable("Antigravity profile home is unavailable"))?;
+    std::fs::create_dir_all(base_dir)
+        .map_err(|_| unavailable("Antigravity profile home is unavailable"))?;
     let client = reqwest::Client::builder()
         .timeout(DOWNLOAD_TIMEOUT)
         .build()
@@ -185,8 +188,8 @@ pub async fn install(base_dir: &Path, release: Release) -> Result<PathBuf> {
 }
 
 fn stage_archive(base_dir: &Path, bytes: &[u8], release: Release) -> Result<()> {
-    let mut archive =
-        zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| invalid("Antigravity archive is invalid"))?;
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
+        .map_err(|_| invalid("Antigravity archive is invalid"))?;
     let mut staged = std::collections::BTreeMap::new();
     for index in 0..archive.len() {
         let mut entry = archive
@@ -289,17 +292,17 @@ mod tests {
     #[test]
     fn release_table_is_pinned_and_platform_specific() {
         assert_eq!(release_for("linux", "x64").unwrap().version, "1.4.1");
-        assert_eq!(release_for("win32", "arm64").unwrap().executable, "agy_acp_server.exe");
+        assert_eq!(
+            release_for("win32", "arm64").unwrap().executable,
+            "agy_acp_server.exe"
+        );
         assert!(release_for("linux", "mips").is_none());
     }
 
     #[test]
     fn rejects_a_foreign_profile_home() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let result = runtime.block_on(install(
-            Path::new("/tmp/not-antigravity"),
-            RELEASES[0].1,
-        ));
+        let result = runtime.block_on(install(Path::new("/tmp/not-antigravity"), RELEASES[0].1));
         assert!(result.is_err());
     }
 }

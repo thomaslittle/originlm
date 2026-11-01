@@ -10,7 +10,11 @@ mod status;
 use args::{Action, Args};
 use originlm_contracts::{DomainError, ErrorCode, Result};
 use serde_json::json;
-use std::{path::{Path, PathBuf}, sync::Arc, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 const HELP: &str = "OriginLM - native discovery and SDK helper
 Usage:
@@ -294,7 +298,10 @@ async fn install_provider(provider: &str, home: Option<&Path>) -> Result<()> {
                 .map(|home| home.join(".gemini/antigravity-acp"))
         })
         .ok_or_else(|| {
-            DomainError::new(ErrorCode::LocalAccessDenied, "Home directory is unavailable")
+            DomainError::new(
+                ErrorCode::LocalAccessDenied,
+                "Home directory is unavailable",
+            )
         })?;
     let platform = match std::env::consts::OS {
         "macos" => "darwin",
@@ -332,7 +339,10 @@ fn home_directory(home: Option<&Path>) -> Result<PathBuf> {
                 .map(PathBuf::from)
         })
         .ok_or_else(|| {
-            DomainError::new(ErrorCode::LocalAccessDenied, "Home directory is unavailable")
+            DomainError::new(
+                ErrorCode::LocalAccessDenied,
+                "Home directory is unavailable",
+            )
         })
 }
 
@@ -399,7 +409,10 @@ async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
         .prefix("originlm-auth-")
         .tempdir()
         .map_err(|_| {
-            DomainError::new(ErrorCode::ProviderUnavailable, "Auth workspace is unavailable")
+            DomainError::new(
+                ErrorCode::ProviderUnavailable,
+                "Auth workspace is unavailable",
+            )
         })?;
     let url_file = scratch.path().join("authorization-url");
     let browser = scratch.path().join(if cfg!(windows) {
@@ -418,8 +431,9 @@ async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
             url_file.to_string_lossy()
         )
     };
-    std::fs::write(&browser, script)
-        .map_err(|_| DomainError::new(ErrorCode::LocalAccessDenied, "Auth helper is unavailable"))?;
+    std::fs::write(&browser, script).map_err(|_| {
+        DomainError::new(ErrorCode::LocalAccessDenied, "Auth helper is unavailable")
+    })?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -447,7 +461,8 @@ async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
         .unwrap_or_else(|| "oauth-personal".into());
     let spec = prepared.spec;
     let _scratch = prepared.scratch;
-    let auth = originlm_adapters::acp::authenticate(spec, provider.to_owned(), "auth".into(), &method);
+    let auth =
+        originlm_adapters::acp::authenticate(spec, provider.to_owned(), "auth".into(), &method);
     tokio::pin!(auth);
     let mut printed = false;
     loop {
