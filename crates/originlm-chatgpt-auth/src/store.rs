@@ -324,7 +324,7 @@ pub(crate) fn keyring_entry(host_id: &str, reg: &Registration) -> Result<keyring
 fn reg_key(host_id: &str, reg: &Registration) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(format!("{}\0{}\0{}", host_id, reg.client_id, reg.subject));
-    format!("{:x}", digest)
+    digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 #[cfg(windows)]
 pub(crate) fn credential_path(root: &Path, host_id: &str, reg: &Registration) -> PathBuf {

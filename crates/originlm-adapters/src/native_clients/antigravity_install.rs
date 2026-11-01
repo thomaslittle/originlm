@@ -131,7 +131,10 @@ fn invalid(reason: &str) -> DomainError {
 }
 
 pub fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// Download, verify and stage one release into `base_dir`.

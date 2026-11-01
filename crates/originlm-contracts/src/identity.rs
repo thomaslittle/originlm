@@ -12,7 +12,8 @@ pub fn stable_id(namespace: &str, parts: &[&str]) -> String {
         hash.update((part.len() as u64).to_be_bytes());
         hash.update(part.as_bytes());
     }
-    format!("{namespace}_{:x}", hash.finalize())
+    let hex: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    format!("{namespace}_{hex}")
 }
 pub fn route_model_key(route: &str, model: &str) -> String {
     stable_id("model", &[route, model])

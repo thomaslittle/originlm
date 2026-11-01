@@ -75,7 +75,11 @@ fn sha256_file(path: &Path) -> Result<String, DomainError> {
         }
         digest.update(&block[..count]);
     }
-    Ok(format!("{:x}", digest.finalize()))
+    Ok(digest
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
 }
 
 pub fn canonical_manifest(manifest: &UpdateManifest) -> Result<Vec<u8>, DomainError> {
