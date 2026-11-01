@@ -1,0 +1,221 @@
+name: Publish crates.io closure
+
+# Manual, protected publisher. Defaults to dry-run; an actual publish requires
+# the release-crates environment approval and confirm=PUBLISH. During the
+# bootstrap alpha, new crates require CARGO_REGISTRY_TOKEN; after each crate
+# exists and has a crates.io trusted publisher configured, auth_mode=trusted
+# uses short-lived OIDC credentials instead.
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: 'Prepare crate release set run ID containing crates-release'
+        required: true
+        type: string
+      source_commit:
+        description: 'Full integrated main commit SHA used to build the crates'
+        required: true
+        type: string
+      auth_mode:
+        description: 'Bootstrap token or crates.io trusted publishing'
+        required: true
+        default: 'token'
+        type: choice
+        options: ['token', 'trusted']
+      dry_run:
+        description: 'Verify and print the order only; do not publish'
+        required: true
+        default: true
+        type: boolean
+      confirm:
+        description: 'Type PUBLISH to allow an actual publish when dry_run is false'
+        required: false
+        default: ''
+        type: string
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: publish-crates
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: release-crates
+    steps:
+      - name: Require explicit publication confirmation
+        if: ${{ !inputs.dry_run && inputs.confirm != 'PUBLISH' }}
+        run: |
+          echo 'Refusing to publish: set confirm=PUBLISH.' >&2
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust and declared MSRV
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup toolchain install 1.88.0 --profile minimal
+      - name: Verify the artifact came from integrated main at this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git fetch origin main
+          git merge-base --is-ancestor "$SOURCE_COMMIT" origin/main
+          gh run view "$RUN_ID" --json headSha,headBranch,conclusion,status > run.json
+          python - <<'PY'
+          import json, os
+          run = json.load(open('run.json'))
+          if run.get('headSha') != os.environ['SOURCE_COMMIT']:
+              raise SystemExit('artifact run head SHA does not match source_commit')
+          if run.get('headBranch') != 'main' or run.get('conclusion') != 'success':
+              raise SystemExit('artifact run is not a successful integrated-main run')
+          PY
+      - name: Download the reviewed crate release set
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.artifact_run_id }}
+        run: gh run download "$RUN_ID" --name crates-release --dir crates-release
+      - name: Verify checksums, source commit and dependency order
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          cd crates-release
+          sha256sum -c SHA256SUMS
+          cd ..
+          python - <<'PY'
+          import json, os
+          manifest = json.load(open('crates-release/manifest.json'))
+          if manifest.get('sourceCommit') != os.environ['SOURCE_COMMIT']:
+              raise SystemExit('crate manifest source commit does not match')
+          expected = [
+              'originlm-contracts', 'originlm-platform', 'originlm-core',
+              'originlm-chatgpt-auth', 'originlm-discovery', 'originlm-runtime',
+              'originlm-store', 'originlm-service', 'originlm-transports',
+              'originlm-control', 'originlm-adapters', 'originlm-kit', 'originlm',
+              'originlm-cli',
+          ]
+          if manifest.get('order') != expected or len(manifest.get('packages') or []) != 14:
+              raise SystemExit('crate release set is not the reviewed 14-crate closure')
+          print('\\n'.join(manifest['order']))
+          PY
+      - name: Fetch locked dependencies for offline repackaging
+        run: cargo fetch --locked
+      - name: Verify packaged crate closure with declared MSRV
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          python scripts/verify_packaged_closure.py --release-dir crates-release \
+            --toolchain 1.88.0 --source-commit "$SOURCE_COMMIT" \
+            --out crates-release/evidence/packaged-closure.json
+      - name: Preserve packaged-closure evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crate-packaged-closure
+          path: crates-release/evidence/packaged-closure.json
+          if-no-files-found: warn
+      - name: Repackage from source and compare immutable payload hashes
+        run: |
+          python scripts/publish_order.py --check --package --package-dir repacked
+          python - <<'PY'
+          import hashlib, json
+          expected = {item['file']: item['sha256'] for item in json.load(open('crates-release/manifest.json'))['packages']}
+          actual = {item['file']: item['sha256'] for item in json.load(open('repacked/manifest.json'))['packages']}
+          if expected != actual:
+              raise SystemExit(f'crate payloads are not reproducible: expected {expected} actual {actual}')
+          print('repacked crate payload hashes match the qualified artifact')
+          PY
+      - name: Obtain bootstrap token
+        if: ${{ !inputs.dry_run && inputs.auth_mode == 'token' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo 'Missing CARGO_REGISTRY_TOKEN environment secret.' >&2
+            exit 1
+          fi
+      - name: Exchange crates.io trusted publishing token
+        if: ${{ !inputs.dry_run && inputs.auth_mode == 'trusted' }}
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish the closure in dependency order
+        if: ${{ !inputs.dry_run }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ inputs.auth_mode == 'trusted' && steps.crates-auth.outputs.token || secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          python - <<'PY' > order.tsv
+          import json
+          for item in json.load(open('crates-release/manifest.json'))['packages']:
+              print(item['name'], item['version'], item['sha256'], sep='\t')
+          PY
+          while IFS=$'\t' read -r name version sha; do
+            test -n "$name"
+            if curl -fsS -A 'originlm-release (https://github.com/thomaslittle/originlm)' -o /dev/null "https://crates.io/api/v1/crates/$name/$version"; then
+              echo "$name $version is already published; skipping"
+              continue
+            fi
+            echo "checking cargo publish payload for $name"
+            target="$RUNNER_TEMP/cargo-publish-$name"
+            rm -rf "$target"
+            CARGO_TARGET_DIR="$target" cargo publish --dry-run --package "$name" --locked --no-verify
+            python scripts/verify_cargo_publish_payload.py --target-dir "$target" \
+              --name "$name" --version "$version" --expected-sha256 "$sha" \
+              --prepared-crate "crates-release/$name-$version.crate" \
+              --allow-lock-resolution
+            echo "publishing $name"
+            published=0
+            for attempt in 1 2 3 4 5; do
+              if output=$(cargo publish --package "$name" --locked --no-verify 2>&1); then
+                printf '%s\n' "$output"
+                published=1
+                break
+              fi
+              printf '%s\n' "$output"
+              if printf '%s\n' "$output" | grep -q '429 Too Many Requests'; then
+                retry=$(printf '%s\n' "$output" | sed -n 's/.*after \(.* GMT\).*/\1/p' | head -1)
+                if [ -n "$retry" ]; then
+                  retry_epoch=$(date -u -d "$retry" +%s)
+                  now=$(date -u +%s)
+                  wait=$((retry_epoch - now + 15))
+                  if [ "$wait" -gt 0 ] && [ "$wait" -lt 1800 ]; then
+                    echo "crates.io rate limit; waiting ${wait}s until $retry"
+                    sleep "$wait"
+                    continue
+                  fi
+                fi
+              fi
+              exit 1
+            done
+            test "$published" = 1
+          done < order.tsv
+      - name: Verify the exact published crate bytes
+        if: ${{ !inputs.dry_run }}
+        run: |
+          python scripts/verify_published_crates.py \
+            --manifest crates-release/manifest.json \
+            --prepared-dir crates-release \
+            --allow-lock-resolution \
+            --out crate-publication-evidence.json
+      - name: Preserve publication evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crate-publication-evidence
+          path: crate-publication-evidence.json
+          if-no-files-found: warn
+      - name: State publication result
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo 'Dry run: all 14 crate payloads verified; nothing was published.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Published the 14-crate closure in dependency order.' >> "$GITHUB_STEP_SUMMARY"
+          fi

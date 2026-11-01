@@ -78,6 +78,9 @@ pub fn resolve_executable(command: &Path) -> Result<ExecutableIdentity> {
         .collect();
     let mut current = PathBuf::new();
     let mut links = Vec::new();
+    // A symlink may legitimately be revisited after a file symlink is expanded
+    // (for example macOS `/var` -> `/private/var`). A true loop repeats the
+    // same link with the same remaining path, so key the guard on both.
     let mut seen = BTreeSet::new();
     let mut steps = 0;
     while let Some(part) = pending.pop_front() {
@@ -102,7 +105,11 @@ pub fn resolve_executable(command: &Path) -> Result<ExecutableIdentity> {
         }
         let metadata = fs::symlink_metadata(&current).map_err(|_| unavailable())?;
         if metadata.file_type().is_symlink() {
-            if links.len() == MAX_LINKS || !seen.insert(current.clone()) {
+            let state = (
+                current.clone(),
+                pending.iter().cloned().collect::<Vec<OsString>>(),
+            );
+            if links.len() == MAX_LINKS || !seen.insert(state) {
                 return Err(unavailable());
             }
             let target = fs::read_link(&current).map_err(|_| unavailable())?;

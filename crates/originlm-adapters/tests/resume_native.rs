@@ -331,6 +331,7 @@ fn fake_claude() -> (tempfile::TempDir, originlm_discovery::LocatedClient) {
         provider_id: "claude_code".into(),
         profile_home: dir.path().into(),
         executable: Some(exe),
+        scope: None,
     };
     (dir, located)
 }

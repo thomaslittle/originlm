@@ -1,6 +1,6 @@
 {
   "name": "@originlm/selector-core",
-  "version": "0.1.0-alpha.20",
+  "version": "0.1.0-alpha.21",
   "private": true,
   "type": "module",
   "description": "Side-effect-free route-aware AI selection logic",

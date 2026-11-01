@@ -1,6 +1,6 @@
 [package]
 name = "originlm-desktop"
-version = "0.1.0-alpha.18"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 publish = false
@@ -12,9 +12,9 @@ path = "src/main.rs"
 
 [dependencies]
 gpui-kit = { version = "0.8.1", features = ["gpui-fast"] }
-originlm-control = { path = "../originlm-control", default-features = false }
-originlm-platform = { path = "../originlm-platform" }
-originlm-contracts = { path = "../originlm-contracts" }
+originlm-control = { version = "0.1.0-alpha.23", path = "../originlm-control", default-features = false }
+originlm-platform = { version = "0.1.0-alpha.23", path = "../originlm-platform" }
+originlm-contracts = { version = "0.1.0-alpha.23", path = "../originlm-contracts" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

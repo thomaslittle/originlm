@@ -4,6 +4,8 @@
 - **Date:** 2026-10-27
 - **Related:** [ADR-001](ADR-001-shared-runtime.md), [browser extension](../integration/browser-extension.md), [pairing](../integration/pairing.md), [shared broker](../integration/shared-broker.md)
 
+> **Update 2026-10-30:** npm, PyPI and crates.io packages are published at `0.1.0-alpha.20`. The earlier "not published" statements describe the pre-release state.
+
 ## Context
 
 OriginLM today ships as a runtime, a CLI/broker, a desktop app and a
@@ -58,7 +60,7 @@ binary for its platform:
 | Ecosystem | Package | Shape |
 | --- | --- | --- |
 | Rust | `originlm` (facade over `originlm-kit`) | crate, links the runtime |
-| npm | `originlm` + `@originlm/cli-<platform>` | optional platform packages |
+| npm | `originlm` + `originlm-cli-<platform>` | optional platform packages |
 | Python | `originlm` wheel | per-platform wheels |
 
 The standalone app, service and control center stay as they are. A dependency
@@ -102,21 +104,21 @@ a private helper: that is a configuration error the app must surface. Only
 
 `originlm` declares `optionalDependencies` on:
 
-- `@originlm/cli-linux-x64`
-- `@originlm/cli-linux-arm64`
-- `@originlm/cli-linux-x64-musl` (Alpine)
-- `@originlm/cli-linux-arm64-musl`
-- `@originlm/cli-darwin-arm64`
-- `@originlm/cli-darwin-x64`
-- `@originlm/cli-win32-x64`
-- `@originlm/cli-win32-arm64`
+- `originlm-cli-linux-x64`
+- `originlm-cli-linux-arm64`
+- `originlm-cli-darwin-arm64`
+- `originlm-cli-darwin-x64`
+- `originlm-cli-windows-x64`
+
+Musl/Alpine and Windows ARM64 packages are not prepared or implied by this
+release; they require their own qualified runtime builds.
 
 When the current platform has no packaged binary, the SDK fails with
 `PLATFORM_UNSUPPORTED` and the install-page URL, never with a generic runtime
 error. A caller-supplied transport or `LAI_HELPER_PATH` still works.
 
 Each package contains exactly one binary and a small manifest. The SDK resolves
-`require.resolve('@originlm/cli-<platform>/package.json')`, verifies the
+`require.resolve('originlm-cli-<platform>/package.json')`, verifies the
 binary is executable, and spawns it with pipes. Installation is a normal
 dependency update; nothing is downloaded at import time, and no postinstall
 script runs. Works in Node, Electron's main process and Bun. Renderer processes
@@ -136,7 +138,7 @@ attempts. A source checkout may point at `LAI_HELPER_PATH`.
 
 Version-tag release workflow publishes crates, npm packages (including platform
 packages), wheels and signed, checksummed GitHub bundles, with provenance
-attestations. **Nothing is published until the maintainer has approved the
+attestations. **No package is published until the maintainer has approved the
 release and supplied the registry credentials.** The workflow is prepared and
 dry-run first; a dry run uploads nothing and prints exactly what would be
 published. Consumers get updates as ordinary dependency bumps; a Renovate or
@@ -336,13 +338,15 @@ layer explains it.
 Reduced motion and missing WebGL get a static poster. The 3D bundle stays under
 about 300 KB gzipped plus models, and the hero text paints before it loads.
 
-The product video lives in `media/video` as an fframes project (Rust + SVG, GPU
-render): 45–60 s at 1080p and 4K split roughly 50/50 — first "know your AI usage
-across everything" (dashboard, quotas, models, issues), then "and build on it"
-(the dependency and the same exploded-layer story) — plus a 6–10 s seamless loop
-for the hero fallback and 16:9/1:1/9:16 social cuts. Export
-MP4 (H.264), WebM and a poster; commit the source and put oversized renders in
-releases or LFS. Music or voiceover must be licensed or omitted. Nothing is
+The product video previously lived in `media/video` as an fframes project
+(Rust + SVG, GPU render); that film source was removed on 2026-10-30. The
+original plan was 45–60 s at 1080p and 4K split roughly 50/50 — first "know
+your AI usage across everything" (dashboard, quotas, models, issues), then
+"and build on it" (the dependency and the same exploded-layer story) — plus a
+6–10 s seamless loop for the hero fallback and 16:9/1:1/9:16 social cuts.
+Export MP4 (H.264), WebM and a poster; commit the source and put oversized
+renders in releases or LFS. Music or voiceover must be licensed or omitted.
+Nothing is
 posted publicly, no domain or paid hosting is bought, and previews use free
 tiers only with the maintainer's approval.
 

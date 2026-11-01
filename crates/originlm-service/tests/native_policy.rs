@@ -41,6 +41,7 @@ fn setup(trust: bool) -> (NativeService, Arc<AtomicUsize>) {
                     provider_id: "test".into(),
                     profile_home: std::env::temp_dir(),
                     executable: None,
+                    scope: None,
                 },
             )]),
             metadata_probes: 0,

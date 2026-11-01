@@ -6,4 +6,4 @@ Native model identifiers, route IDs, and supported option values must not be rew
 
 Provider support has separate axes: code implemented, synthetic contract-tested, operating-system executed, installed-client metadata checked, and live inference checked. Never collapse those into one green badge. An installed executable or a cached subscription label is not a live entitlement check.
 
-This repository is an unpublished alpha. Registry names are not cleared or published. Release archives are checksummed, not signed. The source commit and dirty-worktree flag are in every manifest. Cross-compiling or authoring a CI job does not prove that an OS runner executed successfully.
+The packages are published at `0.1.0-alpha.20`; the API is still alpha. Release archives are checksummed, not signed. The source commit and dirty-worktree flag are in every manifest. Cross-compiling or authoring a CI job does not prove that an OS runner executed successfully.

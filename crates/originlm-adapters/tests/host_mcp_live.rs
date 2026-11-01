@@ -31,6 +31,7 @@ async fn live_claude_turn_calls_host_and_native_tools() {
         provider_id: "claude_code".into(),
         profile_home: home.into(),
         executable: Some(exe.into()),
+        scope: None,
     };
     let report = claude::launch::probe(located.clone(), "c".into(), "r".into())
         .await
@@ -198,6 +199,7 @@ async fn live_codex_native_tools_and_host_mcp_share_a_session() {
         provider_id: "codex".into(),
         profile_home: home.clone().into(),
         executable: Some(exe.into()),
+        scope: None,
     };
     let metadata = codex::probe(located.clone(), "c".into(), "r".into())
         .await

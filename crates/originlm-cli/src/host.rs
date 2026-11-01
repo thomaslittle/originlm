@@ -31,6 +31,7 @@ pub fn policy(args: &Args) -> ClientPolicy {
         ClientPolicy::denied()
     };
     policy.probe_provider_ids = args.metadata_providers.clone();
+    policy.reveal_identity = args.allow_identity;
     policy
 }
 pub fn execution_grant(args: &Args) -> Option<ExecutionGrant> {

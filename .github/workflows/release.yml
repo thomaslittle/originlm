@@ -8,8 +8,17 @@ on:
     paths:
       - '.github/workflows/release.yml'
       - 'scripts/prepare_helper_archive.py'
+      - 'scripts/license_closure.py'
+      - 'scripts/helper_smoke.py'
+      - 'scripts/verify_helper_archive.py'
+      - 'scripts/release_targets.py'
       - 'scripts/npm-*.mjs'
       - 'scripts/stage_python_package.py'
+      - 'scripts/verify_npm_release.py'
+      - 'scripts/npm_consumer_smoke.py'
+      - 'scripts/npm_registry_consumer_smoke.py'
+      - 'scripts/pack_npm_tarball.py'
+      - 'scripts/assemble_npm_release.py'
 permissions:
   contents: read
 concurrency:
@@ -43,6 +52,12 @@ jobs:
           python-version: '3.12'
       - name: Install pinned Rust
         run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build native helper and SDK
         shell: bash
         run: |
@@ -50,18 +65,76 @@ jobs:
           npm ci --ignore-scripts
           npm run build --workspace originlm
           python -m pip install -r scripts/requirements-build.txt
+      - name: Native helper smoke gate (built executable)
+        shell: bash
+        run: |
+          binary='target/${{ matrix.target }}/release/originlm'
+          if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
+          python scripts/helper_smoke.py --binary "$binary" --target '${{ matrix.target }}' \
+            --version '${{ steps.release.outputs.version }}' \
+            --out "$RUNNER_TEMP/helper-binary-${{ matrix.target }}.json"
       - name: Stage exact target artifacts
         shell: bash
         run: |
           binary='target/${{ matrix.target }}/release/originlm'
           if [ "$RUNNER_OS" = Windows ]; then binary="$binary.exe"; fi
-          python scripts/prepare_helper_archive.py --binary "$binary" --target '${{ matrix.target }}' --out prepared
-          node scripts/npm-platform-packages.mjs --binary "$binary" --target '${{ matrix.target }}' --out npm-out
-          node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk --preview
+          python scripts/prepare_helper_archive.py --binary "$binary" --target '${{ matrix.target }}' \
+            --out prepared --source-commit "$GITHUB_SHA" \
+            --metadata-out "prepared/metadata/${{ matrix.target }}"
+          node scripts/npm-platform-packages.mjs --binary "$binary" --target '${{ matrix.target }}' --out npm-out \
+            --metadata "prepared/metadata/${{ matrix.target }}"
           mkdir -p prepared/npm
-          for dir in npm-out/* npm-sdk; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
+          for dir in npm-out/*; do npm pack "$PWD/$dir" --ignore-scripts --pack-destination "$PWD/prepared/npm"; done
+          # The canonical universal SDK is produced once on Linux x64. Platform
+          # packages are produced by every target; the aggregate job verifies
+          # the SDK and all five native packages, then a consumer matrix proves
+          # each platform against the same canonical SDK.
+          if [ '${{ matrix.target }}' = 'x86_64-unknown-linux-gnu' ]; then
+            node scripts/npm-add-platform-deps.mjs --packages npm-out --sdk packages/sdk-typescript --out npm-sdk \
+              --release --all-platforms
+            python scripts/pack_npm_tarball.py --package npm-sdk --out prepared/npm \
+              --require dist/index.js --require node/auto.mjs --require LICENSE --require THIRD_PARTY_NOTICES.md
+          fi
           python scripts/stage_python_package.py --binary "$binary" --target '${{ matrix.target }}' --plat-name '${{ matrix.plat }}' --out wheels
           (cd wheels/originlm && python setup.py bdist_wheel --plat-name '${{ matrix.plat }}' --dist-dir ../../prepared)
+      - name: Persist native smoke evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, pathlib, shutil
+          source = pathlib.Path(os.environ['RUNNER_TEMP']) / f'helper-binary-${{ matrix.target }}.json'
+          target = pathlib.Path('prepared/evidence')
+          target.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(source, target / source.name)
+          PY
+      - name: Verify helper archive and extracted executable
+        shell: bash
+        run: |
+          archive='prepared/originlm-${{ matrix.target }}'
+          if [ "$RUNNER_OS" = Windows ]; then archive="$archive.zip"; else archive="$archive.tar.gz"; fi
+          python scripts/verify_helper_archive.py --archive "$archive" --target '${{ matrix.target }}' \
+            --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA" \
+            --out "prepared/evidence/helper-archive-${{ matrix.target }}.json"
+      - name: Assert persisted evidence
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          target = os.environ['TARGET']
+          directory = pathlib.Path('prepared/evidence')
+          for name in ('helper-binary', 'helper-archive'):
+              path = directory / f'{name}-{target}.json'
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f'missing persisted evidence: {path}')
+              evidence = json.loads(path.read_text(encoding='utf-8'))
+              if evidence.get('status') != 'pass' or evidence.get('target') != target:
+                  raise SystemExit(f'failed evidence: {path}')
+          archive = json.loads((directory / f'helper-archive-{target}.json').read_text(encoding='utf-8'))
+          if archive.get('sourceCommit') != os.environ['GITHUB_SHA']:
+              raise SystemExit('archive evidence source commit does not match GITHUB_SHA')
+          PY
       - name: Preserve unsigned preview artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -71,6 +144,95 @@ jobs:
       - name: State release boundaries
         shell: bash
         run: |
-          echo 'Unsigned preview artifacts only. No packages or releases were published.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'See docs/release/PUBLISHING.md for signing, compatibility and publication gates.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Unsigned preview artifacts only. No packages, registries, GitHub releases, Authenticode signatures, notarization or trusted update signatures were produced.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Each runner executed --version, an empty-home passive scan and a bounded stdio handshake against the built helper and the helper extracted from the final archive.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Archives contain helper-<target>/originlm[.exe], LICENSE, per-target dependency notices and license texts, sbom.cdx.json and manifest.json with member paths, byte lengths and SHA-256.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Native smoke and archive evidence is persisted under prepared/evidence/ so it is uploaded with the artifact (not in a hidden directory).' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The npm SDK is one universal originlm tarball with all five exact-version originlm-cli-* optional dependencies; each platform package carries its native manifest, SBOM, notices and license texts.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Linux wheels use host-specific linux tags, not an unverified manylinux promise; helper glibc baselines are recorded per archive.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'See docs/release/PUBLISHING.md for compatibility, signing and publication gates.' >> "$GITHUB_STEP_SUMMARY"
+
+  assemble-npm:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Download all target npm artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          pattern: prepared-*
+          merge-multiple: false
+      - name: Assemble and verify one universal SDK plus five platform packages
+        shell: bash
+        run: |
+          python scripts/assemble_npm_release.py --artifacts artifacts --out npm-release \
+            --version '${{ steps.release.outputs.version }}' --source-commit "$GITHUB_SHA"
+      - name: Preserve the reviewed npm release set
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-release
+          path: npm-release/
+          if-no-files-found: error
+      - name: State npm release-set boundaries
+        shell: bash
+        run: |
+          echo 'One canonical universal originlm SDK and five exact-version platform packages were assembled.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Every platform package native manifest, helper, license and SBOM hash is checked against its qualified archive.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A post-aggregate consumer matrix proves each platform against the same canonical SDK and its actual native package.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No npm publication or credential use occurred in this workflow.' >> "$GITHUB_STEP_SUMMARY"
+
+  npm-consumers:
+    needs: assemble-npm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, label: linux-x64 }
+          - { os: ubuntu-24.04-arm, label: linux-arm64 }
+          - { os: macos-15-intel, label: darwin-x64 }
+          - { os: macos-15, label: darwin-arm64 }
+          - { os: windows-2025, label: win32-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Download the canonical npm release set
+        uses: actions/download-artifact@v7
+        with:
+          name: npm-release
+          path: npm-release
+      - name: Read release version
+        shell: bash
+        run: echo "VERSION=$(python -c "import json; print(json.load(open('package.json'))['version'])")" >> "$GITHUB_ENV"
+      - name: Prove single-package optional dependency resolution on this platform
+        shell: bash
+        run: |
+          python scripts/npm_registry_consumer_smoke.py --release-dir npm-release \
+            --version "$VERSION" --source-commit "$GITHUB_SHA" \
+            --out "npm-consumer-${{ matrix.label }}.json"
+      - name: Preserve consumer proof
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-consumer-${{ matrix.label }}
+          path: npm-consumer-${{ matrix.label }}.json
+          if-no-files-found: error

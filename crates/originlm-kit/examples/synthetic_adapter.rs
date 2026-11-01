@@ -143,6 +143,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     provider_id: "fixture".into(),
                     profile_home: std::env::temp_dir(),
                     executable: None,
+                    scope: None,
                 },
             )]),
             metadata_probes: 0,

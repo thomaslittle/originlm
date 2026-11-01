@@ -56,6 +56,7 @@ pub fn service() -> Arc<NativeService> {
                                 provider_id: "test".into(),
                                 profile_home: std::env::temp_dir(),
                                 executable: None,
+                                scope: None,
                             },
                         )
                     })

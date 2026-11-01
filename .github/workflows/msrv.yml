@@ -1,0 +1,42 @@
+name: Verify declared MSRV
+
+# Read-only evidence gate: the declared workspace rust-version must actually
+# compile the publishable closure with that exact toolchain.
+on:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'scripts/verify_msrv.py'
+      - '.github/workflows/msrv.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: msrv-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  msrv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      RUSTUP_TOOLCHAIN: ''
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install declared MSRV toolchain
+        run: rustup toolchain install 1.88.0 --profile minimal
+      - name: Verify declared MSRV and record evidence
+        run: python scripts/verify_msrv.py --toolchain 1.88.0 --out .verification/msrv-1.88.json
+      - name: Preserve MSRV evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: msrv-1.88-evidence
+          path: .verification/msrv-1.88.json
+          if-no-files-found: error

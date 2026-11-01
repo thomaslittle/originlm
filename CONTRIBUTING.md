@@ -12,6 +12,7 @@ These come from the product's trust model; changes that weaken them will not be 
 - **A signal is not permission.** Scope grants for workspaces, tools, artifacts, and processes. Cancel only work the toolkit owns.
 - **Credentials stay with their owner.** Never export subscription tokens as API keys, read browser cookies, enable paid fallback silently, rotate accounts to evade limits, or race a client's own credential refresh.
 - **No real account data.** Tests use virtual homes, synthetic credentials, fake clients, and mock servers. Never commit real tokens, account details, session logs, or personal paths. Never charge or consume a real AI account in a test; live checks must be opt-in and clearly marked.
+- **Universal product.** OriginLM is not an integration layer for any one application, customer, or business. Do not add consumer app names, branding, routes, IDs, customer/tenant rules, pricing, entitlements, or one-app workflows. Pull requests that do are refused; see [the universal product policy](docs/POLICY-UNIVERSAL-PRODUCT.md).
 
 ## Getting set up
 
@@ -53,6 +54,15 @@ Contract changes start in `crates/originlm-contracts`; `protocol/` and both SDKs
 5. Update the docs you affect: the [support matrix](docs/adapters/SUPPORT-MATRIX.md), the relevant [integration guide](docs/integration/), the [changelog](CHANGELOG.md) under *Unreleased*, and generated files.
 6. Open a pull request using the template. Do not force-push over other people's work.
 
+### PR automation (soft start)
+
+- Conventional PR titles (`feat:`, `fix:`, `docs:`, ...) are recommended; the title check is advisory for now.
+- Labels are applied from changed paths and PR titles. They are suggestions, not gates.
+- Release Drafter keeps a draft release from merged PRs. A maintainer reviews the notes and version and publishes the draft when ready; publishing creates the tag. Registry publication remains the separate gated workflows.
+- Inactive issues and PRs get a 60-day stale warning and close after 21 more days unless pinned, security-related, good first issue, or help wanted.
+- First-time contributors get a welcome message.
+- The only hard block is the universal-product policy, enforced by the PR attestation and maintainer review; there is no consumer-name denylist. See [contributor automation](docs/CONTRIBUTOR-AUTOMATION.md) for how these rules are tuned as real PRs arrive.
+
 ### Adding or changing a provider
 
 Read the [adapter authoring guide](docs/adapters/AUTHORING.md). A provider contribution needs:
@@ -71,6 +81,8 @@ Read the [adapter authoring guide](docs/adapters/AUTHORING.md). A provider contr
 - The demo uses only public SDK APIs and keeps synthetic data visibly separate from live results. `npm run doctor` must stay clean; a suppression needs a written reason next to it.
 
 ## Things we cannot accept
+
+Application- or business-specific logic, including consumer names, branding, routes, IDs, customer/tenant rules, pricing, entitlements, and one-app workflows. OriginLM is a universal product; that logic belongs in the consuming application. See [the universal product policy](docs/POLICY-UNIVERSAL-PRODUCT.md).
 
 Registry publication, release signing, buying or resetting credits, or modifying a user's unrelated client settings are maintainer-only operations and are not part of any pull request.
 

@@ -165,7 +165,7 @@ export function createCachedUsageMcp(options: CachedUsageMcpOptions): CachedUsag
       if (typeof params.protocolVersion !== 'string' || !object(params.capabilities) || !object(params.clientInfo)) return error(-32602,'Invalid initialization');
       phase = 'offered';
       return success({protocolVersion:'2025-06-18',capabilities:{tools:{listChanged:false}},
-        serverInfo:{name:'originlm-cached-usage',version:'0.1.0-alpha.20'}});
+        serverInfo:{name:'originlm-cached-usage',version:'0.1.0-alpha.21'}});
     }
     if (phase !== 'ready') return error(-32000,'Initialize MCP first');
     if (packet.method === 'tools/list') {

@@ -4,9 +4,15 @@ mod adapter_info;
 mod service_builder;
 pub use originlm_adapters::billing_declarations::BillingDeclarations;
 pub use originlm_adapters::http_provider::config::Registry as EndpointRegistry;
-pub use originlm_adapters::native_clients::config::NativeRegistry as NativeClientRegistry;
+pub use originlm_adapters::native_clients::config::{
+    NativeProfile, NativeProvider, NativeRegistry as NativeClientRegistry,
+};
 pub use originlm_contracts::*;
 pub use originlm_core::ClientPolicy;
+pub use originlm_discovery::{
+    AccountScope, ExecutableIdentity, LocatedClient, ProfileScope, ScanResult, ScopedInventory,
+    ScopedProvider,
+};
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
 use originlm_platform::NativeFilesystem;
 pub use originlm_service::{ExecutionGrant, InventorySource, NativeService};
@@ -166,6 +172,12 @@ pub fn inventory_source(home: Option<PathBuf>) -> InventorySource {
         Scanner::new(NativeFilesystem).scan(&environment, cancel, |_| {})
     })
 }
+/// Build an official inventory source from exact host-owned account scopes.
+/// Each account is scanned independently; callers do not reimplement discovery
+/// or manufacture connection identities.
+pub fn scoped_inventory_source(scoped: ScopedInventory) -> InventorySource {
+    Arc::new(move |cancel| scoped.scan(cancel))
+}
 impl EmbeddedClient {
     fn open(&self) -> Result<()> {
         if self.closed.load(Ordering::Acquire) {
@@ -205,6 +217,13 @@ impl EmbeddedClient {
     pub fn authorize_execution(&self, grant: ExecutionGrant) -> Result<()> {
         self.open()?;
         self.service.register_execution(&self.id, grant)
+    }
+    /// Cooperatively stop background lanes and the current inventory refresh
+    /// before a bounded shutdown. A source that ignores its cancel flag cannot
+    /// be aborted; the runtime's shutdown deadline still bounds the caller.
+    pub fn stop_background(&self) {
+        self.service.stop_background_tasks();
+        self.service.cancel_active_inventory();
     }
     pub fn close(&self) {
         if !self.closed.swap(true, Ordering::AcqRel) {
