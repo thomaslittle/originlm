@@ -76,7 +76,7 @@ export function RailVariant({ candidates }: VariantProps) {
             ) : (
               <ProviderGlyph id={group.id} name={group.name} size="sm" />
             )}
-            <span className="hidden min-w-0 flex-1 truncate sm:block">{group.name}</span>
+            <span className="hidden min-w-0 flex-1 truncate sm:block">{group.name}</span>{' '}
             <span className="ml-auto hidden font-mono text-[0.65rem] tabular-nums text-muted-foreground sm:block">{group.count}</span>
           </Button>
         ))}

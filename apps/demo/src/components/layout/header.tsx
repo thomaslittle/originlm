@@ -28,11 +28,13 @@ export function Header() {
         </BreadcrumbList>
       </Breadcrumb>
       <div data-top-actions="" className="ml-auto flex items-center gap-2">
-        <Button variant="outline" aria-label="Find a route: open model command palette" onClick={openPalette} className="hidden h-8 w-64 justify-start gap-2 text-muted-foreground md:inline-flex">
+        {/* The visible text and shortcut are the accessible name (WCAG 2.5.3); the
+            explicit spaces keep them separate words for assistive tech. */}
+        <Button variant="outline" aria-keyshortcuts="Control+K" onClick={openPalette} className="hidden h-8 w-64 justify-start gap-2 text-muted-foreground md:inline-flex">
           <MagnifyingGlassIcon aria-hidden="true" />
-          <span className="flex-1 text-left">Find a route…</span>
-          <KbdGroup aria-hidden="true">
-            <Kbd>Ctrl</Kbd>
+          <span className="flex-1 text-left">Find a route…</span>{' '}
+          <KbdGroup>
+            <Kbd>Ctrl</Kbd>{' '}
             <Kbd>K</Kbd>
           </KbdGroup>
         </Button>
