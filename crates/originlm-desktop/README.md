@@ -38,9 +38,11 @@ Each candidate is probed. When none answers, the app hosts a private broker
 in-process and mints an in-memory administrative credential for this window; no
 credential is written to disk and the runtime ends with the app. Passive
 discovery plus read-only metadata probes for the discovered providers are
-enabled so the window fills in and can verify sign-in state. Execution, paid
-options and account-identity reveal remain off. An explicit `--token-file`
-always fails closed instead: it is never replaced by a local runtime.
+enabled so the window fills in and can verify sign-in state. The Playground gets
+a read-only execution grant for a dedicated empty workspace; paid or
+unknown-billing routes still require the per-run consent switch, and account
+identity reveal stays off. An explicit `--token-file` always fails closed
+instead: it is never replaced by a local runtime.
 
 An admin descriptor enables the Connected apps view. An application descriptor
 still works for everything else; apps management then explains why it is
@@ -72,8 +74,9 @@ Useful flags and environment overrides:
   them, and app-scoped revocation with an explicit confirmation.
 - **Sessions** — sessions this app started, their status, usage and cancellation.
   External sessions are explicitly described as unobservable.
-- **Playground** — one explicit, read-only, non-paid turn through
+- **Playground** — one explicit, read-only turn through
   `sessions.create` → `turns.start` → `events.read`, streamed into the window.
+  Paid and unknown-billing routes require the per-run consent switch.
 - **Diagnostics** — health, plain-language issues with evidence and remediation,
   revision copy and a redacted diagnostic export.
 - **Settings** — theme, refresh cadence, the socket and credential *paths* (never
@@ -98,9 +101,10 @@ for the usage series.
 
 - Verified interactively on Linux/X11 (Xvfb, software rendering) and launched on
   GNOME Wayland. Windows and macOS were not built or run here.
-- The Playground is deliberately read-only and never enables paid fallback; it
-  does not expose provider-native option selection yet, though models show the
-  supported options.
+- The Playground is deliberately read-only. Paid and unknown-billing routes stay
+  off until the user turns on the per-run consent switch, and the private runtime
+  grants execution only in its dedicated playground workspace. Provider-native
+  option selection is not exposed yet, though models show the supported options.
 - The broker's `apps.list` does not report execution scope, so the Connected
   apps page says so rather than guessing.
 - Admin credentials cannot reveal account identity in alpha.18; the app shows

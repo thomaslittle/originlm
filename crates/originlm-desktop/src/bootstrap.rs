@@ -8,9 +8,10 @@
 //! written to disk and no provider is contacted just by starting the app.
 
 use originlm_control::BrokerClient;
-use originlm_kit::{ClientPolicy, Kit};
+use originlm_kit::{ClientPolicy, ExecutionGrant, Kit};
 use originlm_transports::local_ipc::{Broker, BrokerOptions};
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::mpsc,
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -171,6 +172,16 @@ fn read_descriptor(path: &Path) -> Result<(String, String), String> {
     Ok((address.to_owned(), token.to_owned()))
 }
 
+/// The Playground runs one explicit turn at a time in a dedicated, empty
+/// workspace. It never receives the user's home or a project directory.
+fn workspace_dir() -> Option<PathBuf> {
+    let base = originlm_platform::default_state_dir(None)
+        .unwrap_or_else(|| std::env::temp_dir().join("originlm"));
+    let path = base.join("playground");
+    std::fs::create_dir_all(&path).ok()?;
+    path.canonicalize().ok()
+}
+
 fn local_address() -> String {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -255,7 +266,15 @@ fn start_local() -> Result<(String, String), String> {
                         return;
                     }
                 };
-                let token = match broker.authorize_shared(policy, None) {
+                let execution = workspace_dir().map(|workspace| ExecutionGrant {
+                    provider_ids: policy.probe_provider_ids.clone(),
+                    workspaces: BTreeMap::from([("default".to_owned(), workspace)]),
+                    // The Playground still requires an explicit per-turn toggle
+                    // before it asks for a paid or unknown-billing route.
+                    allow_paid: true,
+                    ..Default::default()
+                });
+                let token = match broker.authorize_shared(policy, execution) {
                     Ok(token) => token,
                     Err(_) => {
                         let _ = sender.send(Err(
@@ -291,6 +310,10 @@ mod tests {
             .call("runtime.health", serde_json::json!({}))
             .expect("runtime health");
         assert_eq!(health["autonomousRefresh"], true);
+        let grants = client
+            .call("grants.list", serde_json::json!({}))
+            .expect("grants");
+        assert_eq!(grants["execution"], true);
         client.close();
     }
 

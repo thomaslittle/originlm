@@ -349,7 +349,11 @@ pub struct ModelChoice {
 }
 
 pub enum ExecCommand {
-    Run { prompt: String, choice: ModelChoice },
+    Run {
+        prompt: String,
+        choice: ModelChoice,
+        allow_paid: bool,
+    },
     Cancel,
     Close(String),
 }
@@ -413,7 +417,11 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
 
     while let Ok(command) = commands.recv() {
         match command {
-            ExecCommand::Run { prompt, choice } => {
+            ExecCommand::Run {
+                prompt,
+                choice,
+                allow_paid,
+            } => {
                 if current_session.is_some() {
                     let _ = events.send(ExecEvent::Failed {
                         error: "A turn is already running.".into(),
@@ -445,7 +453,7 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                         "workspaceId": "default",
                         "permissionMode": "read_only",
                         "reviewRequests": false,
-                        "allowPaid": false,
+                        "allowPaid": allow_paid,
                     }),
                 );
                 let session_id = match created {

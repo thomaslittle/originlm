@@ -215,6 +215,7 @@ pub struct Desktop {
     pub active_turn: Option<String>,
     pub usage_note: Option<String>,
     pub playground_error: Option<String>,
+    pub paid_consent: bool,
     pub revoke_confirm: Option<String>,
     pub toast: Option<(String, Instant)>,
     pub mini_view: bool,
@@ -372,6 +373,7 @@ impl Desktop {
             active_turn: None,
             usage_note: None,
             playground_error: None,
+            paid_consent: false,
             revoke_confirm: None,
             toast: None,
             mini_view: example && std::env::var_os("LAI_DESKTOP_MINI_VIEW").is_some(),
@@ -517,6 +519,13 @@ impl Desktop {
                         }
                         ExecEvent::Failed { error } => {
                             self.running = false;
+                            let error = if error.contains("BILLING_CONSENT_REQUIRED") {
+                                format!(
+                                    "{error} Turn on \"Allow paid or unknown-billing routes\" and run again."
+                                )
+                            } else {
+                                error
+                            };
                             self.playground_error = Some(error.clone());
                             if let Some(session) = self
                                 .active_session
@@ -832,10 +841,11 @@ impl Desktop {
             role: TranscriptRole::You,
             text: prompt.clone(),
         });
-        let _ = self
-            .executor
-            .commands
-            .send(broker::ExecCommand::Run { prompt, choice });
+        let _ = self.executor.commands.send(broker::ExecCommand::Run {
+            prompt,
+            choice,
+            allow_paid: self.paid_consent,
+        });
         cx.notify();
     }
 

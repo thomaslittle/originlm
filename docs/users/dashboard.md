@@ -37,8 +37,8 @@ A web status badge distinguishes a reachable runtime from an authenticated clien
 Example mode is always labeled and uses synthetic data. It never reads a real
 account, invokes a provider or charges an API. A normal first run needs no token
 file: the app uses a shared runtime when one is already granted and otherwise
-hosts a private one for the window. The private runtime runs passive discovery
-and read-only metadata probes so sign-in state and usage can be verified.
-Execution, writes, paid options and identity reveal remain off. Local control
-state stays on the machine; authorized cloud-provider operations can send
-requests to that provider.
+hosts a private one for the window. The private runtime runs passive discovery,
+read-only metadata probes, and read-only Playground execution in a dedicated
+workspace. Writes, paid or unknown-billing routes, and identity reveal remain
+off unless explicitly enabled. Local control state stays on the machine;
+authorized cloud-provider operations can send requests to that provider.
