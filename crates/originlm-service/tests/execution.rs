@@ -60,6 +60,7 @@ fn setup(
                                 provider_id: "test".into(),
                                 profile_home: std::env::temp_dir(),
                                 executable: None,
+                                scope: None,
                             },
                         )
                     })
@@ -137,6 +138,7 @@ async fn revocation_during_open_then_regrant_closes_the_unpublished_agent() {
                             provider_id: "test".into(),
                             profile_home: std::env::temp_dir(),
                             executable: None,
+                            scope: None,
                         },
                     )]),
                     metadata_probes: 0,

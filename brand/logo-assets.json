@@ -178,11 +178,6 @@
       "sha256": "512597660cc439647bb2dfd0fceac08887e09092f964e8a6f27eb71077f02ffe"
     },
     {
-      "source": "logos/png/originlm-horizontal-white-2048.png",
-      "target": "media/video/media/originlm-white.png",
-      "sha256": "f2f96c294b999e23e796cbd33256efcd5a7c56e7ced01537a01396ff290454d4"
-    },
-    {
       "source": "native/windows/originlm.ico",
       "target": "brand/native/windows/originlm.ico",
       "sha256": "6543e650d84f0ab87049c12e6bc182053ad6094b10403ca8b89628ed83042842"

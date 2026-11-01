@@ -1,0 +1,52 @@
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '**/*.md'
+rust:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'crates/**'
+          - 'Cargo.toml'
+          - 'Cargo.lock'
+          - 'rust-toolchain.toml'
+typescript:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/**'
+          - 'apps/**'
+          - 'package.json'
+          - 'package-lock.json'
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/sdk-python/**'
+          - 'scripts/**'
+          - '**/*.py'
+          - '**/pyproject.toml'
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+release:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/release/**'
+          - '.github/workflows/release.yml'
+          - '.github/workflows/prepare-crates.yml'
+          - '.github/workflows/python-wheels.yml'
+          - '.github/workflows/publish-*.yml'
+policy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/POLICY-UNIVERSAL-PRODUCT.md'
+          - 'CONTRIBUTING.md'
+demo:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'apps/demo/**'
+adapters:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'crates/originlm-adapters/**'
+          - 'docs/adapters/**'

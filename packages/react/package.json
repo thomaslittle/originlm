@@ -1,6 +1,6 @@
 {
   "name": "@originlm/react",
-  "version": "0.1.0-alpha.20",
+  "version": "0.1.0-alpha.21",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -20,8 +20,8 @@
     "react": "^18.3.0 || ^19.0.0"
   },
   "dependencies": {
-    "originlm": "0.1.0-alpha.20",
-    "@originlm/selector-core": "0.1.0-alpha.20"
+    "originlm": "0.1.0-alpha.21",
+    "@originlm/selector-core": "0.1.0-alpha.21"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

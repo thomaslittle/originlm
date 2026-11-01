@@ -43,15 +43,15 @@ export function Video() {
                   <div>
                     <h3>The 35-second tour</h3>
                     <p>
-                      The film is rendered separately from this source checkout. The product tour above
-                      covers the same features; see media/video for the reproducible film source.
+                      The film is not included in this source checkout. The product tour above
+                      covers the same features.
                     </p>
                   </div>
                 </div>
               </div>
             )}
             <figcaption>
-              {PROMO.hasVideo ? "1920×1080, H.264 and WebM. 35 seconds, silent." : "Film assets are not included in this build."} Source: media/video.
+              {PROMO.hasVideo ? "1920×1080, H.264 and WebM. 35 seconds, silent." : "Film assets are not included in this build."}
             </figcaption>
           </figure>
 

@@ -22,7 +22,6 @@ try {
   if (!ring) throw Error('Example quota ring missing');
   const app = resolve(scratch, 'app.png');
   await page.screenshot({ path: app }); encode(app, resolve(scenes, 'app.webp'));
-  await page.locator('[data-capture="usage-and-costs"]').screenshot({ path: resolve(root, 'media/video/media/dashboard-detail.png') });
   await writeFile(resolve(scenes, 'manifest.json'), JSON.stringify({ source: 'apps/demo /overview, example mode', width: 1440, height: 1000, dpr: 2, focus: { u: (ring.x + ring.width / 2) / 1440, v: (ring.y + ring.height / 2) / 1000 } }, null, 2) + '\n');
   const provider = resolve(scratch, 'providers.png');
   await page.locator('[data-capture="providers"]').screenshot({ path: provider }); encode(provider, resolve(scenes, 'providers.webp'));
@@ -31,11 +30,6 @@ try {
   for (const name of ['sdk', 'transport', 'runtime']) {
     const file = resolve(scratch, `${name}.png`);
     await page.locator(`[data-capture="${name}"]`).screenshot({ path: file }); encode(file, resolve(scenes, `${name}.webp`));
-    if (name === 'runtime') {
-      await page.setViewportSize({ width: 800, height: 1000 });
-      await page.locator('[data-capture="runtime"]').screenshot({ path: resolve(root, 'media/video/media/runtime.png') });
-      await page.setViewportSize({ width: 1440, height: 1000 });
-    }
   }
   for (const route of ['diagnostics', 'playground']) {
     await open(route);

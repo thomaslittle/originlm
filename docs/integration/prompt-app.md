@@ -40,4 +40,4 @@ Keep an open session for follow-up edits. Native suspend/resume is available onl
 
 ## Readiness boundary
 
-This is an unpublished developer alpha. Deterministic adapter and package tests establish mechanics, not a guarantee that every installed version or user's subscription accepts inference. Live metadata checks do not qualify generation. Before shipping your integration, qualify the app's actual host lifecycle, output validation, cancellation, and the specific provider versions you intend to support. See the [support matrix](../adapters/SUPPORT-MATRIX.md) for provider-specific limits.
+This is a developer alpha. Deterministic adapter and package tests establish mechanics, not a guarantee that every installed version or user's subscription accepts inference. Live metadata checks do not qualify generation. Before shipping your integration, qualify the app's actual host lifecycle, output validation, cancellation, and the specific provider versions you intend to support. See the [support matrix](../adapters/SUPPORT-MATRIX.md) for provider-specific limits.

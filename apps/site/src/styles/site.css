@@ -141,7 +141,7 @@ p { color: var(--color-muted); }
 .nav[data-scrolled="true"] { border-bottom-color: var(--color-rule); background: var(--color-scrim); }
 .nav-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-xl); min-height: 72px; }
 .nav-logo { display: inline-flex; padding: var(--space-xs) 0; }
-.nav-logo img { width: 128px; height: auto; }
+.nav-logo img, .nav-logo svg { width: 128px; height: auto; }
 .nav-links { display: flex; justify-content: center; gap: var(--space-xs); margin: 0; padding: 0; list-style: none; }
 .nav-links a {
   display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-sm); border-radius: var(--radius-pill);
@@ -432,7 +432,7 @@ p { color: var(--color-muted); }
 .final-cta-side p:first-child { color: var(--color-ink-2); font-size: var(--text-lead); line-height: 1.45; max-width: 45ch; }
 .final-cta .hero-actions { margin-top: var(--space-lg); }
 .footer-grid { display: grid; grid-template-columns: minmax(0, 5fr) repeat(3, minmax(0, 2fr)); gap: var(--gap-columns); padding-block: var(--space-2xl); }
-.footer-brand img { width: 140px; height: auto; }
+.footer-brand img, .footer-brand > svg { width: 140px; height: auto; }
 .footer-brand p { margin-block: var(--space-md) var(--space-lg); max-width: 45ch; font-size: var(--text-sm); }
 .footer-col h3 { font-size: var(--text-sm); font-weight: 500; color: var(--color-muted); letter-spacing: 0; }
 .footer-col ul { display: grid; gap: var(--space-2xs); margin: var(--space-sm) 0 0; padding: 0; list-style: none; }
@@ -532,3 +532,5 @@ p { color: var(--color-muted); }
 .css-hero-plane { position:absolute; left:46%; top:48%; width:72%; aspect-ratio:1.44; background:var(--color-paper); border:1px solid #eba31a66; border-radius:5px; box-shadow:0 10px 20px #0007; transform-style:preserve-3d; will-change:transform; }
 .css-hero-plane img { width:100%; height:100%; object-fit:contain; object-position:center bottom; border-radius:4px; }
 .css-hero-plane span { position:absolute; right:-65px; bottom:8px; color:var(--color-ink); font:10px ui-monospace,monospace; opacity:var(--hero-spread); }
+
+.nav-logo svg, .footer-brand > svg { display:block; height:auto; }

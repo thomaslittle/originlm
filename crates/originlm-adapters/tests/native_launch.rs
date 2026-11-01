@@ -1,6 +1,6 @@
 use originlm_adapters::native_clients::{
     config::*,
-    launch::{prepare, prepare_execution},
+    launch::{prepare, prepare_auth, prepare_execution},
 };
 use originlm_contracts::*;
 use std::{fs, path::Path};
@@ -72,7 +72,9 @@ fn google_acp_requires_native_harness_and_blocked_interactive_browser() {
             .env
             .contains_key(std::ffi::OsStr::new("GEMINI_API_KEY"))
     );
-    assert_eq!(launch.auth_method.as_deref(), Some("oauth-personal"));
+    assert!(launch.auth_method.is_none());
+    let auth_launch = prepare_auth(&p, root.path(), &blocker).unwrap();
+    assert_eq!(auth_launch.auth_method.as_deref(), Some("oauth-personal"));
     assert!(launch.scratch.path().is_dir());
 }
 #[test]
@@ -195,6 +197,7 @@ async fn clients_that_cannot_remove_their_tools_refuse_text_only_sessions() {
             provider_id: provider.id().into(),
             profile_home: p.profile_home.clone(),
             executable: Some(p.executable.clone()),
+            scope: None,
         };
         let model = Model {
             id: "m".into(),

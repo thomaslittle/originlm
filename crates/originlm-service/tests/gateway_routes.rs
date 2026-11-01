@@ -23,6 +23,7 @@ fn create(escape: bool) -> NativeService {
                             provider_id: "gateway".into(),
                             profile_home: std::env::temp_dir(),
                             executable: None,
+                            scope: None,
                         },
                     )
                 })

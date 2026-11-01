@@ -1,6 +1,6 @@
 {
   "name": "originlm",
-  "version": "0.1.0-alpha.20",
+  "version": "0.1.0-alpha.21",
   "private": true,
   "type": "module",
   "description": "Thin permission-aware OriginLM protocol client",
@@ -46,5 +46,6 @@
   "engines": {
     "node": ">=22.16"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": "https://github.com/thomaslittle/originlm"
 }

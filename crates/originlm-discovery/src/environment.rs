@@ -38,6 +38,10 @@ pub struct ScanEnvironment {
     pub local_app_data: PathBuf,
     pub search_path: Vec<PathBuf>,
     pub overrides: BTreeMap<String, PathBuf>,
+    /// Host-owned exact executable per provider, used instead of directory
+    /// search. This preserves a logical command/symlink and its resolved
+    /// identity without widening the global `PATH`.
+    pub executable_overrides: BTreeMap<String, PathBuf>,
     pub platform: HostPlatform,
 }
 impl ScanEnvironment {
@@ -50,6 +54,7 @@ impl ScanEnvironment {
             home,
             search_path: vec![],
             overrides: BTreeMap::new(),
+            executable_overrides: BTreeMap::new(),
             platform,
         }
     }
@@ -118,6 +123,7 @@ impl ScanEnvironment {
         ]
         .into_iter()
         .chain(self.overrides.values())
+        .chain(self.executable_overrides.values())
         .any(|p| !valid_root(p))
         {
             return Err(DomainError::new(
@@ -125,7 +131,10 @@ impl ScanEnvironment {
                 "Scan roots must be absolute local paths",
             ));
         }
-        if self.overrides.len() > 32 || self.search_path.len() > 128 {
+        if self.overrides.len() > 32
+            || self.search_path.len() > 128
+            || self.executable_overrides.len() > 32
+        {
             return Err(DomainError::new(
                 ErrorCode::InvalidRequest,
                 "Scan environment exceeds configured bounds",

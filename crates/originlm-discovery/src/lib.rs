@@ -4,6 +4,7 @@ pub mod knowledge;
 pub mod log_tail;
 mod registry;
 mod scanner;
+mod scoped;
 pub use environment::{HostPlatform, ScanEnvironment, join_relative};
 pub use knowledge::{
     DiscoveryRule, RuleBasis, RuleRole, T3CODE_COMMIT, T3CODE_REPOSITORY, TOKSCALE_COMMIT,
@@ -13,6 +14,7 @@ use originlm_contracts::Snapshot;
 use originlm_platform::LocalFilesystem;
 pub use originlm_platform::{ExecutableIdentity, resolve_executable};
 pub use registry::{MUSE_BINARY_OVERRIDE, ProviderDefinition, definitions};
+pub use scoped::{AccountScope, ScopedInventory, ScopedProvider};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::PathBuf,
@@ -24,6 +26,17 @@ pub struct LocatedClient {
     pub executable: Option<PathBuf>,
     /// Logical command and pinned Unix target for a discovered executable link.
     pub executable_identity: Option<ExecutableIdentity>,
+    /// Exact OpenCode config/data/state binding when discovery came from a
+    /// host-owned account scope. Legacy discovery leaves this `None`.
+    pub scope: Option<ProfileScope>,
+}
+/// Exact account roots needed to keep OpenCode metadata and service state out
+/// of process-global defaults.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileScope {
+    pub config_home: PathBuf,
+    pub data_home: PathBuf,
+    pub state_home: PathBuf,
 }
 impl LocatedClient {
     pub fn validate_executable(&self) -> originlm_contracts::Result<()> {

@@ -2,7 +2,7 @@
 
 The service shares one runtime across granted applications. SDKs can instead own a
 private helper. The service installer installs the helper only, not the dashboard.
-There is no published hosted installer in this source preview.
+The packages are published; there is no hosted installer.
 
 ## Prepare and install
 
@@ -26,11 +26,17 @@ and start an independent IPC broker. They do not enable loopback HTTP or a websi
 content bridge. Each consumer must receive its own scoped grant; the initial broker
 descriptor is not permission to silently share administrator privileges.
 
+The archive also carries `LICENSE`, complete per-target dependency notices and
+license texts, an SBOM and a member manifest. The installers still extract only the
+exact `helper-<target>/originlm[.exe]` member; extra members are never executed or
+used as filesystem paths.
+
 Checksums detect corruption, not publisher authenticity. Unix verifies minisign when
 `LAI_MINISIGN_PUBKEY` is configured and fails if the verifier/signature is unavailable.
 Windows optionally pins `LAI_WINDOWS_SIGNER_THUMBPRINT` and requires a valid matching
-Authenticode signature. Unsigned preview artifacts cannot pass those configured pins.
-Public signed releases remain unqualified.
+Authenticode signature. The `v0.1.0-alpha.22` alpha is explicitly unsigned, so those
+configured pins reject it; no Authenticode, notarization or trusted update signature
+is claimed. Public signed releases remain unqualified.
 
 Unix overrides: `LAI_RELEASE_BASE`, `LAI_BIN_DIR`, `LAI_STATE_DIR`, `LAI_BROKER_SOCKET`,
 `LAI_MINISIGN_PUBKEY`. Paths must be absolute and cannot contain newlines. `LAI_STATE_DIR`
