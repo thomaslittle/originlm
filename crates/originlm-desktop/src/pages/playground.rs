@@ -18,7 +18,9 @@ impl Desktop {
         let transcript = self.transcript.clone();
         let transcript_empty = transcript.is_empty();
         let running = self.running;
-        let paid_consent = self.paid_consent;
+        let paid_consent = self
+            .paid_consent
+            .is_armed_for(self.selected_model.as_deref());
         let error = self.playground_error.clone();
         let usage = self.usage_note.clone();
         let entity_paid = cx.entity();
@@ -178,7 +180,8 @@ impl Desktop {
                             .on_change(move |checked, _, cx| {
                                 let checked = *checked;
                                 entity_paid.update(cx, |this, cx| {
-                                    this.paid_consent = checked;
+                                    let model = this.selected_model.clone();
+                                    this.paid_consent.set(model.as_deref(), checked);
                                     cx.notify();
                                 });
                             }),
@@ -196,7 +199,7 @@ impl Desktop {
                                 div()
                                     .text_size(px(10.))
                                     .text_color(theme.muted_foreground)
-                                    .child("Off by default. The broker still requires this app's execution grant."),
+                                    .child("Applies to the next run of this model only, then turns off."),
                             ),
                     ),
             )

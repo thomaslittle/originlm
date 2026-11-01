@@ -1,5 +1,6 @@
 use crate::bootstrap::Credential;
 use crate::broker::{self, BrokerHandle, Bundle, ExecEvent, ExecHandle, ModelChoice};
+use crate::consent::PaidConsent;
 use crate::history::Sample;
 use crate::theme;
 use crate::ui::{self, Tone};
@@ -215,7 +216,7 @@ pub struct Desktop {
     pub active_turn: Option<String>,
     pub usage_note: Option<String>,
     pub playground_error: Option<String>,
-    pub paid_consent: bool,
+    pub paid_consent: PaidConsent,
     pub revoke_confirm: Option<String>,
     pub toast: Option<(String, Instant)>,
     pub mini_view: bool,
@@ -373,7 +374,7 @@ impl Desktop {
             active_turn: None,
             usage_note: None,
             playground_error: None,
-            paid_consent: false,
+            paid_consent: PaidConsent::default(),
             revoke_confirm: None,
             toast: None,
             mini_view: example && std::env::var_os("LAI_DESKTOP_MINI_VIEW").is_some(),
@@ -841,10 +842,15 @@ impl Desktop {
             role: TranscriptRole::You,
             text: prompt.clone(),
         });
+        // Consent covers this submitted run only; dispatching clears the switch.
+        let allow_paid = self
+            .selected_model
+            .as_deref()
+            .is_some_and(|model| self.paid_consent.take_for_run(model));
         let _ = self.executor.commands.send(broker::ExecCommand::Run {
             prompt,
             choice,
-            allow_paid: self.paid_consent,
+            allow_paid,
         });
         cx.notify();
     }

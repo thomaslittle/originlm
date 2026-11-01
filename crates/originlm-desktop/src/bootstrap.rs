@@ -5,10 +5,12 @@
 //! When no descriptor is reachable it hosts a private broker in-process and
 //! mints one reusable administrative credential for its two workers. That
 //! credential exists only in memory and dies with the process; nothing is
-//! written to disk and no provider is contacted just by starting the app.
+//! written to disk. The private runtime runs passive discovery and read-only
+//! metadata probes for discovered connections, and keeps them fresh on its
+//! periodic background lanes for as long as the app is open.
 
 use originlm_control::BrokerClient;
-use originlm_kit::{ClientPolicy, ExecutionGrant, Kit};
+use originlm_kit::{ClientPolicy, ExecutionGrant, InventorySource, Kit};
 use originlm_transports::local_ipc::{Broker, BrokerOptions};
 use std::{
     collections::BTreeMap,
@@ -201,11 +203,37 @@ fn local_address() -> String {
     path.to_string_lossy().into_owned()
 }
 
+/// Where the private runtime reads inventory and keeps state.
+struct LocalRuntime {
+    /// `None` scans this machine; tests inject fixture discovery instead.
+    inventory: Option<InventorySource>,
+    state_dir: Option<PathBuf>,
+    workspace: Option<PathBuf>,
+}
+
+impl LocalRuntime {
+    fn host() -> Self {
+        Self {
+            inventory: None,
+            state_dir: originlm_platform::default_state_dir(None).filter(|path| path.is_absolute()),
+            workspace: workspace_dir(),
+        }
+    }
+}
+
 /// Host a private broker for this window. The runtime thread owns the broker
 /// for the process lifetime; dropping the app ends the thread.
 fn start_local() -> Result<(String, String), String> {
+    start_local_with(LocalRuntime::host())
+}
+
+fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
+    let LocalRuntime {
+        inventory,
+        state_dir: state,
+        workspace,
+    } = config;
     let address = local_address();
-    let state = originlm_platform::default_state_dir(None).filter(|path| path.is_absolute());
     let (sender, receiver) = mpsc::channel();
     std::thread::Builder::new()
         .name("originlm-desktop-runtime".into())
@@ -228,6 +256,9 @@ fn start_local() -> Result<(String, String), String> {
                 if let Some(state) = state {
                     builder = builder.state_dir(state);
                 }
+                if let Some(inventory) = inventory {
+                    builder = builder.inventory(inventory);
+                }
                 let kit = match builder.build() {
                     Ok(kit) => kit,
                     Err(_) => {
@@ -248,10 +279,11 @@ fn start_local() -> Result<(String, String), String> {
                     .map(|definition| definition.id.to_owned())
                     .collect();
                 let service = kit.service();
-                // Keep the verified state fresh: passive inventory plus the
-                // same provider metadata grants the window uses for its one-shot
-                // probes. Without this lane, auth evidence goes stale after the
-                // provider freshness window and the UI falls back to 0 verified.
+                // Keep the verified state fresh: the periodic background lanes
+                // repeat passive inventory and the same read-only metadata grants
+                // the window uses for its startup probes. Without them, auth
+                // evidence goes stale after the provider freshness window and
+                // the UI falls back to 0 verified.
                 service.enable_inventory_refresh(true);
                 service.enable_autonomous_refresh(policy.probe_provider_ids.clone());
                 service.start_background_tasks();
@@ -266,7 +298,7 @@ fn start_local() -> Result<(String, String), String> {
                         return;
                     }
                 };
-                let execution = workspace_dir().map(|workspace| ExecutionGrant {
+                let execution = workspace.map(|workspace| ExecutionGrant {
                     provider_ids: policy.probe_provider_ids.clone(),
                     workspaces: BTreeMap::from([("default".to_owned(), workspace)]),
                     // The Playground still requires an explicit per-turn toggle
@@ -300,9 +332,41 @@ fn start_local() -> Result<(String, String), String> {
 mod tests {
     use super::*;
 
+    use originlm_contracts::{DataMode, Snapshot};
+    use originlm_kit::ScanResult;
+    use std::sync::Arc;
+
+    /// A runtime isolated from this machine: fixture discovery that finds
+    /// nothing, so neither the startup scan nor the background lanes can see
+    /// or probe a real account, plus private state and workspace directories.
+    fn isolated(name: &str) -> LocalRuntime {
+        let root = std::env::temp_dir().join(format!(
+            "originlm-desktop-{name}-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default()
+        ));
+        let workspace = root.join("playground");
+        std::fs::create_dir_all(&workspace).expect("workspace");
+        let inventory: InventorySource = Arc::new(|_| {
+            Ok(ScanResult {
+                snapshot: Snapshot::empty(DataMode::Live),
+                locations: BTreeMap::new(),
+                metadata_probes: 0,
+            })
+        });
+        LocalRuntime {
+            inventory: Some(inventory),
+            state_dir: Some(root.join("state")),
+            workspace: Some(workspace.canonicalize().expect("canonical workspace")),
+        }
+    }
+
     #[test]
     fn local_runtime_issues_a_working_administrative_credential() {
-        let (address, token) = start_local().expect("local runtime");
+        let (address, token) = start_local_with(isolated("bootstrap")).expect("local runtime");
         let mut client = BrokerClient::connect(&address, &token).expect("connect");
         client.snapshot().expect("snapshot");
         client.apps().expect("administrative apps list");
@@ -314,6 +378,12 @@ mod tests {
             .call("grants.list", serde_json::json!({}))
             .expect("grants");
         assert_eq!(grants["execution"], true);
+        // Fixture discovery is what the runtime sees, not this machine.
+        client
+            .call("discovery.refresh", serde_json::json!({"level": "passive"}))
+            .expect("passive refresh");
+        let snapshot = client.snapshot().expect("snapshot after refresh");
+        assert!(snapshot.connections.is_empty());
         client.close();
     }
 

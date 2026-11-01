@@ -3,6 +3,7 @@ mod bootstrap;
 mod brand;
 mod brand_tokens;
 mod broker;
+mod consent;
 mod data;
 mod history;
 mod human;
