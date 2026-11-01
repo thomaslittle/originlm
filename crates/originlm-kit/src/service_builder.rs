@@ -6,7 +6,7 @@ use originlm_adapters::{
     billing_declarations::BillingDeclarations,
     claude, codex,
     execution::{CodexExecution, open_codex},
-    native_clients::config::NativeRegistry,
+    native_clients::config::{NativeProfile, NativeProvider, NativeRegistry},
     process::LaunchSpec,
 };
 use originlm_chatgpt_auth::AuthManager;
@@ -236,6 +236,40 @@ async fn probe_metadata(
         .await;
     }
     if let Some(profile) = native_profile {
+        return originlm_adapters::native_clients::client::probe(
+            &profile,
+            &located,
+            &connection,
+            &route,
+            native_browser.as_deref(),
+        )
+        .await;
+    }
+    // A discovered ACP client is already an installed native profile. Probe it
+    // with the same adapter instead of requiring a hand-authored
+    // --native-profiles file; T3 Code does the equivalent through its ACP
+    // registry.
+    if let Some(provider) = NativeProvider::from_id(&located.provider_id)
+        && let Some(executable) = located.executable.clone()
+    {
+        // The Antigravity ACP server is installed into its own profile home;
+        // the generic discovery root points at the CLI profile instead.
+        let mut located = located;
+        if provider == NativeProvider::Antigravity
+            && executable.file_name().and_then(|name| name.to_str()) == Some("agy_acp_server.par")
+            && let Some(parent) = executable.parent()
+        {
+            located.profile_home = parent.to_path_buf();
+        }
+        let profile = NativeProfile {
+            id: connection.clone(),
+            label: provider.id().to_owned(),
+            provider,
+            executable,
+            profile_home: located.profile_home.clone(),
+            auth_method: None,
+            billing: None,
+        };
         return originlm_adapters::native_clients::client::probe(
             &profile,
             &located,

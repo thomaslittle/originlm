@@ -26,8 +26,9 @@ EXPECTED = [
     "originlm-adapters",
     "originlm-kit",
     "originlm",
+    "originlm-cli",
 ]
-EXCLUDED = {"originlm-cli", "originlm-desktop", "originlm-update"}
+EXCLUDED = {"originlm-desktop", "originlm-update"}
 
 
 class PublishOrder(unittest.TestCase):
@@ -38,7 +39,8 @@ class PublishOrder(unittest.TestCase):
     def test_facade_closure_has_a_stable_dependency_first_order(self):
         order, packages = publish_order.validate(copy.deepcopy(self.metadata))
         self.assertEqual(order, EXPECTED)
-        self.assertEqual(order[-1], "originlm")
+        self.assertIn("originlm", order)
+        self.assertEqual(order[-1], "originlm-cli")
         self.assertEqual(set(order), set(packages) - EXCLUDED)
         position = {name: index for index, name in enumerate(order)}
         for name in order:
@@ -66,7 +68,7 @@ class PublishOrder(unittest.TestCase):
             "originlm": package("originlm", ("a",)),
         }
         with self.assertRaisesRegex(publish_order.PublishOrderError, "cycle"):
-            publish_order.publishable_closure(packages, "originlm")
+            publish_order.publishable_closure(packages, ("originlm",))
 
     def test_missing_version_or_path_fails_closed(self):
         for mutation in (drop_path, break_version):
