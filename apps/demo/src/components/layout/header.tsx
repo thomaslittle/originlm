@@ -28,7 +28,7 @@ export function Header() {
         </BreadcrumbList>
       </Breadcrumb>
       <div data-top-actions="" className="ml-auto flex items-center gap-2">
-        <Button variant="outline" aria-label="Open model command palette" onClick={openPalette} className="hidden h-8 w-64 justify-start gap-2 text-muted-foreground md:inline-flex">
+        <Button variant="outline" aria-label="Find a route: open model command palette" onClick={openPalette} className="hidden h-8 w-64 justify-start gap-2 text-muted-foreground md:inline-flex">
           <MagnifyingGlassIcon aria-hidden="true" />
           <span className="flex-1 text-left">Find a route…</span>
           <KbdGroup aria-hidden="true">

@@ -57,7 +57,7 @@ export function RailVariant({ candidates }: VariantProps) {
             key={group.id}
             variant="ghost"
             data-provider={group.id}
-            aria-label={group.name}
+            aria-label={`${group.name} ${group.count}`}
             aria-pressed={provider === group.id}
             onClick={() => actions.patch({ provider: group.id })}
             className={cn(
