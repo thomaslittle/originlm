@@ -720,6 +720,21 @@ mod tests {
         _temp: tempfile::TempDir,
     }
 
+    // Activation cannot downgrade the running crate. Keep successful fixture
+    // versions ahead of it as the alpha release number advances.
+    fn future_alpha(offset: u64) -> String {
+        let current = parse_version(env!("CARGO_PKG_VERSION")).unwrap();
+        assert_eq!((current.major, current.minor, current.patch), (0, 1, 0));
+        let number: u64 = current
+            .pre
+            .as_str()
+            .strip_prefix("alpha.")
+            .unwrap()
+            .parse()
+            .unwrap();
+        format!("0.1.0-alpha.{}", number.checked_add(offset).unwrap())
+    }
+
     fn signed(version: &str) -> Signed {
         let temp = tempfile::tempdir().unwrap();
         let archive = temp.path().join("bundle.zip");
@@ -754,13 +769,13 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let target = root.path().join("current");
         std::fs::write(&target, b"old").unwrap();
-        let next = signed("0.1.0-alpha.22");
+        let next = signed(&future_alpha(2));
         let staged = stage_update(
             &next.manifest,
             &next.archive,
             &root.path().join("staging"),
             &next.public_key,
-            "0.1.0-alpha.20",
+            env!("CARGO_PKG_VERSION"),
             "1.0",
         )
         .unwrap();
@@ -775,13 +790,13 @@ mod tests {
         rollback(&target, &activation.backup).unwrap();
         // Model the crash window before informational metadata was written.
         std::fs::remove_file(root.path().join("state.json")).unwrap();
-        let older = signed("0.1.0-alpha.21");
+        let older = signed(&future_alpha(1));
         let staged = stage_update(
             &older.manifest,
             &older.archive,
             &root.path().join("staging"),
             &older.public_key,
-            "0.1.0-alpha.20",
+            env!("CARGO_PKG_VERSION"),
             "1.0",
         )
         .unwrap();
@@ -915,7 +930,7 @@ mod tests {
 
     #[test]
     fn staged_activation_refuses_a_live_session_and_rolls_back() {
-        let signed = signed("0.1.0-alpha.21");
+        let signed = signed(&future_alpha(1));
         let root = tempfile::tempdir().unwrap();
         let staging = root.path().join("staged");
         let staged = stage_update(
@@ -968,7 +983,7 @@ mod tests {
 
     #[test]
     fn an_old_crash_marker_is_preserved_but_does_not_block_activation() {
-        let signed = signed("0.1.0-alpha.21");
+        let signed = signed(&future_alpha(1));
         let root = tempfile::tempdir().unwrap();
         let staged = stage_update(
             &signed.manifest,
@@ -1010,7 +1025,7 @@ mod tests {
 
     #[test]
     fn a_failed_staging_copy_never_touches_the_installed_binary() {
-        let signed = signed("0.1.0-alpha.21");
+        let signed = signed(&future_alpha(1));
         let root = tempfile::tempdir().unwrap();
         let target = root.path().join("current");
         std::fs::write(&target, b"old-binary").unwrap();
