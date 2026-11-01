@@ -313,15 +313,12 @@ impl Client {
                         .take(400)
                         .collect();
                     let code = match (error["type"].as_str(), status) {
-                        (Some("provider.quota"), _)
-                        | (_, Some(402))
-                        | (_, Some(429)) => ErrorCode::RateLimited,
+                        (Some("provider.quota"), _) | (_, Some(402)) | (_, Some(429)) => {
+                            ErrorCode::RateLimited
+                        }
                         _ => ErrorCode::ProviderUnavailable,
                     };
-                    return Err(DomainError::new(
-                        code,
-                        format!("OpenCode 2: {bounded}"),
-                    ));
+                    return Err(DomainError::new(code, format!("OpenCode 2: {bounded}")));
                 }
                 "session.execution.interrupted" => {
                     return Err(DomainError::new(
