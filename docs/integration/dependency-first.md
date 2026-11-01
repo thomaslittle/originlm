@@ -278,6 +278,6 @@ temporary directory with an owner-restricted, per-process name.
 ## Publishing
 
 Registry publication is handled by the gated release workflows. The packages are
-published at `0.1.0-alpha.21`; the preparation workflow itself still produces
+published at `0.1.0-alpha.22`; the preparation workflow itself still produces
 unsigned local artifacts only and has no publication authority. See
 [release gates](../release/PUBLISHING.md).
