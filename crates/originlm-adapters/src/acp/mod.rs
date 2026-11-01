@@ -1,8 +1,8 @@
 //! Shared ACP v1 parsing and protocol transport.
 mod catalog;
 mod config;
-pub use catalog::parse_catalog;
 use crate::process::LaunchSpec;
+pub use catalog::parse_catalog;
 use originlm_contracts::*;
 use serde_json::Value;
 pub use wire::acp_mcp_servers;

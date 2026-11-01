@@ -1,4 +1,5 @@
 //! Installed native host. Registration configuration is owned by the installing application.
+#[allow(dead_code, reason = "The shared parser also defines CLI-only actions")]
 mod args;
 mod endpoints;
 mod host;

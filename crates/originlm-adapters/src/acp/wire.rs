@@ -41,7 +41,7 @@ impl Wire {
             provider,
             route,
         };
-        let outcome = tokio::time::timeout(Duration::from_secs(20), async {
+        let outcome = tokio::time::timeout(timeout, async {
             this.init = this
                 .call(
                     "initialize",
@@ -89,7 +89,14 @@ impl Wire {
         host_mcp_servers: &[HostMcpServer],
     ) -> Result<Self> {
         let _ = host_mcp_servers;
-        Self::initialized(spec, provider, route, Some(method), Duration::from_secs(300)).await
+        Self::initialized(
+            spec,
+            provider,
+            route,
+            Some(method),
+            Duration::from_secs(300),
+        )
+        .await
     }
 
     pub async fn connect_with_auth(
@@ -326,5 +333,46 @@ pub(super) fn response_result(value: &Value) -> Result<Value> {
             ))
         }
         _ => Err(invalid()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{collections::BTreeMap, path::PathBuf};
+
+    #[tokio::test]
+    async fn initialization_honors_requested_timeout() {
+        let python = std::env::var_os("LAI_TEST_PYTHON")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                PathBuf::from(if cfg!(windows) {
+                    "C:/Python313/python.exe"
+                } else {
+                    "/usr/bin/python3"
+                })
+            });
+        let spec = LaunchSpec {
+            executable: python,
+            args: vec!["-c".into(), "import time; time.sleep(30)".into()],
+            cwd: std::env::temp_dir(),
+            env: BTreeMap::new(),
+        };
+        let result = tokio::time::timeout(
+            Duration::from_secs(10),
+            Wire::initialized(
+                spec,
+                "fixture".into(),
+                "route".into(),
+                None,
+                Duration::from_millis(100),
+            ),
+        )
+        .await
+        .expect("initialization ignored the requested timeout");
+        assert_eq!(
+            result.err().expect("the peer never answered").code,
+            ErrorCode::Timeout
+        );
     }
 }
