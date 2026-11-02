@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- build(sqlite): move `originlm-adapters` and `originlm-store` from `rusqlite` 0.32.1 to 0.37.0 (`libsqlite3-sys` 0.35, bundled SQLite stays on with `limits`). Hosts that already depend on `rusqlite` 0.37 can now link the OriginLM crates; two `rusqlite` majors cannot coexist in one binary because `libsqlite3-sys` declares `links = "sqlite3"`.
 - fix(opencode): map an exact OpenCode Go Global-region refusal to the shared `PROVIDER_REGION_RESTRICTED` error code with fixed safe guidance. Neither the provider's privacy setting nor account/billing state is changed; other failures keep their existing classification.
 - feat(auth): add `originlm auth antigravity`, which starts the installed ACP server, captures the Google authorization URL through a host browser helper, and waits for the callback. Metadata probes no longer start OAuth implicitly.
 - feat(antigravity): add the managed ACP server installer (`originlm install antigravity`), discover the installed `agy_acp_server.par`/harness, and probe discovered ACP clients without a hand-authored profile file. Gemini CLI discovery now includes T3 Code-managed installs. Auth flows and reset credits are the next engine slice.
