@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix(opencode): resolve the npm shim of OpenCode 2.x (`@opencode/cli`) as well as 1.x (`opencode-ai`), so an npm-installed OpenCode 2 on Windows lists its models instead of reporting `RuntimeMissing`.
 - build(desktop): move `originlm-desktop` from `gpui-kit` 0.8.1 (`gpui-fast` 0.1.12, `gpui-pre` 0.3.10) to `gpui-kit` 0.9.0 with the `gpui-fast` feature (`gpui-fast` 0.1.13, `gpui-pre` 0.3.11). The palette is still applied by assigning fields on the theme returned from `Theme::update`.
 - build(sqlite): move `originlm-adapters` and `originlm-store` from `rusqlite` 0.32.1 to 0.37.0 (`libsqlite3-sys` 0.35, bundled SQLite stays on with `limits`). Hosts that already depend on `rusqlite` 0.37 can now link the OriginLM crates; two `rusqlite` majors cannot coexist in one binary because `libsqlite3-sys` declares `links = "sqlite3"`.
 - fix(opencode): map an exact OpenCode Go Global-region refusal to the shared `PROVIDER_REGION_RESTRICTED` error code with fixed safe guidance. Neither the provider's privacy setting nor account/billing state is changed; other failures keep their existing classification.
