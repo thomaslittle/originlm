@@ -3,6 +3,9 @@ name: Prepare crate release set
 # Read-only packaging gate. Does not publish or need registry credentials.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['Cargo.toml']
 permissions:
   contents: read
 concurrency:
@@ -10,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   package:
+    if: "${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'chore(release): prepare ') }}"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:

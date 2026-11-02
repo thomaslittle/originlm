@@ -127,8 +127,10 @@ Official reference: <https://docs.pypi.org/trusted-publishers/using-a-publisher/
 
 ## Operation
 
-1. Merge the prepared package changes and run the preparation workflows on the
-   final integrated `main` commit.
+1. Merge the prepared package changes with a commit subject beginning
+   `chore(release): prepare `. When a version manifest changes, the three
+   preparation workflows start together on the final integrated `main` commit.
+   They may also be dispatched manually.
 2. Complete the package/project trusted-publisher setup above. For crates.io's
    first publication, add `CARGO_REGISTRY_TOKEN` to `release-crates`.
 3. Run each publisher with `dry_run=true` and the preparation run ID plus full
@@ -137,6 +139,6 @@ Official reference: <https://docs.pypi.org/trusted-publishers/using-a-publisher/
    publish. For crates.io use `auth_mode=token` for the bootstrap release, then
    configure trusted publishing and use `auth_mode=trusted` for later versions.
 
-No workflow triggers on tags or pushes. No publisher runs without a human
-dispatch, environment approval and explicit confirmation. Do not put credentials
+Preparation runs automatically on a matching release commit; no publisher runs
+without a human dispatch, environment approval and explicit confirmation. Do not put credentials
 in issues, pull requests or chat; use the GitHub environment secret UI only.
