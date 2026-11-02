@@ -2,6 +2,7 @@
 pub mod catalog_v2;
 pub mod client;
 pub mod client_v2;
+mod region;
 pub mod server;
 pub mod v2_service;
 mod version;

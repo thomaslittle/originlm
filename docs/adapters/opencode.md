@@ -14,6 +14,28 @@ Use `--endpoints ABSOLUTE_JSON --allow-metadata opencode` to point the kit at a 
 
 OpenCode 2 publishes provider inventory and Go allowance limits through its owner-only background service. When that service has stopped, its `service.json` descriptor can remain with a dead PID and port. A metadata probe validates the descriptor and asks the installed CLI to start the owner's own background service (`opencode service start`) once, then re-reads the fresh descriptor. This starts the existing OpenCode service, not a second kit-owned server; it reads no credential, changes no grant, and leaves the old observation visible as stale if recovery fails.
 
+## Region-restricted OpenCode Go models
+
+Some OpenCode Go models require the workspace's **Global** processing-region
+setting. This is enforced by OpenCode, not OriginLM. When a granted text
+session actually receives the known OpenCode Go rejection, the adapter
+reports the shared `PROVIDER_REGION_RESTRICTED` error code and fixed
+instructions to review **OpenCode Console > Workspace Settings > Privacy >
+Regions**. This is a provider failure, **not** a catalog discovery or
+authentication failure, and cannot be predicted from an installed client,
+model listing, or account subscription alone.
+
+Only the exact `opencode-go` route and the known rejection wording (including
+OpenCode's standard upstream wrappers) are recognized; OpenCode 2 also requires
+the upstream `provider.invalid-request` type. Other errors retain their
+existing classification, and arbitrary upstream error payloads are not
+included in the normalized guidance. The setting, which can affect where
+requests are processed, is always the user's decision: the adapter does
+not enable Global, retry inference, change routes, or turn on paid usage.
+
+Fixture tests exercise this mapping without accessing an account. There is
+no independently live-qualified Global-region refusal in OriginLM.
+
 ## Kit-managed server (discovered installs)
 
 Without an explicit endpoint entry, a discovered OpenCode install is driven the way T3 Code drives it: for each metadata probe and each text session the kit starts its own `opencode serve --pure --hostname=127.0.0.1 --port=<free port>` with a fresh random `OPENCODE_SERVER_PASSWORD`, talks to it over HTTP Basic auth (user `opencode`), and kills the whole process tree when the probe or session ends. The npm `.cmd`/`.ps1` shim is never executed; it is resolved to the packaged `opencode-ai/bin/opencode.exe`. `--pure` disables external plugins. The server inherits only the kit's scrubbed environment, so upstream credentials must live in OpenCode's own `auth.json` (as `opencode auth login` stores them), not in ad-hoc environment variables. No default port is probed any more.

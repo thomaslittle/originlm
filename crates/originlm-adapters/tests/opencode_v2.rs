@@ -50,11 +50,11 @@ async fn server(mode: &'static str) -> (Endpoint, Fixture, tokio::task::JoinHand
     };
     let app=Router::new()
  .route("/api/session",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{
-  assert_eq!(v["model"],json!({"providerID":"upstream","id":"native"}));
+  assert_eq!(v["model"],json!({"providerID":if s.mode.starts_with("go-region") {"opencode-go"} else {"upstream"},"id":"native"}));
   assert_eq!(v["permissions"],json!([{"action":"*","resource":"*","effect":"deny"}]));
   Json(json!({"data":{"id":"ses_owned","model":if s.mode=="bad-model"{json!({"id":"wrong","providerID":"upstream"})}else{v["model"].clone()},"location":if s.mode=="bad-workspace"{json!({"directory":"/other"})}else{v["location"].clone()},"permissions":if s.mode=="bad-permissions" {json!([])}else{v["permissions"].clone()}}}))
  }))
- .route("/api/session/ses_owned/model",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{let mut expected=json!({"providerID":"upstream","id":"native"});if s.mode=="variant"{expected["variant"]=json!("future-effort");}assert_eq!(v["model"],expected);axum::http::StatusCode::NO_CONTENT}))
+ .route("/api/session/ses_owned/model",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{let mut expected=json!({"providerID":if s.mode.starts_with("go-region") {"opencode-go"} else {"upstream"},"id":"native"});if s.mode=="variant"{expected["variant"]=json!("future-effort");}assert_eq!(v["model"],expected);axum::http::StatusCode::NO_CONTENT}))
  .route("/api/event",get(|State(s):State<Fixture>|async move{let events=tokio_stream::wrappers::BroadcastStream::new(s.sender.subscribe()).filter_map(|e|e.ok().map(|v|Ok::<_,Infallible>(Event::default().data(v.to_string()))));Sse::new(events.take(if s.mode=="disconnect"{1}else{usize::MAX}))}))
  .route("/api/session/ses_owned/prompt",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{
   assert_eq!(v["text"],"hello"); assert!(s.sender.receiver_count()>0,"subscribe before prompt");let round=s.prompts.fetch_add(1,Ordering::SeqCst)+1;
@@ -95,6 +95,14 @@ async fn server(mode: &'static str) -> (Endpoint, Fixture, tokio::task::JoinHand
     send("session.execution.succeeded",json!({"sessionID":"ses_owned"}));
    },
    "error"=>send("session.execution.failed",json!({"sessionID":"ses_owned","error":{"message":"provider error"}})),
+    "go-region" | "go-region-decoy" =>send("session.execution.failed",json!({
+     "sessionID":"ses_owned",
+     "error":{
+      "type":if s.mode=="go-region" {"provider.invalid-request"} else {"provider.internal"},
+      "status":400,
+      "message":"Internal error: Upstream request failed: This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it."
+     }
+    })),
    "empty"=>send("session.execution.succeeded",json!({"sessionID":"ses_owned"})),
    "unterminated"=>{send("session.text.delta",json!({"sessionID":"ses_owned","assistantMessageID":"a","ordinal":0,"delta":"partial"}));send("session.execution.succeeded",json!({"sessionID":"ses_owned"}));},
    "tool"=>send("permission.asked",json!({"sessionID":"ses_owned","id":"per_1"})),
@@ -174,9 +182,19 @@ fn model() -> Model {
 async fn run(mode: &'static str) -> (String, SessionState, usize, usize) {
     let (e, s, task) = server(mode).await;
     let dir = tempfile::tempdir().unwrap();
-    let agent = client_v2::open(e, model(), "upstream".into(), dir.path().into())
-        .await
-        .unwrap();
+    let agent = client_v2::open(
+        e,
+        model(),
+        if mode.starts_with("go-region") {
+            "opencode-go"
+        } else {
+            "upstream"
+        }
+        .into(),
+        dir.path().into(),
+    )
+    .await
+    .unwrap();
     assert!(!agent.native_resumption());
     assert!(!agent.image_input());
     let runtime = Runtime::new();
@@ -276,6 +294,24 @@ async fn errors_and_tools_fail_without_approvals() {
         assert!(!events.contains("secret-other"));
     }
 }
+#[tokio::test]
+async fn global_region_rejection_is_typed_without_leaking_upstream_text() {
+    let (events, status, interrupted, deleted) = run("go-region").await;
+    assert_eq!(status, SessionState::Error);
+    assert!(interrupted >= 1);
+    assert_eq!(deleted, 1);
+    assert!(events.contains("PROVIDER_REGION_RESTRICTED"), "{events}");
+    assert!(events.contains("Review your workspace"));
+    assert!(!events.contains("Internal error: Upstream request failed"));
+
+    // A lookalike response with a different provider error type cannot
+    // masquerade as a regional privacy restriction.
+    let (decoy, status, _, _) = run("go-region-decoy").await;
+    assert_eq!(status, SessionState::Error);
+    assert!(decoy.contains("PROVIDER_UNAVAILABLE"), "{decoy}");
+    assert!(!decoy.contains("PROVIDER_REGION_RESTRICTED"));
+}
+
 #[tokio::test]
 async fn cancellation_interrupts_only_owned_session() {
     let (_, status, interrupt, deleted) = run("hold").await;

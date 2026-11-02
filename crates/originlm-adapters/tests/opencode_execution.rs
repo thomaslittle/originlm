@@ -27,18 +27,27 @@ struct StateData {
     deleted: Arc<AtomicUsize>,
     sender: tokio::sync::broadcast::Sender<Value>,
     bad: bool,
+    region: bool,
 }
-async fn server(bad: bool) -> (Endpoint, StateData, tokio::task::JoinHandle<()>) {
+async fn server(bad: bool, region: bool) -> (Endpoint, StateData, tokio::task::JoinHandle<()>) {
     let (sender, _) = tokio::sync::broadcast::channel(32);
     let state = StateData {
         calls: Arc::new(AtomicUsize::new(0)),
         deleted: Arc::new(AtomicUsize::new(0)),
         sender,
         bad,
+        region,
     };
     let app=Router::new().route("/session",post(|State(s):State<StateData>,Json(body):Json<Value>|async move{assert_eq!(body["permission"],json!([{"permission":"*","pattern":"*","action":"deny"}]));Json(json!({"id":"ses_owned","permission":if s.bad{json!([])}else{body["permission"].clone()}}))}))
  .route("/event",get(|State(s):State<StateData>|async move{let stream=tokio_stream::wrappers::BroadcastStream::new(s.sender.subscribe()).filter_map(|value|value.ok().map(|v|Ok::<_,Infallible>(Event::default().data(v.to_string()))));Sse::new(stream)}))
- .route("/session/ses_owned/prompt_async",post(|State(s):State<StateData>,Json(v):Json<Value>|async move{assert_eq!(v["model"],json!({"providerID":"upstream","modelID":"native"}));assert_eq!(v["parts"][0]["type"],"text");s.calls.fetch_add(1,Ordering::SeqCst);
+ .route("/session/ses_owned/prompt_async",post(|State(s):State<StateData>,Json(v):Json<Value>|async move{assert_eq!(v["model"],json!({"providerID":if s.region {"opencode-go"} else {"upstream"},"modelID":"native"}));assert_eq!(v["parts"][0]["type"],"text");s.calls.fetch_add(1,Ordering::SeqCst);
+ if s.region {
+  let _=s.sender.send(json!({"type":"session.error","properties":{
+   "sessionID":"ses_owned",
+   "error":{"name":"ProviderError","data":{"message":"This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it."}}
+  }}));
+  return axum::http::StatusCode::NO_CONTENT;
+ }
  for event in [json!({"type":"message.updated","properties":{"info":{"id":"msg_assistant","role":"assistant","sessionID":"ses_owned","modelID":"native","providerID":"upstream"}}}),json!({"type":"message.part.delta","properties":{"sessionID":"ses_other","messageID":"msg_assistant","field":"text","delta":"secret-other-session"}}),json!({"type":"message.part.delta","properties":{"sessionID":"ses_owned","messageID":"msg_assistant","field":"text","delta":"hello"}}),json!({"type":"session.status","properties":{"sessionID":"ses_owned","status":{"type":"idle"}}})]{let _=s.sender.send(event);}axum::http::StatusCode::NO_CONTENT}))
  .route("/session/ses_owned/message",get(||async{Json(json!([{"info":{"id":"msg_assistant","role":"assistant","modelID":"native","providerID":"upstream","time":{"completed":123},"tokens":{"input":2,"output":1}},"parts":[{"type":"text","text":"hello world"}]}]))}))
  .route("/session/ses_owned",delete(|State(s):State<StateData>|async move{s.deleted.fetch_add(1,Ordering::SeqCst);Json(true)}))
@@ -72,7 +81,7 @@ fn model() -> Model {
 }
 #[tokio::test]
 async fn permission_echo_is_required_before_any_generation() {
-    let (e, s, t) = server(true).await;
+    let (e, s, t) = server(true, false).await;
     let dir = tempfile::tempdir().unwrap();
     assert!(
         client::open(e, model(), "upstream".into(), dir.path().into())
@@ -84,7 +93,7 @@ async fn permission_echo_is_required_before_any_generation() {
 }
 #[tokio::test]
 async fn owns_one_native_session_streams_and_deletes_only_that_session() {
-    let (e, s, t) = server(false).await;
+    let (e, s, t) = server(false, false).await;
     let dir = tempfile::tempdir().unwrap();
     let agent = client::open(e, model(), "upstream".into(), dir.path().into())
         .await
@@ -131,4 +140,52 @@ async fn owns_one_native_session_streams_and_deletes_only_that_session() {
     assert_eq!(s.deleted.load(Ordering::SeqCst), 1);
     assert_eq!(s.calls.load(Ordering::SeqCst), 1);
     t.abort();
+}
+
+#[tokio::test]
+async fn legacy_go_region_rejection_surfaces_normalized_error_without_echoing_provider_text() {
+    let (endpoint, state, task) = server(false, true).await;
+    let dir = tempfile::tempdir().unwrap();
+    let agent = client::open(endpoint, model(), "opencode-go".into(), dir.path().into())
+        .await
+        .unwrap();
+    let runtime = Runtime::new();
+    let session = runtime
+        .insert(
+            "app",
+            "connection".into(),
+            Selection {
+                route_id: "route".into(),
+                model_id: "model".into(),
+                revision: "rev".into(),
+                options: BTreeMap::new(),
+            },
+            agent,
+            Arc::new(|| Ok(())),
+        )
+        .unwrap();
+    runtime
+        .start("app", &session.id, "hello".into(), "request".into())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while runtime.get("app", &session.id).unwrap().state == SessionState::Running {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        runtime.get("app", &session.id).unwrap().state,
+        SessionState::Error
+    );
+    let events = runtime
+        .events("app", Some(&session.id), None)
+        .unwrap()
+        .to_string();
+    assert!(events.contains("PROVIDER_REGION_RESTRICTED"), "{events}");
+    assert!(!events.contains("Select Global in your workspace"));
+    runtime.close("app", &session.id).await.unwrap();
+    assert_eq!(state.deleted.load(Ordering::SeqCst), 1);
+    task.abort();
 }

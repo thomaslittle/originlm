@@ -306,6 +306,15 @@ impl Client {
                     let message = error["message"]
                         .as_str()
                         .unwrap_or("text generation failed");
+                    // Only a provider-reported rejection is evidence that the
+                    // OpenCode Go workspace requires a different processing
+                    // region. Never infer this from catalog or account data.
+                    if error["type"] == "provider.invalid-request"
+                        && let Some(restricted) =
+                            super::region::global_region_restriction(&self.provider, message)
+                    {
+                        return Err(restricted);
+                    }
                     let status = error["status"].as_u64();
                     let bounded: String = message
                         .chars()

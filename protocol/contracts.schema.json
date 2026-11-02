@@ -834,6 +834,11 @@
           "type": "string"
         },
         {
+          "const": "PROVIDER_REGION_RESTRICTED",
+          "description": "Provider refuses a model until the operator changes regional processing settings.\nNeither execution nor billing settings are modified automatically.",
+          "type": "string"
+        },
+        {
           "const": "RESUME_UNAVAILABLE",
           "description": "A suspended conversation cannot be continued (identity, route, model,\nworkspace or native history changed or is gone). Never replaced by a\nfresh conversation; the host decides whether to start over.",
           "type": "string"

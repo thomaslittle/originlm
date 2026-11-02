@@ -4,6 +4,7 @@ const messages={
  RUNTIME_MISSING:'A compatible native provider runtime is not installed or registered.',
  INTEGRATION_RESTRICTED:'This provider integration is not configured for this profile.',
  PROVIDER_UNAVAILABLE:'The provider runtime is unavailable. Check that the native client is running and signed in, then retry.',
+ PROVIDER_REGION_RESTRICTED:'The selected provider requires a processing-region change. Review its workspace Privacy > Regions settings before deciding whether to enable it.',
  AUTH_REQUIRED:'This profile needs authentication in its native provider client.',
  KEYRING_LOCKED:'The operating system credential store is locked. Unlock it, then check the profile again.',
  PROTOCOL_INCOMPATIBLE:'The installed provider client returned an unsupported protocol response. Update or restart the native client, then retry.',

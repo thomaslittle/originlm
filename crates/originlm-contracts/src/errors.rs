@@ -20,6 +20,9 @@ pub enum ErrorCode {
     SessionRouteMismatch,
     EventGap,
     ProviderUnavailable,
+    /// Provider refuses a model until the operator changes regional processing settings.
+    /// Neither execution nor billing settings are modified automatically.
+    ProviderRegionRestricted,
     StorageUnavailable,
     Timeout,
     Cancelled,

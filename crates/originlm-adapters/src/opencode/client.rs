@@ -236,6 +236,12 @@ impl Client {
                     // Surface OpenCode's own reason (redacted), e.g. an upstream
                     // provider error or rate limit, instead of a bare failure.
                     let error = &p["error"];
+                    if let Some(message) = error["data"]["message"].as_str()
+                        && let Some(restricted) =
+                            super::region::global_region_restriction(&self.provider, message)
+                    {
+                        return Err(restricted);
+                    }
                     let detail = error["data"]["message"]
                         .as_str()
                         .or_else(|| error["name"].as_str())
