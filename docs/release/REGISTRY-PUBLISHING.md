@@ -38,13 +38,18 @@ Configure a trusted publisher for **each** of the six packages:
 - `originlm-cli-darwin-x64`
 - `originlm-cli-windows-x64`
 
-Fields on npmjs.com:
+Fields on npmjs.com, under each package's **Settings → Trusted Publisher**
+(`https://www.npmjs.com/package/<name>/access`):
 
 - Organization or user: `thomaslittle`
 - Repository: `originlm`
 - Workflow filename: `publish-npm.yml`
 - Environment name: `release-npm`
 - Allowed action: `npm publish`
+
+If a package lacks a trusted publisher, `npm publish` falls back to token auth
+and fails with `ENEEDAUTH: need auth`, even though the job requests
+`id-token: write`.
 
 The publish job requests `id-token: write` and uses npm CLI `11.5.1` or newer.
 npm automatically generates provenance for public packages. The `repository`
@@ -108,12 +113,21 @@ Official references: <https://crates.io/docs/trusted-publishing> and the
 
 ## PyPI trusted publishing
 
-Create a pending trusted publisher for the `originlm` project:
+The `originlm` project already exists on PyPI (first published 2026-10-30), so
+add a trusted publisher **inside the existing project**, not an account-level
+pending publisher. A pending publisher only creates a project that does not
+exist yet; against an existing project PyPI refuses the OIDC exchange with
+`invalid-pending-publisher: valid token, but project already exists`.
+
+Open <https://pypi.org/manage/project/originlm/settings/publishing/> and add:
 
 - Owner: `thomaslittle`
 - Repository: `originlm`
 - Workflow filename: `publish-pypi.yml`
 - Environment name: `release-pypi`
+
+Delete any pending publisher for `originlm` at
+<https://pypi.org/manage/account/publishing/> first.
 
 No API token is needed. The workflow requests `id-token: write` and uses
 `pypa/gh-action-pypi-publish@release/v1`; it refuses to upload unless exactly the
