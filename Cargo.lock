@@ -5122,7 +5122,7 @@ dependencies = [
 
 [[package]]
 name = "originlm"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "originlm-contracts",
  "originlm-control",
@@ -5138,7 +5138,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-adapters"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "axum",
  "chrono",
@@ -5163,7 +5163,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-chatgpt-auth"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -5185,7 +5185,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-cli"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "originlm-adapters",
  "originlm-chatgpt-auth",
@@ -5205,7 +5205,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-contracts"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5218,7 +5218,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-control"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "chrono",
  "crossterm",
@@ -5237,7 +5237,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-core"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "originlm-contracts",
  "serde",
@@ -5246,7 +5246,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-desktop"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "chrono",
  "gpui-kit",
@@ -5264,7 +5264,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-discovery"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "originlm-contracts",
  "originlm-platform",
@@ -5275,7 +5275,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-kit"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "axum",
  "originlm-adapters",
@@ -5294,7 +5294,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-platform"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "file-id",
  "libc",
@@ -5305,7 +5305,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-runtime"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "base64 0.23.1",
  "originlm-contracts",
@@ -5316,7 +5316,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-service"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -5338,7 +5338,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-store"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "getrandom 0.4.3",
  "originlm-contracts",
@@ -5351,7 +5351,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-transports"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "async-stream",
  "axum",
@@ -5372,7 +5372,7 @@ dependencies = [
 
 [[package]]
 name = "originlm-update"
-version = "0.1.0-alpha.23"
+version = "0.1.0-alpha.24"
 dependencies = [
  "base64 0.23.1",
  "fs4",
