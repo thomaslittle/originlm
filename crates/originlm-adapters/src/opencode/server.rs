@@ -30,9 +30,11 @@ fn missing() -> DomainError {
     )
 }
 
+const NPM_PACKAGES: [&str; 2] = ["opencode-ai", "@opencode/cli"];
+
 /// The native OpenCode binary behind a discovered command. The npm shim
 /// (`opencode.cmd` / `opencode.ps1` / extensionless `opencode` on Windows)
-/// is resolved to the packaged `opencode.exe` rather than run through a shell.
+/// is resolved to the packaged `opencode.exe` (`opencode-ai` or `@opencode/cli`) rather than run through a shell.
 pub fn resolve_executable(candidate: &Path) -> Result<PathBuf> {
     if !candidate.is_absolute() || !candidate.is_file() {
         return Err(missing());
@@ -49,12 +51,14 @@ pub fn resolve_executable(candidate: &Path) -> Result<PathBuf> {
         name == "opencode.cmd" || name == "opencode.ps1" || (cfg!(windows) && name == "opencode");
     if wrapper {
         let base = candidate.parent().ok_or_else(missing)?;
-        for binary in [
-            base.join("node_modules/opencode-ai/bin/opencode.exe"),
-            base.join("../lib/node_modules/opencode-ai/bin/opencode.exe"),
-        ] {
-            if binary.is_file() {
-                return Ok(binary);
+        // OpenCode 1.x ships as `opencode-ai`, 2.x as `@opencode/cli`; both
+        // npm prefix layouts (Windows beside the shim, Unix under `../lib`).
+        for package in NPM_PACKAGES {
+            for root in ["node_modules", "../lib/node_modules"] {
+                let binary = base.join(root).join(package).join("bin/opencode.exe");
+                if binary.is_file() {
+                    return Ok(binary);
+                }
             }
         }
         return Err(missing());

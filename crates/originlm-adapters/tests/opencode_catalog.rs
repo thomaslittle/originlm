@@ -212,6 +212,15 @@ fn managed_server_runs_the_native_binary_never_the_npm_shell_shim() {
     std::fs::create_dir_all(native.parent().unwrap()).unwrap();
     std::fs::write(&native, b"synthetic").unwrap();
     assert_eq!(resolve_executable(&shim).unwrap(), native);
+    let v2_root = tempfile::tempdir().unwrap();
+    let v2_shim = v2_root.path().join("opencode.cmd");
+    std::fs::write(&v2_shim, b"@echo synthetic").unwrap();
+    let v2_native = v2_root
+        .path()
+        .join("node_modules/@opencode/cli/bin/opencode.exe");
+    std::fs::create_dir_all(v2_native.parent().unwrap()).unwrap();
+    std::fs::write(&v2_native, b"synthetic").unwrap();
+    assert_eq!(resolve_executable(&v2_shim).unwrap(), v2_native);
     let other = root.path().join("arbitrary.cmd");
     std::fs::write(&other, b"@echo synthetic").unwrap();
     assert!(resolve_executable(&other).is_err());
