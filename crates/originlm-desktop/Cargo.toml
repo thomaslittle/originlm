@@ -11,7 +11,7 @@ name = "originlm-desktop"
 path = "src/main.rs"
 
 [dependencies]
-gpui-kit = { version = "0.8.1", features = ["gpui-fast"] }
+gpui-kit = { version = "0.9.0", features = ["gpui-fast"] }
 originlm-control = { version = "0.1.0-alpha.24", path = "../originlm-control", default-features = false }
 originlm-platform = { version = "0.1.0-alpha.24", path = "../originlm-platform" }
 originlm-contracts = { version = "0.1.0-alpha.24", path = "../originlm-contracts" }
