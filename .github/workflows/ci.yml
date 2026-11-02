@@ -15,9 +15,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-15-intel]
+        phase: [verify, lint, package]
     runs-on: ${{ matrix.os }}
-    # Cold macOS Intel builds compile debug/tests, clippy, then release artifacts.
-    # The measured debug + lint stages alone take about 36 minutes.
+    # Run independent gates concurrently; each phase still has its own result.
     timeout-minutes: 75
     env:
       CARGO_INCREMENTAL: '0'
@@ -28,12 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Free disk space (Linux runner)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && matrix.phase != 'lint'
         run: |
           # The debug test build plus the release bundle exceed the default runner disk.
           sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/swift /opt/hostedtoolcache/CodeQL
           df -h /
       - uses: actions/setup-node@v7
+        if: matrix.phase != 'lint'
         with:
           node-version: '22.20.0'
           cache: npm
@@ -41,10 +42,17 @@ jobs:
         with:
           python-version: '3.12'
       - uses: actions/setup-dotnet@v6
+        if: matrix.phase == 'verify'
         with:
           dotnet-version: '8.0.x'
       - name: Install pinned Rust
         run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.phase }}
+          cache-workspace-crates: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install Linux desktop build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -56,27 +64,35 @@ jobs:
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libgl1-mesa-dev
       - name: Install build-only dependencies
+        if: matrix.phase != 'lint'
         run: |
           npm ci --ignore-scripts
           python -m pip install -r scripts/requirements-build.txt
+      - name: Install Playwright browser
+        if: matrix.phase == 'verify'
+        run: |
           npx --no-install playwright install --with-deps chromium
       - name: Full deterministic verification (no provider inference)
+        if: matrix.phase == 'verify'
         run: python scripts/verify.py --profile all
       - name: Plain HTTP C# consumer
+        if: matrix.phase == 'verify'
         run: python scripts/test_dotnet.py
       - name: Formatting and lint
+        if: matrix.phase == 'lint'
         run: |
           cargo fmt --all --check
           cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Build local artifacts and exercise clean consumers
+        if: matrix.phase == 'package'
         run: |
           python scripts/build_release.py --profile release
           python scripts/package_smoke.py
       - name: Preserve actual evidence and artifacts
-        if: always()
+        if: always() && matrix.phase != 'lint'
         uses: actions/upload-artifact@v7
         with:
-          name: verification-${{ matrix.os }}
+          name: verification-${{ matrix.os }}-${{ matrix.phase }}
           path: |
             .verification/verify-last.json
             .verification/package-smoke.json

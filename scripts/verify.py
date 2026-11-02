@@ -35,7 +35,7 @@ def main():
         run([sys.executable,'scripts/check_generated.py'])
         run(['tsc','-p','tests/generation/tsconfig.json'])
     if a.profile=='react' or full:
-        run(['npm','run','build']);run(['npm','run','test:react'])
+        run(['npm','run','test:react'])
     if a.profile=='integration' or full:
         run([sys.executable,'scripts/test_native_bridge.py'])
         run(['cargo','run','--locked','-p','originlm-kit','--example','synthetic_adapter'])
@@ -44,7 +44,8 @@ def main():
         run(['node','--experimental-strip-types','--test','tests/integration/cached-usage-mcp.test.mjs','tests/integration/cached-usage-host.test.mjs'])
         run(['node','--experimental-strip-types','examples/mcp/remote/inert-check.mjs'])
     if a.profile=='ui' or full:
-        run(['npm','run','build']);run(['npm','run','doctor']);run(['node','scripts/build_demo.mjs']);run(['node','scripts/build_extension.mjs']);run(['cargo','build','--locked','-p','originlm-cli'])
+        if not full:run(['npm','run','build'])
+        run(['npm','run','doctor']);run(['node','scripts/build_demo.mjs']);run(['node','scripts/build_extension.mjs']);run(['cargo','build','--locked','-p','originlm-cli'])
         run(['node','--test',*sorted((ROOT/'apps/demo/tests').glob('*.test.mjs'))])
         run([sys.executable,'scripts/test_demo.py'])
         run(['node','--test','scripts/test_live_demo.mjs','scripts/test_live_demo_opencode.mjs','scripts/test_demo_profile_auth.mjs','scripts/test_demo_errors.mjs','scripts/test_demo_catalog_visibility.mjs'])

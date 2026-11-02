@@ -4,6 +4,9 @@ name: Prepare release artifacts
 # A tag cannot publish private preview packages. See docs/release/PUBLISHING.md.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['Cargo.toml', 'package.json', 'packages/sdk-python/pyproject.toml']
   pull_request:
     paths:
       - '.github/workflows/release.yml'
@@ -26,6 +29,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   prepare:
+    if: "${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'chore(release): prepare ') }}"
     strategy:
       fail-fast: false
       matrix:
@@ -52,6 +56,12 @@ jobs:
           python-version: '3.12'
       - name: Install pinned Rust
         run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+        with:
+          key: release-${{ matrix.target }}
+          cache-workspace-crates: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Read release version
         id: release
         shell: bash
