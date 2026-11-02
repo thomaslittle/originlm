@@ -97,8 +97,10 @@ fn open_cache(path: &Path) -> Result<Connection> {
         .map_err(|_| unavailable())?;
     db.pragma_update(None, "cache_size", -1024)
         .map_err(|_| unavailable())?;
-    db.set_limit(Limit::SQLITE_LIMIT_LENGTH, 65536);
-    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 4096);
+    db.set_limit(Limit::SQLITE_LIMIT_LENGTH, 65536)
+        .map_err(|_| unavailable())?;
+    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 4096)
+        .map_err(|_| unavailable())?;
     // Large Cursor databases are common. Require SQLite to use an index on the
     // exact key before reading, so a cache-size allowance never permits a table scan.
     let indexed = {
