@@ -272,16 +272,143 @@ pub async fn probe_scoped(
     probe_endpoint(&url, &password, connection, route, version).await
 }
 
-/// Open a text-only session on the installed OpenCode 2 service. Starts the
-/// owner's own background service only when its descriptor is missing or stale;
-/// the service supplies its own credentials.
+fn valid_mcp_component(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+}
+
+fn mcp_alias(server: &HostMcpServer) -> Result<String> {
+    if !valid_mcp_component(&server.name) {
+        return Err(DomainError::new(
+            ErrorCode::InvalidRequest,
+            "Host MCP server name is invalid",
+        ));
+    }
+    Ok(format!("originlm_{}", server.name))
+}
+
+fn mcp_tool_action(server: &HostMcpServer, tool: &str) -> Result<String> {
+    if !valid_mcp_component(tool) {
+        return Err(DomainError::new(
+            ErrorCode::InvalidRequest,
+            "Host MCP tool name is invalid",
+        ));
+    }
+    Ok(format!("{}_{}", mcp_alias(server)?, tool))
+}
+
+fn session_permissions(servers: &[HostMcpServer], allow_native_tools: bool) -> Result<Value> {
+    if allow_native_tools {
+        return Ok(serde_json::json!([
+            {"action": "*", "resource": "*", "effect": "allow"}
+        ]));
+    }
+    // Native OpenCode tools stay denied. MCP tools are allowed explicitly and
+    // carry their own host-side `allowed_tools` filter.
+    let mut permissions = Vec::new();
+    for action in [
+        "read",
+        "edit",
+        "glob",
+        "grep",
+        "shell",
+        "subagent",
+        "skill",
+        "question",
+        "webfetch",
+        "websearch",
+        "todowrite",
+        "external_directory",
+        "execute",
+        "opencode_list_mcp_resources",
+        "opencode_read_mcp_resource",
+        "experimental_image_generate",
+    ] {
+        permissions.push(serde_json::json!({
+            "action": action,
+            "resource": "*",
+            "effect": "deny"
+        }));
+    }
+    for server in servers {
+        for tool in &server.allowed_tools {
+            permissions.push(serde_json::json!({
+                "action": mcp_tool_action(server, tool)?,
+                "resource": "*",
+                "effect": "allow"
+            }));
+        }
+    }
+    Ok(Value::Array(permissions))
+}
+
+async fn attach_mcp(
+    endpoint: &Endpoint,
+    directory: &str,
+    servers: &[HostMcpServer],
+) -> Result<Vec<String>> {
+    let mut attached = Vec::new();
+    for server in servers {
+        let alias = match mcp_alias(server) {
+            Ok(alias) => alias,
+            Err(error) => {
+                detach_mcp(endpoint, directory, &attached).await;
+                return Err(error);
+            }
+        };
+        let config = serde_json::json!({
+            "config": {
+                "type": "remote",
+                "url": server.url,
+                "headers": {"Authorization": format!("Bearer {}", server.bearer_token)},
+                "oauth": false,
+                "codemode": false,
+            }
+        });
+        let path = format!("api/experimental/mcp/{alias}");
+        if let Err(error) = endpoint
+            .put(&path, &[("location[directory]", directory)], config)
+            .await
+        {
+            detach_mcp(endpoint, directory, &attached).await;
+            return Err(error);
+        }
+        attached.push(alias);
+    }
+    Ok(attached)
+}
+
+async fn detach_mcp(endpoint: &Endpoint, directory: &str, attached: &[String]) {
+    for name in attached {
+        let path = format!("api/experimental/mcp/{name}");
+        let _ = endpoint
+            .delete(&path, &[("location[directory]", directory)])
+            .await;
+    }
+}
+
+/// Open a session on the installed OpenCode 2 service. Starts the owner's own
+/// background service only when its descriptor is missing or stale; the service
+/// supplies its own credentials. Host MCP servers are registered on that
+/// service for this workspace and removed when the session closes.
+#[allow(clippy::too_many_arguments)]
 pub async fn open_session(
     executable: &Path,
     scope: Option<&ProfileScope>,
     model: Model,
     provider: String,
     workspace: PathBuf,
+    host_mcp_servers: &[HostMcpServer],
+    allow_native_tools: bool,
 ) -> Result<Box<dyn Agent>> {
+    let directory = workspace
+        .to_str()
+        .filter(|_| workspace.is_absolute())
+        .ok_or_else(|| denied("OpenCode workspace is invalid"))?
+        .to_owned();
     let (url, password) = match service(scope) {
         Ok(value) => value,
         Err(_) => {
@@ -294,7 +421,30 @@ pub async fn open_session(
         Authentication::Basic("opencode".into(), password),
         true,
     )?;
-    super::client_v2::open(endpoint, model, provider, workspace).await
+    let attached = attach_mcp(&endpoint, &directory, host_mcp_servers).await?;
+    let permissions = match session_permissions(host_mcp_servers, allow_native_tools) {
+        Ok(permissions) => permissions,
+        Err(error) => {
+            detach_mcp(&endpoint, &directory, &attached).await;
+            return Err(error);
+        }
+    };
+    match super::client_v2::open(
+        endpoint.clone(),
+        model,
+        provider,
+        permissions,
+        attached.clone(),
+        directory.clone(),
+    )
+    .await
+    {
+        Ok(agent) => Ok(agent),
+        Err(error) => {
+            detach_mcp(&endpoint, &directory, &attached).await;
+            Err(error)
+        }
+    }
 }
 
 /// Probe the installed OpenCode 2 service, starting the owner's own background
@@ -405,7 +555,10 @@ async fn probe_endpoint(
 
 #[cfg(test)]
 mod tests {
-    use super::{default_state_path, quota_windows, read_service};
+    use super::{
+        default_state_path, quota_windows, read_service, session_permissions, valid_mcp_component,
+    };
+    use originlm_contracts::HostMcpServer;
     use std::ffi::OsString;
     use std::io::Write;
     use std::path::PathBuf;
@@ -529,5 +682,55 @@ mod tests {
         // route; the deterministic pool id still proves it is the Go pool.
         let pools = quota_windows("connection", "route-zen", None, &limits).unwrap();
         assert_eq!(pools[0].route_ids, vec!["route-zen".to_string()]);
+    }
+
+    fn host_mcp() -> HostMcpServer {
+        HostMcpServer {
+            name: "twinhaus".into(),
+            url: "http://127.0.0.1:7000/mcp".into(),
+            bearer_token: "token".repeat(8),
+            allowed_tools: vec!["home_apply".into(), "home_read".into()],
+        }
+    }
+
+    #[test]
+    fn host_mcp_permissions_allow_only_declared_server_tools() {
+        let permissions = session_permissions(&[host_mcp()], false).unwrap();
+        let actions: Vec<&str> = permissions
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|rule| rule["action"].as_str().unwrap())
+            .collect();
+        assert!(actions.contains(&"originlm_twinhaus_home_apply"));
+        assert!(actions.contains(&"originlm_twinhaus_home_read"));
+        assert!(actions.contains(&"read")); // native read is explicitly denied
+        assert!(!actions.contains(&"*"));
+        let read = permissions
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|rule| rule["action"] == "read")
+            .unwrap();
+        assert_eq!(read["effect"], "deny");
+    }
+
+    #[test]
+    fn native_policy_allows_native_and_mcp_tools() {
+        let permissions = session_permissions(&[host_mcp()], true).unwrap();
+        assert_eq!(
+            permissions,
+            serde_json::json!([
+                {"action":"*","resource":"*","effect":"allow"}
+            ])
+        );
+    }
+
+    #[test]
+    fn host_mcp_names_are_bounded_to_the_service_path_shape() {
+        assert!(valid_mcp_component("twinhaus"));
+        assert!(!valid_mcp_component("TwinHaus"));
+        assert!(!valid_mcp_component("../twinhaus"));
+        assert!(!valid_mcp_component(""));
     }
 }

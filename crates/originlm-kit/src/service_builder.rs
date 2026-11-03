@@ -504,15 +504,6 @@ fn build_execution(
                         return Ok(http_provider::executor(config.kind, client, input.model));
                     }
                     if input.located.provider_id == "opencode" {
-                        if !input.host_mcp_servers.is_empty() {
-                            return Err(originlm_adapters::host_mcp::unsupported());
-                        }
-                        if input.writable || input.review_requests {
-                            return Err(DomainError::new(
-                                ErrorCode::IntegrationRestricted,
-                                "OpenCode sessions are text-only with every tool denied",
-                            ));
-                        }
                         let executable = input.located.executable.clone().ok_or_else(|| {
                             DomainError::new(
                                 ErrorCode::RuntimeMissing,
@@ -527,6 +518,8 @@ fn build_execution(
                             input.workspace,
                             input.persistent,
                             input.native_resume,
+                            &input.host_mcp_servers,
+                            input.writable || input.native_policy,
                         )
                         .await;
                     }

@@ -179,6 +179,10 @@ fn model() -> Model {
         context_window: Observation::unknown("fixture"),
     }
 }
+fn deny_permissions() -> Value {
+    json!([{"action":"*","resource":"*","effect":"deny"}])
+}
+
 async fn run(mode: &'static str) -> (String, SessionState, usize, usize) {
     let (e, s, task) = server(mode).await;
     let dir = tempfile::tempdir().unwrap();
@@ -191,7 +195,9 @@ async fn run(mode: &'static str) -> (String, SessionState, usize, usize) {
             "upstream"
         }
         .into(),
-        dir.path().into(),
+        deny_permissions(),
+        Vec::new(),
+        dir.path().to_string_lossy().into_owned(),
     )
     .await
     .unwrap();
@@ -325,9 +331,16 @@ async fn rejects_missing_permission_echo_before_prompt() {
         let (e, s, t) = server(mode).await;
         let dir = tempfile::tempdir().unwrap();
         assert!(
-            client_v2::open(e, model(), "upstream".into(), dir.path().into())
-                .await
-                .is_err()
+            client_v2::open(
+                e,
+                model(),
+                "upstream".into(),
+                deny_permissions(),
+                Vec::new(),
+                dir.path().to_string_lossy().into_owned(),
+            )
+            .await
+            .is_err()
         );
         assert_eq!(s.prompts.load(Ordering::SeqCst), 0);
         assert_eq!(s.deleted.load(Ordering::SeqCst), 1);
@@ -355,9 +368,16 @@ async fn close_can_retry_a_failed_or_cancelled_delete() {
     for mode in ["delete-fails", "delete-delays", "delete-committed"] {
         let (endpoint, state, task) = server(mode).await;
         let dir = tempfile::tempdir().unwrap();
-        let mut agent = client_v2::open(endpoint, model(), "upstream".into(), dir.path().into())
-            .await
-            .unwrap();
+        let mut agent = client_v2::open(
+            endpoint,
+            model(),
+            "upstream".into(),
+            deny_permissions(),
+            Vec::new(),
+            dir.path().to_string_lossy().into_owned(),
+        )
+        .await
+        .unwrap();
         if matches!(mode, "delete-delays" | "delete-committed") {
             assert!(
                 tokio::time::timeout(Duration::from_millis(50), agent.close())
@@ -380,9 +400,16 @@ async fn rejects_delayed_prior_turn_events_without_breaking_fresh_continuations(
     for mode in ["two-turns", "stale-text", "late-terminal"] {
         let (endpoint, _, task) = server(mode).await;
         let dir = tempfile::tempdir().unwrap();
-        let agent = client_v2::open(endpoint, model(), "upstream".into(), dir.path().into())
-            .await
-            .unwrap();
+        let agent = client_v2::open(
+            endpoint,
+            model(),
+            "upstream".into(),
+            deny_permissions(),
+            Vec::new(),
+            dir.path().to_string_lossy().into_owned(),
+        )
+        .await
+        .unwrap();
         let runtime = Runtime::new();
         let session = runtime
             .insert(
@@ -445,9 +472,16 @@ async fn uncertain_delete_responses_keep_owned_id_for_retry() {
     ] {
         let (endpoint, state, task) = server(mode).await;
         let dir = tempfile::tempdir().unwrap();
-        let mut agent = client_v2::open(endpoint, model(), "upstream".into(), dir.path().into())
-            .await
-            .unwrap();
+        let mut agent = client_v2::open(
+            endpoint,
+            model(),
+            "upstream".into(),
+            deny_permissions(),
+            Vec::new(),
+            dir.path().to_string_lossy().into_owned(),
+        )
+        .await
+        .unwrap();
         assert!(agent.close().await.is_err(), "{mode}");
         assert!(agent.close().await.is_err(), "{mode}");
         assert_eq!(
