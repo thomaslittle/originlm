@@ -41,13 +41,21 @@ fn state_path(scope: Option<&ProfileScope>) -> Option<PathBuf> {
     if let Some(scope) = scope {
         return Some(scope.state_home.join("opencode/service.json"));
     }
-    let base = std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .map(|home| home.join(".local/state"))
-        })?;
+    default_state_path(cfg!(windows), |key| std::env::var_os(key))
+}
+
+/// The default-scope descriptor: `$XDG_STATE_HOME/opencode/service.json`,
+/// else `~/.local/state/opencode/service.json`. Windows does not set `HOME`
+/// outside POSIX shells (Git Bash, MSYS2, WSL interop), and OpenCode resolves
+/// `~` to the user profile there, so a host started from Explorer, PowerShell
+/// or a service falls back to `USERPROFILE`. Empty variables count as unset.
+fn default_state_path(windows: bool, var: impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    let set = |key: &str| var(key).filter(|value| !value.is_empty());
+    let base = set("XDG_STATE_HOME").map(PathBuf::from).or_else(|| {
+        set("HOME")
+            .or_else(|| windows.then(|| set("USERPROFILE")).flatten())
+            .map(|home| PathBuf::from(home).join(".local/state"))
+    })?;
     Some(base.join("opencode/service.json"))
 }
 
@@ -397,8 +405,48 @@ async fn probe_endpoint(
 
 #[cfg(test)]
 mod tests {
-    use super::{quota_windows, read_service};
+    use super::{default_state_path, quota_windows, read_service};
+    use std::ffi::OsString;
     use std::io::Write;
+    use std::path::PathBuf;
+
+    fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<OsString> {
+        let pairs: Vec<(String, OsString)> = pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), OsString::from(value)))
+            .collect();
+        move |key| pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone())
+    }
+
+    #[test]
+    fn default_descriptor_prefers_xdg_then_home() {
+        let both = env(&[("XDG_STATE_HOME", "/xdg"), ("HOME", "/home/u")]);
+        assert_eq!(
+            default_state_path(false, both),
+            Some(PathBuf::from("/xdg").join("opencode/service.json"))
+        );
+        let home = env(&[("HOME", "/home/u"), ("USERPROFILE", "/profile")]);
+        assert_eq!(
+            default_state_path(true, home),
+            Some(PathBuf::from("/home/u/.local/state").join("opencode/service.json"))
+        );
+    }
+
+    #[test]
+    fn windows_without_home_uses_the_user_profile() {
+        let profile = env(&[("HOME", ""), ("USERPROFILE", r"C:\Users\someone")]);
+        assert_eq!(
+            default_state_path(true, &profile),
+            Some(
+                PathBuf::from(r"C:\Users\someone")
+                    .join(".local/state")
+                    .join("opencode/service.json")
+            )
+        );
+        // Elsewhere USERPROFILE means nothing; no root is guessed.
+        assert_eq!(default_state_path(false, &profile), None);
+        assert_eq!(default_state_path(true, env(&[])), None);
+    }
 
     #[test]
     fn rejects_non_loopback_and_insecure_descriptors() {
