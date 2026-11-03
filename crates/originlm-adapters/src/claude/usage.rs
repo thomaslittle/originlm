@@ -37,7 +37,11 @@ pub(super) fn parse(
                 continue;
             }
             if value.is_object() && !value["utilization"].is_null() {
-                rows.push((key.clone(),key.clone(),serde_json::json!({"percent":value["utilization"],"resetsAt":value["resets_at"]})));
+                rows.push((
+                    key.clone(),
+                    window_label(key),
+                    serde_json::json!({"percent":value["utilization"],"resetsAt":value["resets_at"]}),
+                ));
             }
         }
     }
@@ -94,6 +98,26 @@ pub(super) fn parse(
         sharing: "unknown".into(),
         windows,
     }])
+}
+
+/// Claude Code's usage payload uses stable bucket keys and a few undocumented
+/// codenames. Keep the provider key visible for undocumented buckets instead
+/// of inventing a friendly name that could be mistaken for provider evidence.
+fn window_label(key: &str) -> String {
+    match key {
+        "five_hour" => "5-hour session".into(),
+        "seven_day" => "7-day".into(),
+        "seven_day_sonnet" => "7-day Sonnet".into(),
+        "seven_day_opus" | "seven_day_omelette" => "7-day Opus".into(),
+        "seven_day_oauth_apps" => "7-day OAuth apps".into(),
+        "seven_day_cowork" => "7-day Cowork".into(),
+        // Anthropic does not document this bucket. Community usage readers
+        // consistently treat it as a cloud-credit bucket; retain the raw key.
+        "iguana_necktie" => "Cloud credit (iguana_necktie)".into(),
+        "tangelo" => "Tangelo credit (tangelo)".into(),
+        "omelette_promotional" => "Promotional credit (omelette_promotional)".into(),
+        _ => key.replace('_', " "),
+    }
 }
 
 fn amount_percent(used: &Value, limit: &Value) -> Option<f64> {
