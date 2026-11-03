@@ -78,10 +78,14 @@ pub async fn open_session(
     host_mcp_servers: &[HostMcpServer],
     allow_native_tools: bool,
 ) -> Result<Box<dyn Agent>> {
+    // The discovered command can be an npm/PowerShell shim. Execution must use
+    // the native binary for the version probe and the session transport; the
+    // bounded process layer refuses wrappers by design.
+    let executable = server::resolve_executable(executable)?;
     let cwd = std::env::current_dir().map_err(|_| invalid())?;
     let version = capture(
         LaunchSpec {
-            executable: executable.to_owned(),
+            executable: executable.clone(),
             args: vec!["--version".into()],
             cwd,
             env: scope.map(scope_environment).unwrap_or_default(),
@@ -97,7 +101,7 @@ pub async fn open_session(
             ));
         }
         return v2_service::open_session(
-            executable,
+            &executable,
             scope,
             model,
             provider,
@@ -113,7 +117,7 @@ pub async fn open_session(
             "OpenCode 1.x host tools require the OpenCode 2 local service",
         ));
     }
-    server::open_session(executable, model, provider, workspace, persistent, resume).await
+    server::open_session(&executable, model, provider, workspace, persistent, resume).await
 }
 fn text(v: &Value) -> Result<String> {
     v.as_str()
