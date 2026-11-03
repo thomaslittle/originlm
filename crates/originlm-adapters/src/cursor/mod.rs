@@ -12,6 +12,7 @@ use originlm_discovery::LocatedClient;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, limits::Limit};
 use serde_json::{Value, json};
 use std::{
+    ffi::OsString,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -195,7 +196,39 @@ pub fn read_cached(
 
 /// The agent CLI is the only supported probe executable. It must be the
 /// discovery-resolved absolute path, never a PATH lookup performed here.
-fn cli(located: &LocatedClient) -> Result<(PathBuf, PathBuf)> {
+struct Cli {
+    executable: PathBuf,
+    /// The JS entrypoint when the discovered command is a wrapper script.
+    prefix: Vec<OsString>,
+    cwd: PathBuf,
+}
+
+fn wrapper_launcher(executable: &Path) -> Option<(PathBuf, PathBuf)> {
+    let root = executable.parent()?.join("versions");
+    let mut versions: Vec<PathBuf> = std::fs::read_dir(root)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().ok().is_some_and(|kind| kind.is_dir()))
+        .map(|entry| entry.path())
+        .collect();
+    versions.sort();
+    for directory in versions.into_iter().rev() {
+        let Some(node) = ["node.exe", "node"]
+            .into_iter()
+            .map(|name| directory.join(name))
+            .find(|path| path.is_file())
+        else {
+            continue;
+        };
+        let entrypoint = directory.join("index.js");
+        if entrypoint.is_file() {
+            return Some((node, entrypoint));
+        }
+    }
+    None
+}
+
+fn cli(located: &LocatedClient) -> Result<Cli> {
     if located.provider_id != "cursor" || !located.profile_home.is_absolute() {
         return Err(unavailable());
     }
@@ -206,15 +239,43 @@ fn cli(located: &LocatedClient) -> Result<(PathBuf, PathBuf)> {
         .ok_or_else(|| {
             DomainError::new(ErrorCode::RuntimeMissing, "Cursor Agent CLI is unavailable")
         })?;
-    Ok((executable, located.profile_home.clone()))
+    // Windows installs expose cursor-agent.cmd/.ps1 wrappers, which the
+    // bounded process layer deliberately refuses to shell out to. The wrapper
+    // ships a pinned node.exe and index.js under versions/; use those exact
+    // files instead of weakening the no-shell rule.
+    let extension = executable
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if ["cmd", "bat", "ps1"].contains(&extension.as_str()) {
+        let (node, entrypoint) = wrapper_launcher(&executable).ok_or_else(|| {
+            DomainError::new(
+                ErrorCode::RuntimeMissing,
+                "Cursor Agent wrapper has no runnable entrypoint",
+            )
+        })?;
+        return Ok(Cli {
+            executable: node,
+            prefix: vec![entrypoint.into_os_string()],
+            cwd: located.profile_home.clone(),
+        });
+    }
+    Ok(Cli {
+        executable,
+        prefix: Vec::new(),
+        cwd: located.profile_home.clone(),
+    })
 }
 
-async fn run(executable: &Path, cwd: &Path, args: &[&str]) -> Result<String> {
+async fn run(cli: &Cli, args: &[&str]) -> Result<String> {
+    let mut all = cli.prefix.clone();
+    all.extend(args.iter().map(OsString::from));
     crate::process::capture(
         crate::process::LaunchSpec {
-            executable: executable.to_path_buf(),
-            args: args.iter().map(std::ffi::OsString::from).collect(),
-            cwd: cwd.to_path_buf(),
+            executable: cli.executable.clone(),
+            args: all,
+            cwd: cli.cwd.clone(),
             env: Default::default(),
         },
         Duration::from_secs(20),
@@ -419,15 +480,15 @@ pub async fn probe(
     route: &str,
     allow_usage: bool,
 ) -> Result<ConnectionMetadata> {
-    let (executable, profile_home) = cli(&located)?;
+    let cli = cli(&located)?;
     let cached_fields = {
-        let home = profile_home.clone();
+        let home = located.profile_home.clone();
         tokio::task::spawn_blocking(move || read_fields(&home))
             .await
             .ok()
             .flatten()
     };
-    let status = run(&executable, &profile_home, &["status"]).await.ok();
+    let status = run(&cli, &["status"]).await.ok();
     let email = status.as_deref().and_then(parse_login);
     let Some(email) = email else {
         // The CLI did not confirm a session. Keep the honest cache view instead
@@ -444,9 +505,9 @@ pub async fn probe(
         reference: Some("cursor-agent status, models, about".into()),
     };
     let (models, about, version) = tokio::join!(
-        run(&executable, &profile_home, &["models"]),
-        run(&executable, &profile_home, &["about"]),
-        run(&executable, &profile_home, &["--version"]),
+        run(&cli, &["models"]),
+        run(&cli, &["about"]),
+        run(&cli, &["--version"]),
     );
     let version_text = version
         .ok()
@@ -582,5 +643,27 @@ mod tests {
         let reading = percent_reading(27.670639).unwrap();
         assert!((reading.used_fraction.unwrap() - 0.2767).abs() < 1e-9);
         assert!(percent_reading(f64::NAN).is_none());
+    }
+
+    #[test]
+    fn windows_wrapper_resolves_the_latest_pinned_node_entrypoint() {
+        let root = tempfile::tempdir().unwrap();
+        let launcher = root.path().join("cursor-agent.cmd");
+        for version in ["2026.10.11-aaaaaaa", "2026.10.12-bbbbbbb"] {
+            let directory = root.path().join("versions").join(version);
+            std::fs::create_dir_all(&directory).unwrap();
+            std::fs::write(directory.join("node.exe"), b"").unwrap();
+            std::fs::write(directory.join("index.js"), b"").unwrap();
+        }
+        let (node, entrypoint) = wrapper_launcher(&launcher).unwrap();
+        assert!(node.ends_with("2026.10.12-bbbbbbb/node.exe"));
+        assert!(entrypoint.ends_with("2026.10.12-bbbbbbb/index.js"));
+    }
+
+    #[test]
+    fn wrapper_without_a_pinned_runtime_does_not_guess() {
+        let root = tempfile::tempdir().unwrap();
+        let launcher = root.path().join("cursor-agent.cmd");
+        assert!(wrapper_launcher(&launcher).is_none());
     }
 }
