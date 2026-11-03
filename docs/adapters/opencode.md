@@ -70,9 +70,10 @@ The independent `opencode::client_v2` and `opencode::catalog_v2` modules model
 OpenCode 2.0.23's public protocol, compared with T3 Code source
 `ca952677321abf9f3762ae4bb0129454e5a63955` and the official
 `@opencode/protocol`/`@opencode/schema` 2.0.23 packages (MIT). No upstream
-implementation was copied wholesale. They are **not wired into automatic
-managed-client discovery or execution**. `server::start` still fails closed
-on v2 rather than running it with v1 flags.
+implementation was copied wholesale. `opencode::open_session` selects the 2.x
+path through the owner's running local service and keeps the 1.x kit-owned
+server for older clients. `server::start` still fails closed on v2 rather than
+running it with v1 flags.
 
 The v2 catalog preserves gateway owner/upstream/native-model identity and
 reported capability/variant metadata. It deliberately reports unknown auth:

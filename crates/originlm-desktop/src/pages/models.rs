@@ -203,17 +203,10 @@ impl Desktop {
 
                 let entity = cx.entity();
                 let choice_id = model.id.clone();
-                let provider_id = route
-                    .map(|route| route.provider_id.clone())
-                    .unwrap_or_default();
-                // Metadata-only providers are catalogued but never offered as a
-                // runnable Playground route.
-                let executable = route.is_some_and(|route| {
-                    !matches!(
-                        route.provider_id.as_str(),
-                        "opencode" | "opencode-go" | "cursor"
-                    )
-                });
+                // Cursor remains metadata-only. OpenCode and OpenCode Go have a
+                // text-session transport through the installed client.
+                let executable =
+                    route.is_some_and(|route| route.provider_id.as_str() != "cursor");
 
                 div()
                     .v_flex()
@@ -395,11 +388,7 @@ impl Desktop {
                             div()
                                 .text_size(px(10.5))
                                 .text_color(theme.muted_foreground)
-                                .child(if provider_id == "cursor" {
-                                    "Metadata is available for this Cursor route; text execution is not wired yet."
-                                } else {
-                                    "Metadata is available for this OpenCode 2 route; text execution is not wired yet."
-                                }),
+                                .child("Metadata is available for this Cursor route; text execution is not wired yet."),
                         )
                     })
                     .into_any_element()
