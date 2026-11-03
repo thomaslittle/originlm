@@ -108,7 +108,10 @@ fn window_label(key: &str) -> String {
         "five_hour" => "5-hour session".into(),
         "seven_day" => "7-day".into(),
         "seven_day_sonnet" => "7-day Sonnet".into(),
-        "seven_day_opus" | "seven_day_omelette" => "7-day Opus".into(),
+        "seven_day_opus" => "7-day Opus".into(),
+        // `omelette` is an undocumented codename; do not present it as a
+        // documented Opus bucket without keeping the raw key visible.
+        "seven_day_omelette" => "7-day Opus (seven_day_omelette)".into(),
         "seven_day_oauth_apps" => "7-day OAuth apps".into(),
         "seven_day_cowork" => "7-day Cowork".into(),
         // Anthropic does not document this bucket. Community usage readers
@@ -116,7 +119,7 @@ fn window_label(key: &str) -> String {
         "iguana_necktie" => "Cloud credit (iguana_necktie)".into(),
         "tangelo" => "Tangelo credit (tangelo)".into(),
         "omelette_promotional" => "Promotional credit (omelette_promotional)".into(),
-        _ => key.replace('_', " "),
+        other => format!("{other} (undocumented)"),
     }
 }
 

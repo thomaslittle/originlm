@@ -85,7 +85,7 @@ fn enterprise_monthly_spend_prefers_the_enabled_budget() {
 }
 #[test]
 fn undocumented_provider_buckets_keep_a_readable_label() {
-    let usage = json!({"rate_limits_available":true,"rate_limits":{"five_hour":{"utilization":12,"resets_at":null},"iguana_necktie":{"utilization":99,"resets_at":null}}});
+    let usage = json!({"rate_limits_available":true,"rate_limits":{"five_hour":{"utilization":12,"resets_at":null},"iguana_necktie":{"utilization":99,"resets_at":null},"seven_day_omelette":{"utilization":5,"resets_at":null},"mystery_bucket":{"utilization":1,"resets_at":null}}});
     let report = parse_metadata("c", "r", &init(), Some(&usage)).unwrap();
     let labels: Vec<&str> = report.quota_pools[0]
         .windows
@@ -94,6 +94,8 @@ fn undocumented_provider_buckets_keep_a_readable_label() {
         .collect();
     assert!(labels.contains(&"5-hour session"));
     assert!(labels.contains(&"Cloud credit (iguana_necktie)"));
+    assert!(labels.contains(&"7-day Opus (seven_day_omelette)"));
+    assert!(labels.contains(&"mystery_bucket (undocumented)"));
 }
 
 #[test]
