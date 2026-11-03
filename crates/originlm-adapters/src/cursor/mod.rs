@@ -249,15 +249,19 @@ fn cli(located: &LocatedClient) -> Result<Cli> {
         .unwrap_or("")
         .to_ascii_lowercase();
     if ["cmd", "bat", "ps1"].contains(&extension.as_str()) {
-        let (node, entrypoint) = wrapper_launcher(&executable).ok_or_else(|| {
-            DomainError::new(
-                ErrorCode::RuntimeMissing,
-                "Cursor Agent wrapper has no runnable entrypoint",
-            )
-        })?;
+        // Without a pinned runtime the wrapper cannot run, but keeping it as
+        // the executable lets the bounded layer reject it and `probe` keep the
+        // honest cache view instead of failing the whole connection.
+        if let Some((node, entrypoint)) = wrapper_launcher(&executable) {
+            return Ok(Cli {
+                executable: node,
+                prefix: vec![entrypoint.into_os_string()],
+                cwd: located.profile_home.clone(),
+            });
+        }
         return Ok(Cli {
-            executable: node,
-            prefix: vec![entrypoint.into_os_string()],
+            executable,
+            prefix: Vec::new(),
             cwd: located.profile_home.clone(),
         });
     }
