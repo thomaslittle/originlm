@@ -66,6 +66,7 @@ fn invalid() -> DomainError {
 
 /// Open a text-only session on the installed OpenCode client. 2.x uses the
 /// owner's local service API; 1.x keeps the kit-owned legacy server.
+#[allow(clippy::too_many_arguments)]
 pub async fn open_session(
     executable: &Path,
     scope: Option<&ProfileScope>,
@@ -74,6 +75,8 @@ pub async fn open_session(
     workspace: PathBuf,
     persistent: bool,
     resume: Option<String>,
+    host_mcp_servers: &[HostMcpServer],
+    allow_native_tools: bool,
 ) -> Result<Box<dyn Agent>> {
     let cwd = std::env::current_dir().map_err(|_| invalid())?;
     let version = capture(
@@ -93,7 +96,22 @@ pub async fn open_session(
                 "OpenCode 2 text sessions do not support native resumption",
             ));
         }
-        return v2_service::open_session(executable, scope, model, provider, workspace).await;
+        return v2_service::open_session(
+            executable,
+            scope,
+            model,
+            provider,
+            workspace,
+            host_mcp_servers,
+            allow_native_tools,
+        )
+        .await;
+    }
+    if !host_mcp_servers.is_empty() || allow_native_tools {
+        return Err(DomainError::new(
+            ErrorCode::CapabilityUnsupported,
+            "OpenCode 1.x host tools require the OpenCode 2 local service",
+        ));
     }
     server::open_session(executable, model, provider, workspace, persistent, resume).await
 }

@@ -253,6 +253,7 @@ impl Endpoint {
                     "limit",
                     "after_id",
                     "directory",
+                    "location[directory]",
                 ]
                 .contains(key)
                     || value.len() > 4096
@@ -342,6 +343,29 @@ impl Endpoint {
             total: 0,
             done: false,
         })
+    }
+    /// Bounded PUT for an explicit runtime-owned resource (OpenCode MCP
+    /// registration). The caller owns cleanup; a non-2xx response is an error.
+    pub async fn put(&self, path: &str, query: &[(&str, &str)], body: Value) -> Result<()> {
+        let bytes = serde_json::to_vec(&body).map_err(|_| invalid())?;
+        if bytes.len() > BODY_LIMIT {
+            return Err(error(ErrorCode::FrameTooLarge));
+        }
+        let response = self
+            .client
+            .put(self.query_url(path, query)?)
+            .headers(self.headers.clone())
+            .header("content-type", "application/json")
+            .body(bytes)
+            .timeout(Duration::from_secs(20))
+            .send()
+            .await
+            .map_err(network)?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(response_error(response).await)
+        }
     }
     pub async fn delete(&self, path: &str, query: &[(&str, &str)]) -> Result<()> {
         let response = self

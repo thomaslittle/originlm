@@ -6,7 +6,6 @@ use originlm_runtime::{Agent, BoxFuture, TurnContext};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::PathBuf,
     time::Duration,
 };
 
@@ -29,38 +28,35 @@ fn safe_id(value: &Value) -> Result<String> {
         .map(str::to_owned)
         .ok_or_else(invalid)
 }
-fn permissions() -> Value {
-    json!([{"action":"*","resource":"*","effect":"deny"}])
-}
-
 /// Open an explicitly supplied endpoint; does not discover credentials or spawn.
-/// Persistent resume and image input are deliberately unadvertised.
+/// Persistent resume and image input are deliberately unadvertised. `mcp_names`
+/// are host MCP servers already attached to this location; they are detached
+/// when the session closes.
+#[allow(clippy::too_many_arguments)]
 pub async fn open(
     endpoint: Endpoint,
     model: Model,
     provider: String,
-    workspace: PathBuf,
+    permissions: Value,
+    mcp_names: Vec<String>,
+    directory: String,
 ) -> Result<Box<dyn Agent>> {
-    let directory = workspace
-        .to_str()
-        .filter(|_| workspace.is_absolute())
-        .ok_or_else(invalid)?;
     let selected = json!({"providerID":provider,"id":model.native_id});
-    let response = endpoint.json("api/session", Some(json!({"title":"OriginLM text session", "location":{"directory":directory}, "model":selected, "permissions":permissions()}))).await?;
+    let response = endpoint.json("api/session", Some(json!({"title":"OriginLM text session", "location":{"directory":directory}, "model":selected, "permissions":permissions}))).await?;
     let session = &response["data"];
     let id = safe_id(&session["id"])?;
     // The service adds its default variant to the returned model; compare the
     // fields the caller selected instead of requiring exact object equality.
     let confirmed_model = session["model"]["providerID"] == selected["providerID"]
         && session["model"]["id"] == selected["id"];
-    if session["permissions"] != permissions()
+    if session["permissions"] != permissions
         || !confirmed_model
         || session["location"]["directory"] != directory
     {
         let _ = endpoint.delete(&format!("api/session/{id}"), &[]).await;
         return Err(DomainError::new(
             ErrorCode::IntegrationRestricted,
-            "OpenCode 2 did not confirm the requested model, workspace and deny-all permissions",
+            "OpenCode 2 did not confirm the requested model, workspace and permissions",
         ));
     }
     Ok(Box::new(Client {
@@ -72,6 +68,8 @@ pub async fn open(
         closing: false,
         seen_messages: BTreeSet::new(),
         last_durable_sequence: None,
+        mcp_names,
+        directory,
     }))
 }
 struct Client {
@@ -83,6 +81,8 @@ struct Client {
     closing: bool,
     seen_messages: BTreeSet<String>,
     last_durable_sequence: Option<u64>,
+    mcp_names: Vec<String>,
+    directory: String,
 }
 #[derive(Default)]
 struct Block {
@@ -386,6 +386,15 @@ impl Agent for Client {
                     .await?;
                 // A failed or dropped DELETE future must retain retry ownership.
                 self.id = None;
+            }
+            for name in std::mem::take(&mut self.mcp_names) {
+                let _ = self
+                    .endpoint
+                    .delete(
+                        &format!("api/experimental/mcp/{name}"),
+                        &[("location[directory]", self.directory.as_str())],
+                    )
+                    .await;
             }
             Ok(())
         })
