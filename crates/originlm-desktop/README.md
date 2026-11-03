@@ -123,8 +123,10 @@ for the usage series.
 - OpenCode 2 is read from its running local service (owner-only descriptor,
   loopback API): authentication is marked observed only when the service
   returns authenticated workspace limits, and its rolling/weekly/monthly
-  allowance is shown. OpenCode 2 text execution is not wired, so its models are
-  catalogued but not offered in the Playground.
+  allowance is shown. OpenCode and OpenCode Go text sessions go through the
+  installed client's transport and are offered in the Playground when the
+  runtime grants execution. OpenCode 2 sessions are text-only and do not
+  support native resumption.
 - Detail rails (Providers, Models) keep a fixed comfortable width; only the
   sidebar is drag-resizable today. Model lists are search-filtered and capped,
   not virtualized.

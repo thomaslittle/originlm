@@ -764,13 +764,10 @@ impl Desktop {
             .iter()
             .filter_map(|model| {
                 let route = snapshot.routes.iter().find(|r| r.id == model.route_id)?;
-                // OpenCode 2 and Cursor are read for metadata only; their text
-                // execution clients are not wired, so do not offer them as
-                // runnable Playground routes.
-                if matches!(
-                    route.provider_id.as_str(),
-                    "opencode" | "opencode-go" | "cursor"
-                ) {
+                // Cursor is read for metadata only; its text execution client
+                // is not wired. OpenCode and OpenCode Go routes go through the
+                // installed client's text-session transport and are runnable.
+                if route.provider_id == "cursor" {
                     return None;
                 }
                 let connection = snapshot
