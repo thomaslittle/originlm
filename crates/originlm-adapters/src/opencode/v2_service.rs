@@ -352,7 +352,13 @@ async fn attach_mcp(
 ) -> Result<Vec<String>> {
     let mut attached = Vec::new();
     for server in servers {
-        let alias = mcp_alias(server)?;
+        let alias = match mcp_alias(server) {
+            Ok(alias) => alias,
+            Err(error) => {
+                detach_mcp(endpoint, directory, &attached).await;
+                return Err(error);
+            }
+        };
         let config = serde_json::json!({
             "config": {
                 "type": "remote",
@@ -363,9 +369,13 @@ async fn attach_mcp(
             }
         });
         let path = format!("api/experimental/mcp/{alias}");
-        endpoint
+        if let Err(error) = endpoint
             .put(&path, &[("location[directory]", directory)], config)
-            .await?;
+            .await
+        {
+            detach_mcp(endpoint, directory, &attached).await;
+            return Err(error);
+        }
         attached.push(alias);
     }
     Ok(attached)
