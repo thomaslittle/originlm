@@ -67,6 +67,50 @@ async fn local_models_are_served_from_the_configured_home() {
 }
 
 #[tokio::test]
+async fn restricted_clients_do_not_read_unrelated_provider_surfaces() {
+    let home = tempfile::tempdir().unwrap();
+    write(
+        &home.path().join(".claude/projects/p/one.jsonl"),
+        &[
+            r#"{"type":"assistant","sessionId":"s1","requestId":"r1","message":{"id":"m1","model":"claude-x","usage":{"input_tokens":10,"output_tokens":2}}}"#,
+        ],
+    );
+    write(
+        &home
+            .path()
+            .join(".ollama/models/manifests/registry.ollama.ai/library/llama3.2/latest"),
+        &[r#"{"layers":[{"size":100}]}"#],
+    );
+    let service = NativeService::new(empty_source(), Duration::from_secs(2));
+    service
+        .register_client(
+            "restricted",
+            ClientPolicy {
+                connection_ids: Some(Default::default()),
+                ..ClientPolicy::passive()
+            },
+        )
+        .unwrap();
+    service.set_usage_home(home.path().to_path_buf());
+
+    let history: Value = service
+        .handle("restricted", "usage.history", json!({}))
+        .await
+        .unwrap();
+    assert!(history["providers"].as_array().unwrap().is_empty());
+    let models: Value = service
+        .handle("restricted", "models.local", json!({}))
+        .await
+        .unwrap();
+    assert!(models.as_array().unwrap().is_empty());
+    let status: Value = service
+        .handle("restricted", "detection.status", json!({}))
+        .await
+        .unwrap();
+    assert!(status["providers"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn usage_history_is_served_from_the_configured_home_and_cached_in_costs() {
     let home = tempfile::tempdir().unwrap();
     write(

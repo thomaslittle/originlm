@@ -80,11 +80,11 @@ impl NativeService {
             }
             "usage.history" => {
                 params::allow(p, &[])?;
-                Ok(json!(self.usage_history()?))
+                Ok(json!(self.usage_history(client)?))
             }
             "models.local" => {
                 params::allow(p, &[])?;
-                Ok(json!(self.local_models()?))
+                Ok(json!(self.local_models(client)?))
             }
             "detection.status" => {
                 params::allow(p, &[])?;

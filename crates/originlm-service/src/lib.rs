@@ -101,20 +101,46 @@ impl NativeService {
             *cached = None;
         }
     }
-    fn usage_history(&self) -> Result<UsageHistory> {
-        if let Ok(cached) = self.usage_history.read()
+    /// Providers this client may see. `None` means the host's full policy;
+    /// `Some(set)` restricts a consumer to the providers behind its granted
+    /// connections, so the new read surfaces do not bypass `connection_ids`.
+    fn visible_providers(
+        &self,
+        client: &str,
+    ) -> Result<Option<std::collections::BTreeSet<String>>> {
+        if self.policy(client)?.connection_ids.is_none() {
+            return Ok(None);
+        }
+        let snapshot = self.projected(client)?;
+        Ok(Some(
+            snapshot
+                .connections
+                .iter()
+                .map(|connection| connection.provider_id.clone())
+                .collect(),
+        ))
+    }
+    fn usage_history(&self, client: &str) -> Result<UsageHistory> {
+        let mut history = if let Ok(cached) = self.usage_history.read()
             && let Some((observed, history)) = cached.as_ref()
             && observed.elapsed() < Duration::from_secs(60)
         {
-            return Ok(history.clone());
-        }
-        let environment = self.local_environment()?;
-        let history = originlm_discovery::history::read_usage_for_environment(
-            &environment,
-            originlm_discovery::history::Limits::default(),
-        );
-        if let Ok(mut cached) = self.usage_history.write() {
-            *cached = Some((std::time::Instant::now(), history.clone()));
+            history.clone()
+        } else {
+            let environment = self.local_environment()?;
+            let history = originlm_discovery::history::read_usage_for_environment(
+                &environment,
+                originlm_discovery::history::Limits::default(),
+            );
+            if let Ok(mut cached) = self.usage_history.write() {
+                *cached = Some((std::time::Instant::now(), history.clone()));
+            }
+            history
+        };
+        if let Some(visible) = self.visible_providers(client)? {
+            history
+                .providers
+                .retain(|provider| visible.contains(&provider.provider_id));
         }
         Ok(history)
     }
@@ -134,6 +160,7 @@ impl NativeService {
     }
     fn detection_status(&self, client: &str) -> Result<originlm_contracts::DetectionReport> {
         let snapshot = self.projected(client)?;
+        let restricted = self.policy(client)?.connection_ids.is_some();
         let environment = self.local_environment()?;
         let mut providers = Vec::new();
         for definition in originlm_discovery::definitions() {
@@ -142,6 +169,11 @@ impl NativeService {
                 .iter()
                 .filter(|connection| connection.provider_id == definition.id)
                 .collect();
+            // A restricted consumer must not enumerate host software it was
+            // not granted, including the paths checked for each provider.
+            if restricted && connections.is_empty() {
+                continue;
+            }
             let executable_found = connections
                 .iter()
                 .any(|connection| connection.status == "detected");
@@ -186,9 +218,9 @@ impl NativeService {
         }
         Ok(originlm_contracts::DetectionReport { providers })
     }
-    fn local_models(&self) -> Result<Vec<originlm_contracts::LocalModelInventory>> {
+    fn local_models(&self, client: &str) -> Result<Vec<originlm_contracts::LocalModelInventory>> {
         let environment = self.local_environment()?;
-        Ok(vec![
+        let mut inventories = vec![
             originlm_discovery::local_models::read_ollama_models(
                 &environment.home,
                 environment
@@ -202,7 +234,11 @@ impl NativeService {
                 &originlm_discovery::local_models::lmstudio_config_home(&environment),
                 8192,
             ),
-        ])
+        ];
+        if let Some(visible) = self.visible_providers(client)? {
+            inventories.retain(|inventory| visible.contains(&inventory.provider_id));
+        }
+        Ok(inventories)
     }
     /// Open the broker-owned SQLite state and hydrate the cached snapshot
     /// before the server starts accepting clients.
