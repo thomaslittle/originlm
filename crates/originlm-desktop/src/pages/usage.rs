@@ -437,7 +437,13 @@ impl Desktop {
             .gap(px(sp::MD))
             .child(history)
             .child(schedule);
-        let mut page = ds::page().child(if wide {
+        let mut page = ds::page();
+        // Local token totals are the only usage evidence some clients publish.
+        // Keep them above the quota panels so they are not mistaken for absent.
+        if let Some(panel) = local_tokens {
+            page = page.child(panel);
+        }
+        page.child(if wide {
             div()
                 .h_flex()
                 .items_start()
@@ -452,11 +458,8 @@ impl Desktop {
                 .child(list)
                 .child(right)
                 .into_any_element()
-        });
-        if let Some(panel) = local_tokens {
-            page = page.child(panel);
-        }
-        page.into_any_element()
+        })
+        .into_any_element()
     }
 
     fn usage_table_view(&self, points: &[data::ChartPoint], theme: &Theme) -> AnyElement {
