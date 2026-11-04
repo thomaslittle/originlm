@@ -20,7 +20,7 @@ Gemini CLI uses its documented ACP mode and `GEMINI_CLI_HOME`. Browser authentic
 
 ## Antigravity
 
-Antigravity requires the dedicated `agy_acp_server` runtime plus its sibling `localharness_external`; the desktop IDE's `antigravity.cmd` launcher is intentionally rejected. Interactive auth URLs are routed to the packaged browser-blocker during noninteractive integration rather than opened automatically. The ACP route is implemented and fixture-tested, but the dedicated ACP runtime was not installed on the qualification PC. The IDE installation is therefore not reported as a runnable ACP connector.
+Antigravity requires the dedicated `agy_acp_server` runtime plus its sibling `localharness_external`; the desktop IDE's `antigravity.cmd` launcher is intentionally rejected. Discovery finds T3's managed runtime under `~/.t3/tools/antigravity-acp/<platform>/versions/<hash>` and its per-account profiles under `~/.t3/userdata/providers/antigravity/<profile>/antigravity-acp`. The launcher provides the packaged browser blocker, file-backed ACP storage and a profile-local temp directory. Interactive auth URLs are routed to the blocker rather than opened automatically. Windows live qualification on 2026-11-04: two managed profiles initialized, both reported authenticated with 13 native models (Gemini 4 Argon, Gemini 3.8 Flash families), and no Antigravity GUI process launched. Quota remains unknown because the ACP surface does not report it.
 
 ## Safety and billing
 

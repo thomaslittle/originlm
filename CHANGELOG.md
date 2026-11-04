@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix(antigravity): discover T3's managed ACP runtime and per-account `antigravity-acp` profiles, exclude desktop IDE launchers, supply the packaged auth blocker and file-backed ACP environment, allow the managed runtime's cold start, and parse its legacy model list. Windows live: two profiles authenticated with 13 models and no GUI launch.
 - fix(opencode): exclude the OpenCode Desktop GUI executable from CLI discovery on Windows, and discover the npm or desktop-bundled CLI instead. This stops version probes from opening the desktop window and lets the native service probe reach the real CLI.
 - fix(opencode): treat a saved OpenCode Console OAuth connection as native-reported authentication when no workspace limits are exposed, fixing Console logins that previously appeared as "Not checked" while `/connect` API-key logins worked.
 - feat(usage): add `usage.history` and `costs.read.historical` plus a desktop Costs page section. History now covers Gemini CLI (`~/.gemini/tmp` JSON/JSONL), Grok (`~/.grok/sessions` `updates.jsonl` `turn_completed`), and Kiro (`~/.kiro/sessions/cli` recorded turn counts) in addition to Claude Code and Codex. Codex app-server and rollout token shapes are both accepted; cache writes stay separate from fresh input.
