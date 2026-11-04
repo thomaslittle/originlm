@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
+          npm install -g --prefix "$env:APPDATA\npm" @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
           irm 'https://cli.kiro.dev/install.ps1' | iex
       - name: Record Kiro install locations
         if: runner.os == 'Windows'
@@ -72,6 +72,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $env:PATH = "$env:APPDATA\npm;$env:PATH"
           foreach ($tool in 'codex','claude','gemini','kiro-cli','opencode') {
             Write-Host "$tool`: "
             if (Get-Command $tool -ErrorAction SilentlyContinue) { & $tool --version }
