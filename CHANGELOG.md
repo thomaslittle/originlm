@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix(desktop): collapse duplicate passive-discovery installs to one account per provider (distinct account ids are preserved), keep a stable local-token row for Claude/Codex/Gemini/Grok/Kiro even when a scan is empty, replace "Not reported" with explicit no-quota/local-total states, use green/amber/red availability meters, use the Claude burst and OpenAI marks, and stop serializing startup metadata probes on the broker worker. Measured Windows startup to first window: 1.5s.
 - fix(usage): show recorded local session-token totals on the Usage page when providers have no quota window, and let the desktop private runtime read Cursor's dashboard allowance by default. Gemini/Grok tokens now report even when no quota pool exists; Cursor reports its included-usage window.
 - fix(antigravity): discover T3's managed ACP runtime and per-account `antigravity-acp` profiles, exclude desktop IDE launchers, supply the packaged auth blocker and file-backed ACP environment, allow the managed runtime's cold start, and parse its legacy model list. Windows live: two profiles authenticated with 13 models and no GUI launch.
 - fix(opencode): exclude the OpenCode Desktop GUI executable from CLI discovery on Windows, and discover the npm or desktop-bundled CLI instead. This stops version probes from opening the desktop window and lets the native service probe reach the real CLI.

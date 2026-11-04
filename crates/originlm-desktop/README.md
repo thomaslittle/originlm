@@ -166,6 +166,9 @@ native plots with a table alternative.
   range. Opening the app makes one bounded metadata probe per
   authenticated connection whose allowance is missing or stale, so usage
   returns after a broker restart without polling.
+- Passive discovery can see several command shims, profile roots or bundled copies of one client. The desktop collapses them to one account per provider unless the service reports distinct account ids. A provider without a quota window stays visible with its auth state and any local token totals, instead of disappearing.
+- Availability meters are green above 35% left, amber below 35%, and red below 15%. The Claude burst and OpenAI marks are used for Claude Code and Codex.
+- Startup renders the cached snapshot first; metadata and usage refresh run in the background rather than queuing one probe behind another on the broker worker.
 - Cursor is probed through the installed `cursor-agent` CLI: signed-in state,
   plan tier, the native model catalog and included-usage percentages. The
   desktop app's private runtime opts in to Cursor's dashboard allowance read;
