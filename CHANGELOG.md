@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix(opencode): treat a saved OpenCode Console OAuth connection as native-reported authentication when no workspace limits are exposed, fixing Console logins that previously appeared as "Not checked" while `/connect` API-key logins worked.
 - feat(usage): add `usage.history` and `costs.read.historical` plus a desktop Costs page section. History now covers Gemini CLI (`~/.gemini/tmp` JSON/JSONL), Grok (`~/.grok/sessions` `updates.jsonl` `turn_completed`), and Kiro (`~/.kiro/sessions/cli` recorded turn counts) in addition to Claude Code and Codex. Codex app-server and rollout token shapes are both accepted; cache writes stay separate from fresh input.
 - feat(models): serve on-disk Ollama and LM Studio inventories through `models.local`, honor an LM Studio `modelDirectory` from `LMStudio/config.json`, and show them on the desktop Models page.
 - feat(detection): add `detection.status` with per-provider found/configuration-only/not-found states, diagnostics, executable presence, and paths checked; render it on the desktop Diagnostics page. `scan --probe-versions` records explicit `--version` output for real-install evidence.

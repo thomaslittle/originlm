@@ -76,10 +76,14 @@ server for older clients. `server::start` still fails closed on v2 rather than
 running it with v1 flags.
 
 The v2 catalog preserves gateway owner/upstream/native-model identity and
-reported capability/variant metadata. It deliberately reports unknown auth:
-`/api/integration` projects configured credentials and process-local errors;
-absence of `needs_auth` is not positive authentication evidence. Explicit
-billing declarations do not change that state or bypass selection guards.
+reported capability/variant metadata. Workspace limits remain the strongest
+authentication evidence. When a Console OAuth account exposes no workspace
+limits, a non-empty `/api/integration/opencode` connection list is treated as
+native-reported authentication, with
+`OPENCODE_2_CONNECTION_REPORTED_NOT_UPSTREAM_VERIFIED` making clear that no
+independent upstream request verified it. An empty or absent list stays
+unknown. Explicit billing declarations do not change that state or bypass
+selection guards.
 
 The v2 transport accepts an explicitly supplied endpoint, verifies returned
 model/workspace/deny-all permissions, subscribes before prompting, reconciles
