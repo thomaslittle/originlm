@@ -226,7 +226,7 @@ FAMILIES = {
     'grants': ('request','list','revoke'), 'sessions': ('create','get','suspend','resume','updateOptions','close'),
     'health': ('get',), 'issues': ('list','acknowledge','snooze'), 'notifications': ('poll','configure','ack'), 'apps': ('list','revoke'),
     'inputs': ('put',), 'turns': ('start','cancel'), 'approvals': ('respond',), 'artifacts': ('read',),
-    'diagnostics': ('report','status'), 'adapters': ('list',), 'events': ('subscribe',), 'inventory': ('subscribe',),
+    'diagnostics': ('report',), 'detection': ('status',), 'adapters': ('list',), 'events': ('subscribe',), 'inventory': ('subscribe',),
 }
 
 

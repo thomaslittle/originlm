@@ -7,7 +7,7 @@ const families = {
   selection: ['resolve', 'validate'], grants: ['request', 'list', 'revoke'],
   health: ['get'], issues: ['list', 'acknowledge', 'snooze'], notifications: ['poll', 'configure', 'ack'], apps: ['list', 'revoke'],
   sessions: ['create', 'get', 'suspend', 'resume', 'updateOptions', 'close'], inputs: ['put'], turns: ['start', 'cancel'], approvals: ['respond'],
-  artifacts: ['read'], diagnostics: ['report', 'status'], adapters: ['list'],
+  artifacts: ['read'], diagnostics: ['report'], detection: ['status'], adapters: ['list'],
 } as const;
 type Method = <T = unknown>(params?: unknown, options?: CallOptions) => Promise<T>;
 type Input<K extends string> = K extends keyof MethodInputs ? MethodInputs[K] : unknown;
