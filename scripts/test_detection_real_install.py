@@ -65,6 +65,12 @@ def main() -> int:
             )
         if len(set(found)) != len(found):
             failures.append(f"{provider}: duplicate executable locations {found}")
+        for path in found:
+            if not pathlib.Path(path).is_file():
+                failures.append(f"{provider}: retained executable does not exist: {path}")
+        for location in locations:
+            if location.get("providerId") == provider and not location.get("profileHome"):
+                failures.append(f"{provider}: profile home was not recorded")
 
     print("provider\texecutable")
     for provider in sorted(EXPECTED):
