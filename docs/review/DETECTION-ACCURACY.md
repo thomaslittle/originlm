@@ -41,7 +41,7 @@ Legend:
 | fx | PATH, `~/.fx` | same | same | Fixture (passive) | Binary is not launched. |
 | Ollama | explicit endpoint / `~/.ollama` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (manifest inventory) | No network scan. On-disk ids/names/sizes are read only through the explicit CLI; no capability claims. |
 | LM Studio | explicit endpoint / `~/.lmstudio` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (GGUF inventory) | `~/.lmstudio/models` and `~/.cache/lm-studio/models`; a custom model directory is not read yet. |
-| Kiro | **Real CI** (official installer, `~/.local/bin`) + PATH + version managers | **Real CI** (MSI, `%ProgramFiles%\Kiro-Cli`) + `%LOCALAPPDATA%\Kiro-Cli` | **Real CI** (official installer, `~/.local/bin`) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata on Unix) | `kiro-cli whoami` and `chat --list-models` are parsed; signed-out sessions never request models. |
+| Kiro | **Real CI** (official installer, `~/.local/bin`) + PATH + version managers | **Real CI** (MSI, `%LOCALAPPDATA%\Kiro-Cli`) + `%ProgramFiles%\Kiro-Cli` | **Real CI** (official installer, `~/.local/bin`) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata on Unix) | `kiro-cli whoami` and `chat --list-models` are parsed; signed-out sessions never request models. |
 
 ## What changed in this pass
 
