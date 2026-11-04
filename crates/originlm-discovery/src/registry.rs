@@ -187,9 +187,42 @@ impl ProviderDefinition {
             _ => Vec::new(),
         }
     }
+    /// Pair an executable with the profile root it can actually use. Most
+    /// providers accept every root; Antigravity's ACP launcher validates the
+    /// profile directory name, and T3 keeps its managed profiles separately.
+    pub(crate) fn profile_home_for(
+        &self,
+        executable: Option<&std::path::Path>,
+        root: &std::path::Path,
+    ) -> Option<std::path::PathBuf> {
+        if self.id == "antigravity"
+            && executable.is_some_and(|path| {
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                name.starts_with("agy_acp_server")
+            })
+            && root.file_name().and_then(|name| name.to_str()) != Some("antigravity-acp")
+        {
+            return None;
+        }
+        Some(root.to_path_buf())
+    }
     /// Reject a known GUI launcher that shares the CLI's command name. An
     /// explicit host-configured executable is never filtered.
     pub(crate) fn excludes_discovered_executable(&self, path: &std::path::Path) -> bool {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if self.id == "antigravity" {
+            // The desktop IDE launchers are not the ACP runtime. The ACP pair
+            // is discovered from PATH, ~/.gemini, or T3's managed tools.
+            return name.starts_with("antigravity") || name.starts_with("antigravity-ide");
+        }
         if self.id != "opencode" {
             return false;
         }
@@ -200,11 +233,6 @@ impl ProviderDefinition {
         if !lower.contains("/@opencode-aidesktop/") {
             return false;
         }
-        let name = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
         // The npm .cmd/.bat shims are launchers, not the CLI itself. Native
         // npm and desktop CLI executables are discovered explicitly instead.
         if name.ends_with(".cmd") || name.ends_with(".bat") {

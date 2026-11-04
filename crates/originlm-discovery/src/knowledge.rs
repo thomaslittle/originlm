@@ -314,10 +314,25 @@ pub fn profile_roots(provider_id: &str, env: &ScanEnvironment) -> Vec<PathBuf> {
                 .get("GEMINI_CLI_HOME")
                 .cloned()
                 .unwrap_or_else(|| join_relative(&env.home, ".gemini"));
-            vec![
+            let mut roots = vec![
                 join_relative(&env.home, ".gemini/antigravity"),
                 join_relative(&gemini, "antigravity-cli"),
-            ]
+                join_relative(&gemini, "antigravity-acp"),
+            ];
+            // T3 Code keeps one managed Antigravity profile per account under
+            // ~/.t3/userdata/providers/antigravity/<profile>/antigravity-acp.
+            let managed = join_relative(&env.home, ".t3/userdata/providers/antigravity");
+            if let Ok(entries) = std::fs::read_dir(&managed) {
+                for entry in entries.flatten() {
+                    let profile = entry.path().join("antigravity-acp");
+                    if profile.is_dir() {
+                        roots.push(profile);
+                    }
+                }
+            }
+            roots.sort();
+            roots.dedup();
+            roots
         }
         "grok" => overridden(env, &["GROK_HOME"], || {
             vec![join_relative(&env.home, ".grok")]

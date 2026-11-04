@@ -126,6 +126,19 @@ fn home_dir() -> Option<PathBuf> {
         .filter(|path| path.is_absolute())
 }
 
+/// The packaged auth blocker is a separate binary next to the desktop app.
+/// Antigravity metadata probes need it to keep an OAuth prompt from opening a
+/// browser; without it the probe fails closed instead of launching one.
+fn packaged_browser_blocker() -> Option<PathBuf> {
+    let name = if cfg!(windows) {
+        "originlm-auth-blocker.exe"
+    } else {
+        "originlm-auth-blocker"
+    };
+    let candidate = std::env::current_exe().ok()?.parent()?.join(name);
+    candidate.is_file().then_some(candidate)
+}
+
 /// Descriptors already issued on this machine, most privileged first. The
 /// platform state directory is authoritative; the legacy home directory and
 /// the documented control-center path remain readable for existing installs.
@@ -253,6 +266,10 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
             };
             runtime.block_on(async move {
                 let mut builder = Kit::builder().execution(true);
+                builder = builder.native_clients(originlm_kit::NativeClientRegistry {
+                    browser_blocker: packaged_browser_blocker(),
+                    ..Default::default()
+                });
                 if let Some(state) = state {
                     builder = builder.state_dir(state);
                 }
