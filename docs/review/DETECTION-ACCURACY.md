@@ -15,6 +15,12 @@ Baseline for this change (Linux, `2026-11-04`):
 - `scripts/verify.py --profile all` stops at the Python SDK/generation tests on this host because it has Python 3.10. The SDK uses `asyncio.timeout` and the generated bindings import `typing.Never`, both Python 3.11+. That is an environment limit, not a repository failure; CI pins Python 3.12. Everything before and after that point that does not need Python 3.11 was run separately.
 - Linux real-install simulation: installed `@anthropic-ai/claude-code`, `@openai/codex`, `@google/gemini-cli`, and `opencode-ai` into `$HOME/.local` with npm, then ran `env -i HOME=... PATH=/usr/bin:/bin originlm scan --json --include-locations`. All four were found through `$HOME/.local/bin`; npm launcher symlinks kept their `claude`/`codex`/`gemini`/`opencode` names instead of resolving to `cli.js`/`codex.js`.
 - CI real-install proof on the merged head: [run 41825120577](https://github.com/thomaslittle/originlm/actions/runs/41825120577) passed on Ubuntu 24.04, Windows 2025, macOS 15 (arm64), and macOS 15 Intel. Each job installed the npm CLIs plus Kiro with the official installer, then found all five tools with both the inherited PATH and a GUI-like bare PATH.
+- Final P2 evidence on head `1354bc5` (2026-11-04):
+  - [Detection real install run 41866264633](https://github.com/thomaslittle/originlm/actions/runs/41866264633) passed all seven jobs: Ubuntu, Windows, macOS 15 arm64, and macOS 15 Intel detection, Homebrew-installed Claude Code and Codex, and server-off Ollama on Ubuntu and macOS.
+  - [Native SDK and package verification run 41866264484](https://github.com/thomaslittle/originlm/actions/runs/41866264484) passed all 12 verify/lint/package jobs across Ubuntu, Windows, macOS arm64, and macOS Intel.
+  - [Python wheels run 41866264491](https://github.com/thomaslittle/originlm/actions/runs/41866264491) passed manylinux and native wheel qualification.
+  - [MSRV run 41866264642](https://github.com/thomaslittle/originlm/actions/runs/41866264642) passed.
+  - The PR's 28 check runs are all successful and the merge state is clean.
 
 Legend:
 
