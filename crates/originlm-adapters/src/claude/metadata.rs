@@ -88,9 +88,18 @@ pub fn parse_metadata(
             .as_array()
             .filter(|m| m.len() <= 2048)
             .ok_or_else(invalid)?;
+        // `default` is Claude Code's pointer at its own default, not a model.
+        // Keep an explicit entry with the resolved id and mark that one default.
+        let default_model = models
+            .iter()
+            .find(|entry| text(&entry["value"]) == Some("default"))
+            .and_then(|entry| text(&entry["resolvedModel"]));
         let mut seen = BTreeSet::new();
         for entry in models {
             let id = text(&entry["value"]).ok_or_else(invalid)?;
+            if id == "default" {
+                continue;
+            }
             if !seen.insert(id) {
                 return Err(invalid());
             }
@@ -149,7 +158,7 @@ pub fn parse_metadata(
                 native_id: id.into(),
                 name: text(&entry["displayName"]).unwrap_or(id).into(),
                 revision,
-                is_default: id == "default",
+                is_default: default_model == Some(id),
                 capabilities: vec![
                     Capability {
                         id: "generation.text".into(),

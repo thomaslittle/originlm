@@ -125,3 +125,25 @@ fn distinct_profile_same_email_is_not_linked() {
     assert_ne!(a.account.unwrap().id, b.account.unwrap().id);
     assert_ne!(a.models[0].id, b.models[0].id);
 }
+
+#[test]
+fn claude_default_pointer_is_not_a_model() {
+    let mut value = init();
+    value["models"] = json!([
+        {"value":"default","resolvedModel":"small","displayName":"Default"},
+        {"value":"small","displayName":"Small"},
+        {"value":"large","displayName":"Large"}
+    ]);
+    let report = parse_metadata("connection", "route", &value, None).unwrap();
+    assert_eq!(report.models.len(), 2);
+    assert_eq!(report.models[0].native_id, "small");
+    assert!(report.models[0].is_default);
+    assert_eq!(report.models[1].native_id, "large");
+    assert!(!report.models[1].is_default);
+    assert!(
+        report
+            .models
+            .iter()
+            .all(|model| model.native_id != "default")
+    );
+}
