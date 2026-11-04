@@ -424,3 +424,210 @@ pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
     });
     snapshot
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use originlm_contracts::{
+        AccessRoute, AuthState, Connection, DataMode, EvidenceKind, EvidenceSource, Installation,
+        Model, Plan, Profile, QuotaPool, Snapshot, UsageWindow,
+    };
+
+    fn source() -> EvidenceSource {
+        EvidenceSource::new(EvidenceKind::LocalConfig, "test", "test-fixture")
+    }
+
+    fn auth(state: AuthState) -> Observation<AuthState> {
+        Observation::reported(state, source())
+    }
+
+    fn plan(label: &str) -> Observation<Plan> {
+        Observation::reported(
+            Plan {
+                native_id: label.into(),
+                label: label.into(),
+            },
+            source(),
+        )
+    }
+
+    fn connection(
+        id: &str,
+        provider: &str,
+        account: Option<&str>,
+        state: AuthState,
+        status: &str,
+    ) -> Connection {
+        Connection {
+            id: id.into(),
+            provider_id: provider.into(),
+            installation_id: id.into(),
+            profile_id: id.into(),
+            display_name: id.into(),
+            account_id: account.map(str::to_string),
+            auth: auth(state),
+            plan: plan("pro"),
+            status: status.into(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    fn route(id: &str, connection: &Connection) -> AccessRoute {
+        AccessRoute {
+            id: id.into(),
+            connection_id: connection.id.clone(),
+            provider_id: connection.provider_id.clone(),
+            display_name: id.into(),
+            billing: Observation::reported(BillingMode::Subscription, source()),
+            capabilities: Vec::new(),
+            catalog_revision: "1".into(),
+        }
+    }
+
+    fn model(route: &AccessRoute) -> Model {
+        Model {
+            id: format!("{}-model", route.id),
+            route_id: route.id.clone(),
+            native_id: "native".into(),
+            name: "Model".into(),
+            revision: "1".into(),
+            is_default: true,
+            capabilities: Vec::new(),
+            options: Vec::new(),
+            context_window: Observation::unknown("not reported"),
+        }
+    }
+
+    fn pool(connection: &Connection, route: &AccessRoute) -> QuotaPool {
+        QuotaPool {
+            id: format!("{}-pool", connection.id),
+            account_id: connection.account_id.clone(),
+            connection_ids: vec![connection.id.clone()],
+            route_ids: vec![route.id.clone()],
+            sharing: "private".into(),
+            windows: vec![UsageWindow {
+                id: "window".into(),
+                label: "Weekly".into(),
+                reading: Observation::unknown("not reported"),
+                resets_at: None,
+                duration_seconds: None,
+            }],
+        }
+    }
+
+    fn snapshot_with(connections: Vec<Connection>) -> Snapshot {
+        let mut snapshot = Snapshot::empty(DataMode::Live);
+        for connection in &connections {
+            snapshot.installations.push(Installation {
+                id: connection.installation_id.clone(),
+                provider_id: connection.provider_id.clone(),
+                environment_id: "test".into(),
+                location_hint: connection.id.clone(),
+                version: Observation::unknown("not reported"),
+            });
+            snapshot.profiles.push(Profile {
+                id: connection.profile_id.clone(),
+                installation_id: connection.installation_id.clone(),
+                label: connection.display_name.clone(),
+            });
+            let route = route(&format!("{}-route", connection.id), connection);
+            snapshot.models.push(model(&route));
+            snapshot.quota_pools.push(pool(connection, &route));
+            snapshot.routes.push(route);
+        }
+        snapshot.connections = connections;
+        snapshot
+    }
+
+    #[test]
+    fn canonical_snapshot_prefers_the_account_bearing_connection() {
+        let snapshot = snapshot_with(vec![
+            connection(
+                "claude-main",
+                "claude_code",
+                Some("account-1"),
+                AuthState::Authenticated,
+                "metadata_ready",
+            ),
+            connection(
+                "claude-shim",
+                "claude_code",
+                None,
+                AuthState::Authenticated,
+                "detected",
+            ),
+            connection(
+                "claude-bundled",
+                "claude_code",
+                None,
+                AuthState::Unchecked,
+                "configuration_only",
+            ),
+        ]);
+
+        let canonical = canonical_snapshot(snapshot);
+
+        assert_eq!(canonical.connections.len(), 1);
+        assert_eq!(canonical.connections[0].id, "claude-main");
+        assert_eq!(canonical.installations.len(), 1);
+        assert_eq!(canonical.profiles.len(), 1);
+        assert_eq!(canonical.routes.len(), 1);
+        assert_eq!(canonical.models.len(), 1);
+        assert_eq!(canonical.quota_pools.len(), 1);
+    }
+
+    #[test]
+    fn canonical_snapshot_keeps_distinct_account_ids() {
+        let snapshot = snapshot_with(vec![
+            connection(
+                "opencode-a",
+                "opencode",
+                Some("account-a"),
+                AuthState::Authenticated,
+                "metadata_ready",
+            ),
+            connection(
+                "opencode-b",
+                "opencode",
+                Some("account-b"),
+                AuthState::Authenticated,
+                "metadata_ready",
+            ),
+        ]);
+
+        let canonical = canonical_snapshot(snapshot);
+        let ids: Vec<&str> = canonical
+            .connections
+            .iter()
+            .map(|connection| connection.id.as_str())
+            .collect();
+
+        assert_eq!(ids, vec!["opencode-a", "opencode-b"]);
+        assert_eq!(canonical.routes.len(), 2);
+    }
+
+    #[test]
+    fn canonical_snapshot_keeps_one_anonymous_connection_per_provider() {
+        let snapshot = snapshot_with(vec![
+            connection(
+                "codex-ready",
+                "codex",
+                None,
+                AuthState::Authenticated,
+                "metadata_ready",
+            ),
+            connection(
+                "codex-shim",
+                "codex",
+                None,
+                AuthState::Authenticated,
+                "detected",
+            ),
+        ]);
+
+        let canonical = canonical_snapshot(snapshot);
+
+        assert_eq!(canonical.connections.len(), 1);
+        assert_eq!(canonical.connections[0].id, "codex-ready");
+    }
+}

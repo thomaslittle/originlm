@@ -99,34 +99,6 @@ pub fn panel_head(
         .children(trailing)
 }
 
-/// Group heading above a set of panels.
-pub fn section_header(
-    title: impl Into<SharedString>,
-    meta: Option<SharedString>,
-    theme: &Theme,
-) -> Div {
-    div()
-        .h_flex()
-        .items_end()
-        .gap(px(sp::MD))
-        .child(
-            div()
-                .text_size(px(ty::TITLE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(theme.foreground)
-                .child(title.into()),
-        )
-        .when_some(meta, |this, meta| {
-            this.child(
-                div()
-                    .pb(px(1.))
-                    .text_size(px(ty::SMALL))
-                    .text_color(theme.muted_foreground)
-                    .child(meta),
-            )
-        })
-}
-
 pub fn caption(text: impl Into<SharedString>, theme: &Theme) -> Div {
     div()
         .text_size(px(ty::CAPTION))

@@ -32,17 +32,15 @@ fn local_token_panel(
             totals.insert(provider.provider_id.as_str(), provider);
         }
     }
+    // These rows are stable product surfaces, not scan results. Claude Code
+    // must not disappear just because a scan returned nothing this cycle.
+    let mut ids: Vec<&str> = order.to_vec();
     let discovered: std::collections::BTreeSet<&str> = snapshot
         .connections
         .iter()
         .map(|connection| connection.provider_id.as_str())
         .collect();
-    let mut ids: Vec<&str> = order
-        .iter()
-        .copied()
-        .filter(|id| discovered.contains(id) || totals.contains_key(id))
-        .collect();
-    for id in totals.keys() {
+    for id in discovered.iter().chain(totals.keys()) {
         if !ids.contains(id) {
             ids.push(id);
         }
