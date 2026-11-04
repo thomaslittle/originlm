@@ -35,12 +35,7 @@ fn local_token_panel(
     // These rows are stable product surfaces, not scan results. Claude Code
     // must not disappear just because a scan returned nothing this cycle.
     let mut ids: Vec<&str> = order.to_vec();
-    let discovered: std::collections::BTreeSet<&str> = snapshot
-        .connections
-        .iter()
-        .map(|connection| connection.provider_id.as_str())
-        .collect();
-    for id in discovered.iter().chain(totals.keys()) {
+    for id in totals.keys() {
         if !ids.contains(id) {
             ids.push(id);
         }

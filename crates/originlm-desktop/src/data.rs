@@ -353,27 +353,46 @@ pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
             .push(connection);
     }
     let mut kept: Vec<Connection> = Vec::new();
+    // Dropped duplicates keep their usage evidence by pointing it at the one
+    // connection the user sees.
+    let mut remap: BTreeMap<String, String> = BTreeMap::new();
     for (_, mut group) in groups {
+        let original = group.clone();
         let accounts: BTreeSet<String> = group
             .iter()
             .filter_map(|connection| connection.account_id.clone())
             .collect();
+        let mut kept_here: Vec<String> = Vec::new();
         if accounts.is_empty() {
             group.sort_by_key(|connection| std::cmp::Reverse(rank(connection)));
             if let Some(best) = group.drain(..).next() {
+                kept_here.push(best.id.clone());
                 kept.push(best);
             }
-            continue;
+        } else {
+            for account in accounts {
+                let mut same: Vec<Connection> = group
+                    .iter()
+                    .filter(|connection| connection.account_id.as_deref() == Some(account.as_str()))
+                    .cloned()
+                    .collect();
+                same.sort_by_key(|connection| std::cmp::Reverse(rank(connection)));
+                if let Some(best) = same.drain(..).next() {
+                    kept_here.push(best.id.clone());
+                    kept.push(best);
+                }
+            }
         }
-        for account in accounts {
-            let mut same: Vec<Connection> = group
-                .iter()
-                .filter(|connection| connection.account_id.as_deref() == Some(account.as_str()))
-                .cloned()
-                .collect();
-            same.sort_by_key(|connection| std::cmp::Reverse(rank(connection)));
-            if let Some(best) = same.drain(..).next() {
-                kept.push(best);
+        let anchor = original
+            .iter()
+            .filter(|connection| kept_here.contains(&connection.id))
+            .max_by_key(|connection| rank(connection))
+            .map(|connection| connection.id.clone());
+        if let Some(anchor) = anchor {
+            for connection in &original {
+                if !kept_here.contains(&connection.id) {
+                    remap.insert(connection.id.clone(), anchor.clone());
+                }
             }
         }
     }
@@ -410,11 +429,48 @@ pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
     snapshot
         .models
         .retain(|model| kept_routes.contains(&model.route_id));
+    // Prefer pools that already belong to a kept connection, then fold any
+    // pool read from a dropped duplicate onto that connection. Identical
+    // window sets are one allowance, not several.
+    snapshot.quota_pools.sort_by_key(|pool| {
+        !pool
+            .connection_ids
+            .iter()
+            .any(|connection| kept_connections.contains(connection))
+    });
+    let mut seen_pools: std::collections::BTreeSet<(String, String)> =
+        std::collections::BTreeSet::new();
     snapshot.quota_pools.retain_mut(|pool| {
-        pool.connection_ids
-            .retain(|connection| kept_connections.contains(connection));
+        let mut mapped: Vec<String> = pool
+            .connection_ids
+            .iter()
+            .map(|connection| {
+                remap
+                    .get(connection)
+                    .cloned()
+                    .unwrap_or_else(|| connection.clone())
+            })
+            .filter(|connection| kept_connections.contains(connection))
+            .collect();
+        mapped.sort();
+        mapped.dedup();
+        if mapped.is_empty() {
+            return false;
+        }
+        let key = (
+            mapped.join(","),
+            pool.windows
+                .iter()
+                .map(|window| window.label.clone())
+                .collect::<Vec<_>>()
+                .join(","),
+        );
+        if !seen_pools.insert(key) {
+            return false;
+        }
+        pool.connection_ids = mapped;
         pool.route_ids.retain(|route| kept_routes.contains(route));
-        !pool.connection_ids.is_empty() && !pool.route_ids.is_empty()
+        true
     });
     snapshot.issues.retain(|issue| {
         issue
@@ -604,6 +660,46 @@ mod tests {
 
         assert_eq!(ids, vec!["opencode-a", "opencode-b"]);
         assert_eq!(canonical.routes.len(), 2);
+    }
+
+    #[test]
+    fn canonical_snapshot_keeps_quota_that_belongs_to_a_dropped_duplicate() {
+        let mut snapshot = snapshot_with(vec![
+            connection(
+                "opencode-kept",
+                "opencode",
+                None,
+                AuthState::Authenticated,
+                "metadata_ready",
+            ),
+            connection(
+                "opencode-pool",
+                "opencode",
+                None,
+                AuthState::Unchecked,
+                "detected",
+            ),
+        ]);
+        // The quota was read from the less-authenticated duplicate. It must
+        // still show on the one account the user sees.
+        snapshot
+            .quota_pools
+            .retain(|pool| pool.id == "opencode-pool-pool");
+        snapshot.quota_pools[0].connection_ids = vec!["opencode-pool".into()];
+        snapshot.quota_pools[0].route_ids = vec!["opencode-pool-route".into()];
+
+        let canonical = canonical_snapshot(snapshot);
+
+        assert_eq!(canonical.connections.len(), 1);
+        assert_eq!(canonical.connections[0].id, "opencode-kept");
+        assert_eq!(canonical.quota_pools.len(), 1);
+        assert_eq!(
+            canonical.quota_pools[0].connection_ids,
+            vec!["opencode-kept".to_string()]
+        );
+        // The duplicate's route is gone; the window still belongs to the kept
+        // connection and remains visible.
+        assert!(canonical.quota_pools[0].route_ids.is_empty());
     }
 
     #[test]
