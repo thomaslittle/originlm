@@ -122,10 +122,32 @@ impl ProviderDefinition {
             // T3 Code installs the Gemini CLI under its managed tools directory.
             // A Rust host that shares the same machine can use that install
             // without requiring a second copy on PATH.
-            ("antigravity", _) => vec![
-                crate::join_relative(&env.home, ".gemini/antigravity-acp"),
-                crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
-            ],
+            ("antigravity", _) => {
+                let mut dirs = vec![
+                    crate::join_relative(&env.home, ".gemini/antigravity-acp"),
+                    crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
+                ];
+                // T3 Code installs a managed Antigravity ACP pair under
+                // ~/.t3/tools/antigravity-acp/<platform>/versions/<hash>.
+                // A discovered desktop launcher is not enough: the ACP server
+                // and its adjacent localharness_external are the runnable pair.
+                let tools = crate::join_relative(&env.home, ".t3/tools/antigravity-acp");
+                if let Ok(platforms) = std::fs::read_dir(&tools) {
+                    for platform in platforms.flatten() {
+                        let versions = platform.path().join("versions");
+                        if let Ok(entries) = std::fs::read_dir(&versions) {
+                            for entry in entries.flatten() {
+                                if entry.path().is_dir() {
+                                    dirs.push(entry.path());
+                                }
+                            }
+                        }
+                    }
+                }
+                dirs.sort();
+                dirs.dedup();
+                dirs
+            }
             ("gemini_cli", _) => {
                 let mut dirs = vec![crate::join_relative(&env.home, ".local/bin")];
                 let tools = crate::join_relative(&env.home, ".t3/tools/gemini");
