@@ -11,6 +11,9 @@ const METHODS: &[&str] = &[
     "models.list",
     "models.page",
     "usage.read",
+    "usage.history",
+    "models.local",
+    "detection.status",
     "costs.read",
     "costs.setPrices",
     "capabilities.read",
@@ -74,6 +77,18 @@ impl NativeService {
                 Ok(
                     json!({"protocolVersion":"1.0","runtimeVersion":env!("CARGO_PKG_VERSION"),"methods":self.advertised_methods(),"capabilities":self.advertised_capabilities()}),
                 )
+            }
+            "usage.history" => {
+                params::allow(p, &[])?;
+                Ok(json!(self.usage_history(client)?))
+            }
+            "models.local" => {
+                params::allow(p, &[])?;
+                Ok(json!(self.local_models(client)?))
+            }
+            "detection.status" => {
+                params::allow(p, &[])?;
+                Ok(json!(self.detection_status(client)?))
             }
             "costs.read" => {
                 params::allow(p, &[])?;

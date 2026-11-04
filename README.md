@@ -73,8 +73,9 @@ Session-history token totals are a separate explicit read:
 target/debug/originlm usage --json
 ```
 
-It reads bounded Claude Code and Codex JSONL totals, never prompts, tool output,
-or credentials. See [session-history usage](docs/adapters/usage-history.md).
+It reads bounded Claude Code, Codex, Gemini CLI, Grok, and Kiro history, never
+prompts, tool output, or credentials. See
+[session-history usage](docs/adapters/usage-history.md).
 On-disk local models are a separate read:
 
 ```sh

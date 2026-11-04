@@ -5,6 +5,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants},
     input::Input,
 };
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 impl Desktop {
@@ -42,6 +43,26 @@ impl Desktop {
                 .child(match &record.amount_usd { Some(value) => format!("${} {}", value.as_str(), if record.basis == "estimated" { "estimated" } else { "provider reported" }), None => "Unknown: usage or price missing".into() })))
             .child(div().text_size(px(11.)).text_color(theme.muted_foreground).child(report.map(|report| report.scope.clone()).unwrap_or_else(|| "No cost evidence. A turn needs reported money, or token counts and a matching local price.".into())))
             .child(div().text_size(px(11.)).text_color(theme.muted_foreground).child("Latest observed turns. Outlined bars are estimates; gaps are unknown. Edit prices in Settings."))
+            .child(div().mt_2().v_flex().gap_1()
+                .child(ui::section_title("Recorded session tokens", &theme))
+                .children(report.map(|report| {
+                    if report.historical.providers.is_empty() {
+                        return div().text_size(px(11.)).text_color(theme.muted_foreground)
+                            .child("No readable Claude Code, Codex, Gemini, Grok, or Kiro session history.")
+                            .into_any_element();
+                    }
+                    div().v_flex().children(report.historical.providers.iter().map(|provider| {
+                        div().h_flex().gap_2().py(px(3.)).text_size(px(11.5))
+                            .child(ui::mono(provider.provider_id.clone(), &theme))
+                            .child(div().flex_1())
+                            .child(ui::numeric(format!("{} in", provider.totals.total_input_tokens()), &theme))
+                            .child(ui::numeric(format!("{} out", provider.totals.output_tokens), &theme))
+                            .when(provider.totals.reasoning_tokens > 0, |this| this.child(ui::mono(format!("{} reasoning", provider.totals.reasoning_tokens), &theme)))
+                            .when(!provider.diagnostics.is_empty(), |this| this.child(ui::mono(format!("{} diagnostics", provider.diagnostics.len()), &theme)))
+                            .into_any_element()
+                    })).into_any_element()
+                }))
+                .child(div().text_size(px(10.)).text_color(theme.muted_foreground).child("Fresh input plus cache reads/writes; reasoning is a subset of output. These are local transcript totals, not invoices.")))
             .into_any_element()
     }
 

@@ -221,12 +221,12 @@ async def open_auto_transport(executable: str | None = None, **options):
 
 FAMILIES = {
     'runtime': ('health','closeClient'), 'costs': ('read','setPrices'), 'snapshot': ('get',), 'discovery': ('refresh','watch','cancel'),
-    'connections': ('list','setupInstructions','authenticate','probe'), 'models': ('list','page'),
-    'usage': ('read',), 'capabilities': ('read',), 'selection': ('resolve','validate'),
+    'connections': ('list','setupInstructions','authenticate','probe'), 'models': ('list','page','local'),
+    'usage': ('read','history'), 'capabilities': ('read',), 'selection': ('resolve','validate'),
     'grants': ('request','list','revoke'), 'sessions': ('create','get','suspend','resume','updateOptions','close'),
     'health': ('get',), 'issues': ('list','acknowledge','snooze'), 'notifications': ('poll','configure','ack'), 'apps': ('list','revoke'),
     'inputs': ('put',), 'turns': ('start','cancel'), 'approvals': ('respond',), 'artifacts': ('read',),
-    'diagnostics': ('report',), 'adapters': ('list',), 'events': ('subscribe',), 'inventory': ('subscribe',),
+    'diagnostics': ('report',), 'detection': ('status',), 'adapters': ('list',), 'events': ('subscribe',), 'inventory': ('subscribe',),
 }
 
 

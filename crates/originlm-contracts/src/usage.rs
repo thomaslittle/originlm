@@ -123,3 +123,71 @@ pub struct QuotaPool {
     pub sharing: String,
     pub windows: Vec<UsageWindow>,
 }
+
+/// Normalized token totals from a provider's local session history.
+///
+/// `input_tokens` is fresh input only. Cache reads and cache writes are
+/// separate fields; `reasoning_tokens` is a subset of `output_tokens`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UsageTotals {
+    pub input_tokens: u64,
+    pub cached_input_tokens: u64,
+    pub cache_creation_tokens: u64,
+    pub output_tokens: u64,
+    pub reasoning_tokens: u64,
+}
+
+impl UsageTotals {
+    pub fn add(&mut self, other: Self) {
+        self.input_tokens = self.input_tokens.saturating_add(other.input_tokens);
+        self.cached_input_tokens = self
+            .cached_input_tokens
+            .saturating_add(other.cached_input_tokens);
+        self.cache_creation_tokens = self
+            .cache_creation_tokens
+            .saturating_add(other.cache_creation_tokens);
+        self.output_tokens = self.output_tokens.saturating_add(other.output_tokens);
+        self.reasoning_tokens = self.reasoning_tokens.saturating_add(other.reasoning_tokens);
+    }
+
+    pub fn total_input_tokens(self) -> u64 {
+        self.input_tokens
+            .saturating_add(self.cached_input_tokens)
+            .saturating_add(self.cache_creation_tokens)
+    }
+
+    pub fn is_zero(self) -> bool {
+        self == Self::default()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelUsage {
+    pub provider_id: String,
+    pub native_model_id: String,
+    pub sessions: u32,
+    pub messages: u32,
+    pub totals: UsageTotals,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProviderUsage {
+    pub provider_id: String,
+    pub roots: Vec<String>,
+    pub files_read: u32,
+    pub files_skipped: u32,
+    pub malformed_lines: u32,
+    pub truncated: bool,
+    pub diagnostics: Vec<String>,
+    pub models: Vec<ModelUsage>,
+    pub totals: UsageTotals,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UsageHistory {
+    pub providers: Vec<ProviderUsage>,
+}

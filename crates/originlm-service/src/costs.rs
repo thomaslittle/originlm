@@ -182,6 +182,7 @@ impl NativeService {
                     })
                 })
                 .collect();
-        Ok(CostReport { records, prices: prices.values.clone(), scope: "Observed turns in this runtime lifetime; not account-wide spend or a subscription invoice".into(), can_edit_prices: policy.admin, prices_persisted: prices.path.is_some(), storage_error: prices.error.clone() })
+        let historical = self.usage_history(client)?;
+        Ok(CostReport { records, prices: prices.values.clone(), historical, scope: "Runtime turn ledger plus local session-history totals; not account-wide spend or a subscription invoice".into(), can_edit_prices: policy.admin, prices_persisted: prices.path.is_some(), storage_error: prices.error.clone() })
     }
 }

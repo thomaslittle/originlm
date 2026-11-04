@@ -10,6 +10,102 @@ concurrency:
   group: detection-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  local-models:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfontconfig1-dev libfreetype6-dev pkg-config
+      - name: Build the helper
+        run: cargo build --locked -p originlm-cli
+      - name: Install Ollama and pull a small model (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          # The installer enables a systemd service that stores models under
+          # /usr/share/ollama. Stop it and run the same binary as this user so
+          # the scan exercises the documented ~/.ollama/models layout.
+          sudo systemctl stop ollama || true
+          sudo systemctl disable ollama || true
+          (ollama serve > /tmp/ollama.log 2>&1 &)
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break
+            sleep 1
+          done
+          ollama pull smollm2:135m
+          pkill -f 'ollama serve' || true
+          sleep 1
+          test -d "$HOME/.ollama/models/manifests"
+      - name: Install Ollama and pull a small model (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ollama
+          (ollama serve > /tmp/ollama.log 2>&1 &)
+          for _ in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break
+            sleep 1
+          done
+          ollama pull smollm2:135m
+          pkill -f 'ollama serve' || true
+          sleep 1
+      - name: Read models from disk with the server stopped
+        run: ./target/debug/originlm models --json > models.json
+      - name: Assert the pulled model is listed
+        run: python scripts/test_local_models_real_install.py models.json
+      - name: Preserve local model evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-models-${{ matrix.os }}
+          path: models.json
+          if-no-files-found: warn
+  homebrew:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build the helper
+        run: cargo build --locked -p originlm-cli
+      - name: Install Homebrew casks
+        run: brew install --cask claude-code codex
+      - name: Detect with a GUI-like bare PATH
+        run: |
+          env -i HOME="$HOME" PATH=/usr/bin:/bin ./target/debug/originlm scan --json --include-locations --probe-versions > detection-homebrew.json
+      - name: Assert the Homebrew installs are found
+        run: python scripts/test_detection_real_install.py detection-homebrew.json --require codex,claude_code --require-versions
+      - name: Preserve Homebrew evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detection-homebrew-macos-15
+          path: detection-homebrew.json
+          if-no-files-found: warn
   detect:
     strategy:
       fail-fast: false
@@ -89,32 +185,32 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          ./target/debug/originlm scan --json --include-locations > detection-normal.json
+          ./target/debug/originlm scan --json --include-locations --probe-versions > detection-normal.json
       - name: Detect with the inherited PATH (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          ./target/debug/originlm.exe scan --json --include-locations > detection-normal.json
+          ./target/debug/originlm.exe scan --json --include-locations --probe-versions > detection-normal.json
       - name: Detect with a GUI-like bare PATH (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euxo pipefail
           env -i HOME="$HOME" PATH=/usr/bin:/bin \
-            ./target/debug/originlm scan --json --include-locations > detection-bare.json
+            ./target/debug/originlm scan --json --include-locations --probe-versions > detection-bare.json
       - name: Detect with a GUI-like bare PATH (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-          ./target/debug/originlm.exe scan --json --include-locations > detection-bare.json
+          ./target/debug/originlm.exe scan --json --include-locations --probe-versions > detection-bare.json
       - name: Assert every installed tool is still found
         shell: bash
         run: |
           set -euxo pipefail
-          python scripts/test_detection_real_install.py detection-normal.json
+          python scripts/test_detection_real_install.py detection-normal.json --require-versions
           python scripts/test_detection_real_install.py detection-bare.json
       - name: Preserve detection evidence
         if: always()

@@ -44,6 +44,10 @@ pub struct CostRecord {
 pub struct CostReport {
     pub records: Vec<CostRecord>,
     pub prices: Vec<ModelPrice>,
+    /// Local session-history totals. Empty when the host has no readable
+    /// Claude/Codex/Gemini/Grok/Kiro history.
+    #[serde(default)]
+    pub historical: crate::UsageHistory,
     pub scope: String,
     pub can_edit_prices: bool,
     pub prices_persisted: bool,

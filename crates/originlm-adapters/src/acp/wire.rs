@@ -323,23 +323,121 @@ pub(super) fn response_result(value: &Value) -> Result<Value> {
                 .map(originlm_contracts::redact_diagnostic_detail)
                 .filter(|message| !message.is_empty())
                 .unwrap_or_else(|| "ACP request was rejected".into());
-            Err(DomainError::new(
+            let lower = detail.to_ascii_lowercase();
+            let rate_limited = [
+                "rate limit",
+                "rate-limit",
+                "resource_exhausted",
+                "resource exhausted",
+                "quota_exhausted",
+                "quota exhausted",
+                "too many requests",
+                "429",
+            ]
+            .iter()
+            .any(|marker| lower.contains(marker));
+            let mut failure = DomainError::new(
                 if error["code"].as_i64() == Some(-32601) {
                     ErrorCode::CapabilityUnsupported
+                } else if rate_limited {
+                    ErrorCode::RateLimited
                 } else {
                     ErrorCode::ProviderUnavailable
                 },
                 format!("ACP provider: {detail}"),
-            ))
+            );
+            if rate_limited && let Some(delay) = retry_delay_ms(&detail) {
+                failure = failure.with_retry_after_ms(delay);
+            }
+            Err(failure)
         }
         _ => Err(invalid()),
     }
+}
+
+/// Read Google RPC `quotaResetDelay`/`retryDelay` Go durations from a provider
+/// error. The value is a delay, never a reset timestamp we would have to guess.
+fn retry_delay_ms(detail: &str) -> Option<u64> {
+    let lower = detail.to_ascii_lowercase();
+    let start = ["quotaresetdelay:", "retrydelay:"]
+        .iter()
+        .filter_map(|marker| lower.find(marker).map(|index| index + marker.len()))
+        .min()?;
+    // Slice the lowercased string: its marker byte offsets are valid even
+    // when the original detail contains non-ASCII text before the marker.
+    let value = lower[start..]
+        .trim_start()
+        .split(|character: char| character.is_whitespace() || character == ']' || character == '}')
+        .next()?;
+    let mut total = 0f64;
+    let mut number = String::new();
+    let mut unit = String::new();
+    for character in value.chars() {
+        if character.is_ascii_digit() || character == '.' {
+            if !unit.is_empty() {
+                total += duration_part(&number, &unit)?;
+                number.clear();
+                unit.clear();
+            }
+            number.push(character);
+        } else if character.is_alphabetic() || character == 'µ' || character == 'μ' {
+            unit.push(character);
+        } else {
+            return None;
+        }
+    }
+    if number.is_empty() || unit.is_empty() {
+        return None;
+    }
+    total += duration_part(&number, &unit)?;
+    if !total.is_finite() || !(0.0..=86_400_000.0).contains(&total) {
+        return None;
+    }
+    Some(total.round() as u64)
+}
+
+fn duration_part(number: &str, unit: &str) -> Option<f64> {
+    let value: f64 = number.parse().ok()?;
+    let multiplier = match unit {
+        "ns" => 1e-6,
+        "us" | "µs" | "μs" => 1e-3,
+        "ms" => 1.0,
+        "s" => 1_000.0,
+        "m" => 60_000.0,
+        "h" => 3_600_000.0,
+        _ => return None,
+    };
+    Some(value * multiplier)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::{collections::BTreeMap, path::PathBuf};
+
+    #[test]
+    fn rate_limit_delays_are_read_as_go_durations() {
+        assert_eq!(retry_delay_ms("quotaResetDelay:1.5s"), Some(1500));
+        assert_eq!(
+            retry_delay_ms("retryDelay: 1m30s quotaResetTimeStamp:2026-11-04T00:00:00Z"),
+            Some(90_000)
+        );
+        assert_eq!(retry_delay_ms("retryDelay:250ms"), Some(250));
+        assert_eq!(retry_delay_ms("échec; retryDelay:2s"), Some(2_000));
+        assert_eq!(retry_delay_ms("no delay here"), None);
+        assert_eq!(retry_delay_ms("retryDelay:forever"), None);
+    }
+
+    #[test]
+    fn rate_limit_errors_keep_the_reported_delay() {
+        let error = response_result(&serde_json::json!({
+            "error": {"code": -32001, "message": "resource exhausted; retryDelay:1.5s"}
+        }))
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::RateLimited);
+        assert_eq!(error.retry_after_ms, Some(1_500));
+        assert!(error.retryable);
+    }
 
     #[tokio::test]
     async fn initialization_honors_requested_timeout() {

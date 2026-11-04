@@ -284,6 +284,35 @@ impl Desktop {
                     .border_1()
                     .border_color(theme.border)
                     .bg(theme.colors.list)
+                    .child(ui::section_title("Detection coverage", &theme))
+                    .child(div().text_size(px(10.5)).text_color(theme.muted_foreground)
+                        .child("Every known tool is either found, configuration-only, or not found with the locations that were checked."))
+                    .children(bundle.detection.as_ref().map(|report| {
+                        report.providers.iter().map(|provider| {
+                            let tone = if provider.executable_found { Tone::Green } else if provider.status == "configuration_only" { Tone::Amber } else { Tone::Neutral };
+                            div().v_flex().gap(px(1.)).py(px(4.))
+                                .border_b_1().border_color(theme.border.opacity(0.4))
+                                .child(div().h_flex().gap_2()
+                                    .child(ui::dot(tone, &theme))
+                                    .child(div().text_size(px(11.5)).child(provider.name.clone()))
+                                    .child(div().flex_1())
+                                    .child(ui::mono(provider.status.clone(), &theme)))
+                                .when(!provider.diagnostics.is_empty(), |this| this.child(ui::mono(provider.diagnostics.join(" · "), &theme)))
+                                .when(provider.status == "not_found", |this| this.child(div().text_size(px(10.)).text_color(theme.muted_foreground)
+                                    .child(format!("Checked: {}", provider.paths_checked.iter().take(4).cloned().collect::<Vec<_>>().join(" · ")))))
+                                .into_any_element()
+                        }).collect::<Vec<_>>()
+                    }).unwrap_or_default())
+            )
+            .child(
+                div()
+                    .v_flex()
+                    .gap_2()
+                    .p_4()
+                    .rounded(px(ui::CARD_RADIUS))
+                    .border_1()
+                    .border_color(theme.border)
+                    .bg(theme.colors.list)
                     .child(ui::section_title("Broker diagnostics", &theme))
                     .when(snapshot.diagnostics.is_empty(), |this| {
                         this.child(

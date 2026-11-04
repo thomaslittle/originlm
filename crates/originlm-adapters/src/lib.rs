@@ -3,7 +3,6 @@ pub mod billing_declarations;
 pub mod claude;
 pub mod codex;
 pub mod execution;
-pub mod history;
 pub mod host_mcp;
 pub mod process;
 
@@ -14,7 +13,6 @@ pub mod grok;
 pub mod http;
 pub mod http_provider;
 pub mod kiro;
-pub mod local_models;
 pub mod muse;
 pub mod opencode;
 

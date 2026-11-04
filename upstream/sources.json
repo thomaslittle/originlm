@@ -62,6 +62,22 @@
       "kind": "oss-discovery",
       "repository": null,
       "note": "Same manifest shape as Tokscale. Official client repositories can use kind official-client when a path rule should outrank OSS evidence."
+    },
+    {
+      "id": "codenotch",
+      "status": "pinned",
+      "kind": "oss-discovery",
+      "repository": "vinzdg/codenotch",
+      "license": "MIT",
+      "lock": "upstream/codenotch/lock.json",
+      "consumes": [
+        "macOS session layout and token-field corroboration for Claude, Codex, Gemini, Grok, and Kiro"
+      ],
+      "doesNotConsume": [
+        "UI",
+        "submission pipeline",
+        "Ollama/LM Studio activity relays"
+      ]
     }
   ]
 }

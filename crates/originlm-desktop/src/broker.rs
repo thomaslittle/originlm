@@ -20,6 +20,8 @@ pub struct Bundle {
     pub apps: Vec<Value>,
     pub apps_error: Option<String>,
     pub adapters: Vec<Value>,
+    pub local_models: Vec<originlm_contracts::LocalModelInventory>,
+    pub detection: Option<originlm_contracts::DetectionReport>,
     pub history: Vec<Sample>,
     pub costs: Option<CostReport>,
     pub cost_error: Option<String>,
@@ -73,6 +75,8 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                             apps: Vec::new(),
                             apps_error: Some("Example mode has no connected applications.".into()),
                             adapters: Vec::new(),
+                            local_models: Vec::new(),
+                            detection: None,
                             history: Vec::new(),
                             costs: Some(costs.clone()),
                             cost_error: None,
@@ -176,6 +180,15 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
         .ok()
         .and_then(|value| value.as_array().cloned())
         .unwrap_or_default();
+    let local_models = client
+        .call("models.local", json!({}))
+        .ok()
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
+    let detection = client
+        .call("detection.status", json!({}))
+        .ok()
+        .and_then(|value| serde_json::from_value(value).ok());
     let (costs, cost_error) = match client.call("costs.read", json!({})).and_then(|value| {
         serde_json::from_value(value)
             .map_err(|_| "Cost evidence was not in the supported format".into())
@@ -194,6 +207,8 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
         apps,
         apps_error,
         adapters,
+        local_models,
+        detection,
         costs,
         cost_error,
         history: history.samples.clone(),
@@ -247,6 +262,8 @@ fn worker(
                                     .into(),
                             ),
                             adapters: Vec::new(),
+                            local_models: Vec::new(),
+                            detection: None,
                             costs: None,
                             cost_error: Some("Runtime is offline".into()),
                             history: history.samples.clone(),
@@ -283,6 +300,8 @@ fn worker(
                                 apps: Vec::new(),
                                 apps_error: Some("Broker became unavailable; reconnecting.".into()),
                                 adapters: Vec::new(),
+                                local_models: Vec::new(),
+                                detection: None,
                                 costs: None,
                                 cost_error: Some("Runtime is offline".into()),
                                 history: history.samples.clone(),

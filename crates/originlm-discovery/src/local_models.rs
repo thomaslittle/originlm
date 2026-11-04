@@ -6,7 +6,8 @@
 //! context window, vision, or text capability from a filename, and it never
 //! loads a model or starts a server.
 
-use serde::Serialize;
+use crate::{HostPlatform, ScanEnvironment, join_relative};
+use originlm_contracts::{LocalModel, LocalModelInventory};
 use std::{
     collections::BTreeMap,
     fs,
@@ -17,27 +18,6 @@ const MAX_MODELS: usize = 8192;
 /// Ollama manifests are small JSON documents. Bound the read so a corrupt or
 /// replaced file cannot force an unbounded allocation.
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LocalModel {
-    pub provider_id: String,
-    pub native_id: String,
-    pub name: String,
-    pub size_bytes: Option<u64>,
-    pub format: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LocalModelInventory {
-    pub provider_id: String,
-    pub roots: Vec<String>,
-    pub models: Vec<LocalModel>,
-    pub files_skipped: u32,
-    pub truncated: bool,
-    pub diagnostics: Vec<String>,
-}
 
 /// Ollama's managed library, honoring `OLLAMA_MODELS` when supplied by the
 /// caller. The default is `~/.ollama/models`.
@@ -123,16 +103,36 @@ pub fn read_ollama_models(
     inventory
 }
 
+/// Where LM Studio keeps `config.json` on this platform.
+pub fn lmstudio_config_home(environment: &ScanEnvironment) -> PathBuf {
+    match environment.platform {
+        HostPlatform::Windows => environment.app_data.clone(),
+        HostPlatform::Macos => join_relative(&environment.home, "Library/Application Support"),
+        HostPlatform::Linux => environment.config_home.clone(),
+    }
+}
+
 /// LM Studio's managed library. Both the documented `~/.lmstudio/models` and
 /// the older `~/.cache/lm-studio/models` location are searched.
-pub fn read_lmstudio_models(home: &Path, limit: usize) -> LocalModelInventory {
-    let roots: Vec<PathBuf> = [
+pub fn read_lmstudio_models(home: &Path, config_home: &Path, limit: usize) -> LocalModelInventory {
+    let mut candidates = vec![
         home.join(".lmstudio/models"),
         home.join(".cache/lm-studio/models"),
-    ]
-    .into_iter()
-    .filter(|root| root.is_dir())
-    .collect();
+    ];
+    if let Ok(bytes) = fs::read(config_home.join("LMStudio/config.json"))
+        && bytes.len() <= 64 * 1024
+        && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+        && let Some(directory) = value["modelDirectory"]
+            .as_str()
+            .map(str::trim)
+            .filter(|directory| !directory.is_empty() && directory.len() <= 4096)
+    {
+        candidates.push(PathBuf::from(directory));
+    }
+    let roots: Vec<PathBuf> = candidates
+        .into_iter()
+        .filter(|root| root.is_dir())
+        .collect();
     let mut inventory = LocalModelInventory {
         provider_id: "lmstudio".into(),
         roots: roots
@@ -297,7 +297,7 @@ mod tests {
             &home.join(".lmstudio/models/infra-ai/ocelot-v1/ocelot-q4_0.gguf"),
             b"gguf",
         );
-        let inventory = read_lmstudio_models(home, 100);
+        let inventory = read_lmstudio_models(home, &home.join(".config"), 100);
         assert_eq!(inventory.models.len(), 1);
         assert_eq!(
             inventory.models[0].native_id,
@@ -307,11 +307,48 @@ mod tests {
     }
 
     #[test]
+    fn lmstudio_config_home_follows_the_platform() {
+        let home = PathBuf::from("/home/person");
+        let mac = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Macos,
+        ));
+        assert_eq!(mac, home.join("Library/Application Support"));
+        let linux = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Linux,
+        ));
+        assert_eq!(linux, home.join(".config"));
+        let windows = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Windows,
+        ));
+        assert_eq!(windows, home.join("AppData/Roaming"));
+    }
+
+    #[test]
+    fn lmstudio_custom_model_directory_is_read_from_config() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        let custom = root.path().join("custom-models");
+        write(&custom.join("publisher/model/model.gguf"), b"gguf");
+        write(
+            &home.join(".config/LMStudio/config.json"),
+            serde_json::to_string(&serde_json::json!({"modelDirectory": custom}))
+                .unwrap()
+                .as_bytes(),
+        );
+        let inventory = read_lmstudio_models(home, &home.join(".config"), 100);
+        assert_eq!(inventory.models.len(), 1);
+        assert_eq!(inventory.models[0].native_id, "publisher/model/model");
+    }
+
+    #[test]
     fn missing_roots_are_explained_without_fabricating_models() {
         let root = tempfile::tempdir().unwrap();
         for inventory in [
             read_ollama_models(root.path(), None, 100),
-            read_lmstudio_models(root.path(), 100),
+            read_lmstudio_models(root.path(), &root.path().join(".config"), 100),
         ] {
             assert!(inventory.models.is_empty());
             assert!(!inventory.diagnostics.is_empty());

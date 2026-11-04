@@ -1,0 +1,27 @@
+{
+  "repository": "vinzdg/codenotch",
+  "url": "https://github.com/vinzdg/codenotch",
+  "commit": "6522e9f3ee0fe35d46e428b441e6e80b586eacbb",
+  "version": "1.24.0",
+  "checkedAt": "2026-11-04T00:00:00Z",
+  "license": "MIT",
+  "licenseCopyright": "Copyright (c) 2026 Vinz",
+  "watchedPaths": [
+    "Sources/Costs/CostIndexer.swift",
+    "Sources/Sessions/ClaudeTranscript.swift",
+    "Sources/Sessions/ClaudeSessionMonitor.swift",
+    "Sources/Sessions/GeminiCLIActivity.swift",
+    "Sources/Sessions/GrokActivityMonitor.swift",
+    "Sources/Sessions/LMStudioServerLog.swift",
+    "Sources/Sessions/OllamaActivityRelay.swift"
+  ],
+  "coverage": [
+    {"upstreamArea": "claude-transcripts", "localAdapter": "claude_code", "status": "cross-check-only"},
+    {"upstreamArea": "codex-rollouts", "localAdapter": "codex", "status": "cross-check-only"},
+    {"upstreamArea": "gemini-jsonl", "localAdapter": "gemini_cli", "status": "cross-check-only"},
+    {"upstreamArea": "grok-updates", "localAdapter": "grok", "status": "cross-check-only"},
+    {"upstreamArea": "kiro-sessions", "localAdapter": "kiro", "status": "cross-check-only"},
+    {"upstreamArea": "lmstudio-server-logs", "localAdapter": "lmstudio", "status": "not-adopted"},
+    {"upstreamArea": "ollama-thinking-stream", "localAdapter": "ollama", "status": "not-adopted"}
+  ]
+}
