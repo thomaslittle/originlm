@@ -19,9 +19,12 @@ total input over 512 MiB, more than 4096 files, or more than one line over
 
 ## Normalized fields
 
-- `input_tokens` is fresh input. Claude reports it that way. Codex includes
-  cache reads and cache writes inside `inputTokens`, so both are subtracted
-  and kept separately.
+- `input_tokens` is fresh input. Claude reports it that way. Codex defines
+  `inputTokens` as the whole prompt, including cache reads **and** cache writes
+  (`codex-acp` `TokenCount`, `openai/codex` `TokenUsage`); both are subtracted
+  here and kept separately. Tokscale and Codenotch currently ignore
+  `cache_write_input_tokens`, so their reported input is larger when that field
+  is present.
 - `cached_input_tokens` is cache-read input.
 - `cache_creation_tokens` is cache-write input.
 - `output_tokens` is provider-reported output.

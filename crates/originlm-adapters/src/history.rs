@@ -307,6 +307,11 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
                 .filter(|model| !model.is_empty() && model.len() <= 256)
                 .unwrap_or("unknown")
                 .to_owned();
+            // Claude Code writes local error placeholders as assistant turns;
+            // they are not billed requests and must not inflate a model row.
+            if model == "<synthetic>" {
+                return true;
+            }
             let session = value["sessionId"]
                 .as_str()
                 .map(str::trim)
@@ -401,6 +406,12 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
         });
     }
     models.sort_by(|left, right| left.native_model_id.cmp(&right.native_model_id));
+    if files_read == 0 {
+        walk.diagnostics.insert("NO_SESSION_FILES_READ".into());
+    }
+    if models.is_empty() {
+        walk.diagnostics.insert("NO_USAGE_RECORDS".into());
+    }
     ProviderUsage {
         provider_id: "claude_code".into(),
         roots: roots
@@ -630,6 +641,12 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
         });
     }
     models.sort_by(|left, right| left.native_model_id.cmp(&right.native_model_id));
+    if files_read == 0 {
+        walk.diagnostics.insert("NO_SESSION_FILES_READ".into());
+    }
+    if models.is_empty() {
+        walk.diagnostics.insert("NO_USAGE_RECORDS".into());
+    }
     let mut diagnostics: Vec<String> = walk.diagnostics.into_iter().collect();
     diagnostics.sort();
     ProviderUsage {
@@ -721,6 +738,20 @@ mod tests {
             }
         );
         assert_eq!(claude.models[0].messages, 2);
+    }
+
+    #[test]
+    fn synthetic_claude_turns_are_skipped() {
+        let root = tempfile::tempdir().unwrap();
+        let projects = root.path().join(".claude/projects/p");
+        write(
+            &projects.join("one.jsonl"),
+            &[
+                r#"{"type":"assistant","sessionId":"s1","requestId":"r1","message":{"id":"m1","model":"<synthetic>","usage":{"input_tokens":9,"output_tokens":9}}}"#,
+            ],
+        );
+        let usage = read_usage(root.path(), Limits::default());
+        assert!(usage.providers.is_empty() || usage.providers[0].totals.is_zero());
     }
 
     #[test]
