@@ -206,6 +206,7 @@ impl NativeService {
             let mut paths: BTreeSet<String> =
                 originlm_discovery::profile_roots(definition.id, &environment)
                     .into_iter()
+                    .chain(definition.extra_directories(&environment))
                     .map(|path| path.display().to_string())
                     .collect();
             paths.extend(

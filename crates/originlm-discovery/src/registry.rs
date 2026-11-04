@@ -103,7 +103,7 @@ impl ProviderDefinition {
         crate::knowledge::profile_roots(self.id, env)
     }
     /// Install directories searched in addition to `PATH` for this provider.
-    pub(crate) fn extra_directories(&self, env: &ScanEnvironment) -> Vec<PathBuf> {
+    pub fn extra_directories(&self, env: &ScanEnvironment) -> Vec<PathBuf> {
         match (self.id, env.platform) {
             // The official Muse Code installer's per-user location.
             ("muse", HostPlatform::Windows) => vec![env.local_app_data.join("Programs/muse")],
