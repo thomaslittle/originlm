@@ -122,11 +122,17 @@ fn bare_path_still_finds_homebrew_on_macos() {
         executable_for(&result, "claude_code"),
         home.join("Library/pnpm/claude")
     );
-    assert!(
-        env.fallback_search_path.iter().any(|path| path
-            == std::path::Path::new("/Applications/Ollama.app/Contents/Resources")),
-        "the app-bundled Ollama CLI is searched without a shell PATH"
-    );
+    // `valid_root` uses host path semantics, so a POSIX literal is only
+    // absolute when the test host is a Unix host.
+    if !cfg!(windows) {
+        assert!(
+            env.fallback_search_path
+                .iter()
+                .any(|path| path
+                    == std::path::Path::new("/Applications/Ollama.app/Contents/Resources")),
+            "the app-bundled Ollama CLI is searched without a shell PATH"
+        );
+    }
 }
 
 #[test]
