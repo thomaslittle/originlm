@@ -71,6 +71,13 @@ Summed totals agree: OriginLM `fresh input + cache read + cache write` equals
 Tokscale `input + cacheRead`, and OriginLM `output` equals Tokscale
 `output + reasoning`. No prompt or tool content was read by either run.
 
+A second shared fixture covered Grok and Kiro. Kiro matched Tokscale exactly
+(input 10, output 4, cache read 2, cache write 1). Grok matched after the same
+two conventions: Tokscale reported input 60 / cache write 0 (it ignores the
+field) and output 16 / reasoning 4; OriginLM reported input 55, cache write 5,
+output 20, reasoning 4. Tokscale did not discover the Gemini fixture in that
+run, so Gemini remains fixture-tested by OriginLM rather than cross-checked.
+
 ## Providers without a token-history reader
 
 Cursor's local history is a dashboard/cache surface, not a transcript token
