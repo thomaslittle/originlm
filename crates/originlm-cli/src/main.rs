@@ -263,12 +263,26 @@ async fn execute(args: Args) -> Result<()> {
                         let Some(executable) = &located.executable else {
                             continue;
                         };
+                        let extension = executable
+                            .extension()
+                            .and_then(|extension| extension.to_str())
+                            .unwrap_or("")
+                            .to_ascii_lowercase();
+                        let mut command =
+                            if cfg!(windows) && matches!(extension.as_str(), "cmd" | "bat") {
+                                // npm installs .cmd shims; the bounded process layer
+                                // refuses them, but this flag is an explicit local
+                                // version probe, never a session launch.
+                                let mut command = tokio::process::Command::new("cmd");
+                                command.args(["/D", "/C"]).arg(executable);
+                                command
+                            } else {
+                                tokio::process::Command::new(executable)
+                            };
+                        command.arg("--version").kill_on_drop(true);
                         let output = tokio::time::timeout(
                             std::time::Duration::from_secs(4),
-                            tokio::process::Command::new(executable)
-                                .arg("--version")
-                                .kill_on_drop(true)
-                                .output(),
+                            command.output(),
                         )
                         .await;
                         let value = match output {
