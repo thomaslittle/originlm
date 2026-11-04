@@ -1,305 +1,247 @@
-use crate::app::Desktop;
-use crate::ui;
+//! Settings: appearance, data source, refresh, layout, local prices, about.
+//! Everyday settings first, advanced tools last.
+
+use crate::app::{Desktop, Page};
+use crate::ds::{self, sp, ty};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
-    ActiveTheme, IconName,
+    ActiveTheme, Theme,
     button::{Button, ButtonVariants},
-    switch::Switch,
 };
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+
+const REFRESH: [u64; 3] = [15, 30, 60];
+
+fn setting(
+    title: &'static str,
+    detail: impl Into<SharedString>,
+    control: impl IntoElement,
+    theme: &Theme,
+) -> Div {
+    div()
+        .h_flex()
+        .items_center()
+        .flex_wrap()
+        .gap(px(sp::LG))
+        .px(px(sp::LG))
+        .py(px(sp::MD))
+        .child(
+            div()
+                .v_flex()
+                .flex_1()
+                .min_w(px(240.))
+                .gap(px(2.))
+                .child(
+                    div()
+                        .text_size(px(ty::BODY))
+                        .font_weight(FontWeight::MEDIUM)
+                        .child(title),
+                )
+                .child(ds::caption(detail, theme)),
+        )
+        .child(control)
+}
 
 impl Desktop {
     pub fn page_settings(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
-        let address = self.credential.address();
+        let entity = cx.entity();
         let state_dir = crate::history::state_dir()
             .map(|path| path.display().to_string())
-            .unwrap_or_else(|| "Unavailable; preferences are not persisted".into());
-        let entity_theme = cx.entity();
-        let entity_refresh = cx.entity();
-        let entity_dir = cx.entity();
-        let refresh = self.refresh_seconds;
+            .unwrap_or_else(|| "Unavailable; preferences are not saved".into());
+        let value = |text: String| {
+            div()
+                .text_size(px(ty::SMALL))
+                .text_color(theme.foreground)
+                .child(text)
+        };
 
-        div()
-            .v_flex()
-            .w_full()
-            .px(px(ui::PAGE_PAD))
-            .pb(px(36.))
-            .gap_4()
-            .child(self.price_settings(cx))
+        let appearance = ds::panel(&theme)
+            .child(ds::panel_head("Appearance", None, &theme))
+            .child(setting(
+                "Theme",
+                "Graphite dark or paper light. Ctrl+T switches.",
+                ds::tabs(
+                    "theme",
+                    ["Dark", "Light"],
+                    usize::from(!self.dark),
+                    &theme,
+                    {
+                        let entity = entity.clone();
+                        move |index, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                if this.dark != (index == 0) {
+                                    this.toggle_theme(cx);
+                                }
+                            })
+                        }
+                    },
+                ),
+                &theme,
+            ));
+
+        let source = ds::panel(&theme)
+            .child(ds::panel_head("Data source", None, &theme))
             .child(
                 div()
                     .v_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Appearance", &theme))
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_3()
-                            .child(
-                                div()
-                                    .v_flex()
-                                    .gap(px(1.))
-                                    .flex_1()
-                                    .child(
-                                        div()
-                                            .text_size(px(12.))
-                                            .child("Dark graphite"),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_size(px(10.))
-                                            .text_color(theme.muted_foreground)
-                                            .child("Warm off-white text, amber accent, deliberate light theme."),
-                                    ),
-                            )
-                            .child(
-                                Switch::new("theme-switch")
-                                    .checked(self.dark)
-                                    .on_change(move |checked, _, cx| {
-                                        let checked = *checked;
-                                        entity_theme.update(cx, |this, cx| {
-                                            if this.dark != checked {
-                                                this.toggle_theme(cx);
-                                            }
-                                        });
-                                    }),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child("Appearance preferences apply to this app."),
-                    ),
-            )
-            .child(
-                div()
-                    .v_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Data source", &theme))
-                    .child(row(
-                        "Broker endpoint",
-                        &address,
-                        false,
-                        &theme,
-                    ))
-                    .child(row(
-                        "Credential",
-                        &self.credential.descriptor_label(),
-                        true,
-                        &theme,
-                    ))
-                    .child(row(
-                        "Application administration",
-                        if self.example {
-                            "Example mode; no credentials loaded"
-                        } else if self.bundle.as_ref().is_some_and(|bundle| bundle.error.is_none() && bundle.apps_error.is_none()) {
-                            "Confirmed by the runtime"
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .child(ds::kv(
+                        "Runtime",
+                        value(if self.example {
+                            "Example mode: no runtime, nothing on this machine is read".into()
                         } else {
-                            "Not confirmed; inspect Connections for the response"
-                        },
-                        false,
+                            self.credential.label()
+                        }),
                         &theme,
                     ))
-                    .child(ui::eyebrow("History and preferences", &theme))
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .id("copy-state-dir")
-                                    .font_family(theme.mono_font_family.clone())
-                                    .text_size(px(10.))
-                                    .text_color(theme.muted_foreground)
-                                    .cursor_pointer()
-                                    .child(state_dir.clone())
-                                    .on_click(move |_, _, cx| {
-                                        let dir = state_dir.clone();
-                                        entity_dir.update(cx, |this, cx| {
-                                            cx.write_to_clipboard(
-                                                gpui::ClipboardItem::new_string(dir),
-                                            );
-                                            this.toast("State directory copied");
-                                            cx.notify();
-                                        });
-                                    }),
-                            )
-                            .child(ui::icon(IconName::Copy, 10., theme.muted_foreground)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child("Credentials are never displayed, logged or included in exports."),
-                    ),
-            )
-            .child(
-                div()
-                    .v_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Layout", &theme))
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .text_size(px(11.))
-                                    .text_color(theme.muted_foreground)
-                                    .child(format!(
-                                        "Sidebar {:.0}px, Ctrl+B toggles it",
-                                        self.sidebar_width
-                                    )),
-                            )
-                            .child(div().flex_1())
-                            .child({
-                                let entity = cx.entity();
-                                Button::new("reset-layout")
-                                    .secondary()
-                                    .label("Reset layout")
-                                    .on_click(move |_, window, cx| {
-                                        entity.update(cx, |this, cx| {
-                                            this.reset_layout(window, cx)
-                                        });
-                                    })
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child("Drag the divider beside the sidebar to resize it. The collapsed rail keeps every page one click away."),
-                    ),
-            )
-            .child(
-                div()
-                    .v_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Refresh", &theme))
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .children([15u64, 30, 60].into_iter().map(|seconds| {
-                                let entity = entity_refresh.clone();
-                                ui::tab_pill(
-                                    SharedString::from(format!("refresh-{seconds}")),
-                                    format!("{seconds}s"),
-                                    refresh == seconds,
-                                    &theme,
-                                    move |_, _, cx| {
-                                        entity.update(cx, |this, cx| {
-                                            this.refresh_seconds = seconds;
-                                            this.save_prefs();
-                                            this.refresh(cx);
-                                        });
-                                    },
-                                )
+                    .child(ds::kv(
+                        "Endpoint",
+                        if self.example {
+                            value("None in example mode".into()).into_any_element()
+                        } else {
+                            ds::copy_value("endpoint", self.credential.address(), 44, &theme)
                                 .into_any_element()
-                            })),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child("The broker refreshes metadata on its own cadence. This setting only controls how often the window reads the cached snapshot, so it never triggers provider work."),
-                    ),
+                        },
+                        &theme,
+                    ))
+                    .child(ds::kv(
+                        "Credential",
+                        value(self.credential.descriptor_label()),
+                        &theme,
+                    ))
+                    .child(ds::kv(
+                        "App administration",
+                        value(if self.example {
+                            "Not available in example mode".into()
+                        } else if self.bundle.as_ref().is_some_and(|bundle| {
+                            bundle.error.is_none() && bundle.apps_error.is_none()
+                        }) {
+                            "Confirmed by the runtime".into()
+                        } else {
+                            "Not confirmed: this credential cannot list apps".to_string()
+                        }),
+                        &theme,
+                    ))
+                    .child(ds::kv(
+                        "State folder",
+                        ds::copy_value("state-dir", state_dir, 44, &theme),
+                        &theme,
+                    )),
             )
             .child(
                 div()
-                    .v_flex()
-                    .gap_2()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("About", &theme))
+                    .px(px(sp::LG))
+                    .pb(px(sp::MD))
+                    .child(ds::caption(
+                        "Credentials are never displayed, logged or included in exports. The state folder holds preferences and the usage readings this app recorded.",
+                        &theme,
+                    )),
+            );
+
+        let refresh_index = REFRESH
+            .iter()
+            .position(|s| *s == self.refresh_seconds)
+            .unwrap_or(1);
+        let refresh = ds::panel(&theme)
+            .child(ds::panel_head("Refresh", None, &theme))
+            .child(setting(
+                "Read the runtime every",
+                "Only how often this window reads the runtime's cached snapshot. It never makes a provider call on its own.",
+                ds::tabs(
+                    "refresh",
+                    REFRESH.map(|s| format!("{s}s")),
+                    refresh_index,
+                    &theme,
+                    {
+                        let entity = entity.clone();
+                        move |index, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                this.refresh_seconds = REFRESH[index];
+                                this.save_prefs();
+                                this.refresh(cx);
+                            })
+                        }
+                    },
+                ),
+                &theme,
+            ));
+
+        let layout = ds::panel(&theme)
+            .child(ds::panel_head("Layout", None, &theme))
+            .child(setting(
+                "Sidebar and panels",
+                format!(
+                    "Sidebar {:.0}px. Drag its edge to resize; Ctrl+B collapses it to a rail.",
+                    self.sidebar_width
+                ),
+                Button::new("reset-layout")
+                    .secondary()
+                    .label("Reset layout")
+                    .on_click({
+                        let entity = entity.clone();
+                        move |_, window, cx| {
+                            entity.update(cx, |this, cx| this.reset_layout(window, cx))
+                        }
+                    }),
+                &theme,
+            ));
+
+        let about = ds::panel(&theme)
+            .child(ds::panel_head("About", None, &theme))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::MD))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
+                    .child(self.brand_marks[2].clone())
                     .child(
                         div()
-                            .h_flex()
-                            .gap_2()
-                            .child(
-                                self.brand_marks[2].clone(),
-                            )
+                            .v_flex()
+                            .flex_1()
+                            .min_w(px(0.))
                             .child(
                                 div()
-                                    .v_flex()
-                                    .gap(px(1.))
-                                    .child(
-                                        div()
-                                            .text_size(px(12.5))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .child("OriginLM Desktop"),
-                                    )
-                                    .child(ui::mono(
-                                        format!(
-                                            "OriginLM · v{}, protocol {}, GPUI Fast",
-                                            env!("CARGO_PKG_VERSION"),
-                                            self.snapshot()
-                                                .map(|s| s.protocol_version.clone())
-                                                .unwrap_or_else(|| "1.0".into())
-                                        ),
-                                        &theme,
-                                    )),
+                                    .text_size(px(ty::BODY))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child("OriginLM control center"),
                             )
-                            .child(div().flex_1())
-                            .child(
-                                Button::new("open-diagnostics")
-                                    .secondary()
-                                    .label("Diagnostics")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.set_page(crate::app::Page::Diagnostics, cx);
-                                    })),
-                            ),
+                            .child(ds::mono(
+                                format!(
+                                    "v{} · protocol {} · alpha, unsigned installers",
+                                    env!("CARGO_PKG_VERSION"),
+                                    self.snapshot()
+                                        .map(|s| s.protocol_version.clone())
+                                        .unwrap_or_else(|| "1.0".into())
+                                ),
+                                ty::CAPTION,
+                                theme.muted_foreground,
+                                &theme,
+                            )),
                     )
-                    .child(
-                        div()
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child("Reads the broker through its public authenticated API. When no broker is running it hosts a private local runtime for this app and runs passive discovery plus read-only metadata probes. It never opens the broker database or reads provider credentials; execution, paid options and identity reveal stay off."),
-                    ),
+                    .child(ds::link("about-diagnostics", "Diagnostics", &theme, {
+                        let entity = entity.clone();
+                        move |_, _, cx| entity.update(cx, |this, cx| this.set_page(Page::Diagnostics, cx))
+                    })),
             )
+            .child(
+                div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::caption(
+                    "Reads the runtime through its public authenticated API. With no shared broker running it hosts a private runtime for this window that runs passive discovery and read-only metadata probes. It never opens the broker database or reads provider credentials. No telemetry.",
+                    &theme,
+                )),
+            );
+
+        ds::page()
+            .gap(px(sp::MD))
+            .child(appearance)
+            .child(source)
+            .child(refresh)
+            .child(layout)
+            .child(self.price_settings(cx))
+            .child(about)
             .into_any_element()
     }
-}
-
-fn row(label: &str, value: &str, mono: bool, theme: &gpui_kit::component::Theme) -> AnyElement {
-    div()
-        .v_flex()
-        .gap(px(2.))
-        .child(ui::eyebrow(label, theme))
-        .child(
-            div()
-                .when(mono, |this| {
-                    this.font_family(theme.mono_font_family.clone())
-                })
-                .text_size(px(10.5))
-                .text_color(theme.foreground)
-                .child(value.to_string()),
-        )
-        .into_any_element()
 }

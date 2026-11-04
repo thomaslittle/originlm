@@ -570,3 +570,49 @@ fn an_npm_launcher_keeps_its_command_name_when_it_links_to_an_implementation_fil
         "the retained path keeps the logical command name"
     );
 }
+
+#[test]
+fn opencode_desktop_gui_is_not_discovered_as_the_cli() {
+    let tmp = tempfile::tempdir().unwrap();
+    let env = environment(tmp.path(), HostPlatform::Windows);
+    fs::create_dir_all(env.data_home.join("opencode")).unwrap();
+
+    let desktop = tmp
+        .path()
+        .join("AppData/Local/Programs/@opencode-aidesktop");
+    fs::create_dir_all(desktop.join("resources")).unwrap();
+    let gui = desktop.join("opencode.exe");
+    fs::write(&gui, b"GUI_NOT_A_CLI").unwrap();
+    let bundled = desktop.join("resources/opencode-cli.exe");
+    fs::write(&bundled, b"BUNDLED_CLI").unwrap();
+    let npm_cli = tmp
+        .path()
+        .join("AppData/Roaming/npm/node_modules/@opencode/cli/bin/opencode.exe");
+    fs::create_dir_all(npm_cli.parent().unwrap()).unwrap();
+    fs::write(&npm_cli, b"NPM_CLI").unwrap();
+
+    let mut env = env;
+    env.search_path = vec![desktop.clone()];
+    let result = scan(&env);
+    let locations: Vec<_> = result
+        .locations
+        .values()
+        .filter(|location| location.provider_id == "opencode")
+        .collect();
+    assert!(
+        locations
+            .iter()
+            .all(|location| location.executable.as_deref() != Some(gui.as_path())),
+        "desktop GUI must never be treated as the OpenCode CLI"
+    );
+    assert!(
+        locations
+            .iter()
+            .any(|location| location.executable.as_deref() == Some(npm_cli.as_path()))
+    );
+    assert!(
+        locations
+            .iter()
+            .any(|location| location.executable.as_deref() == Some(bundled.as_path()))
+    );
+}

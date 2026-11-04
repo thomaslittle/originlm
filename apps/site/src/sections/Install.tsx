@@ -1,3 +1,4 @@
+import { Title } from "../components/Title";
 import { useId, useRef, useState } from "react";
 import { CopyButton } from "../components/CopyButton";
 import { Plug, Terminal } from "../components/Icon";
@@ -13,44 +14,38 @@ type Command = {
 
 const TRACKS: Record<Track, { title: string; blurb: string; badge: string; commands: Command[]; foot: string }> = {
   app: {
-    title: "Get the app",
-    blurb: "Build the native control center and local service from source.",
+    title: "Control center",
+    blurb: "Build the native desktop app from a source checkout.",
     badge: "source preview",
     commands: [
       {
-        id: "unix",
-        label: "macOS / Linux",
+        id: "source",
+        label: "From source",
         command: "cargo run -p originlm-desktop -- --example",
-        note: "Run from a source checkout; example mode reads no accounts",
-      },
-      {
-        id: "windows",
-        label: "Windows",
-        command: "cargo run -p originlm-desktop -- --example",
-        note: "Run from a source checkout; Windows desktop qualification is pending",
+        note: "Example mode reads no accounts; run without --example to read this machine. Windows desktop qualification is pending",
       },
     ],
-    foot: "The one-line service installer is prepared in scripts/service. Hosted downloads and signed installers are not published yet. See the installation guide for the current source workflow.",
+    foot: "Hosted downloads and signed installers are not published yet. The service installer is prepared in scripts/service.",
   },
   project: {
-    title: "Add to your project",
-    blurb: "The SDK speaks to the service, or bundles the helper itself.",
+    title: "SDK",
+    blurb: "Attaches to a shared broker, or starts its own packaged helper.",
     badge: "alpha",
     commands: [
-      { id: "npm", label: "npm", command: "npm install originlm@0.1.0-alpha.20" },
-      { id: "pnpm", label: "pnpm", command: "pnpm add originlm@0.1.0-alpha.20" },
-      { id: "bun", label: "bun", command: "bun add originlm@0.1.0-alpha.20" },
-      { id: "yarn", label: "yarn", command: "yarn add originlm@0.1.0-alpha.20" },
-      { id: "cargo", label: "cargo", command: "cargo add originlm@=0.1.0-alpha.22" },
-      { id: "pip", label: "pip", command: "pip install originlm==0.1.0a20" },
+      { id: "npm", label: "npm", command: "npm install originlm@alpha", note: "The alpha tag is 0.1.0-alpha.25; npm’s latest tag still points at an older alpha" },
+      { id: "pnpm", label: "pnpm", command: "pnpm add originlm@0.1.0-alpha.25" },
+      { id: "bun", label: "bun", command: "bun add originlm@0.1.0-alpha.25" },
+      { id: "yarn", label: "yarn", command: "yarn add originlm@0.1.0-alpha.25" },
+      { id: "cargo", label: "cargo", command: "cargo add originlm@=0.1.0-alpha.25" },
+      { id: "pip", label: "pip", command: "pip install originlm==0.1.0a25" },
     ],
-    foot: "Published packages: the Rust crates are at 0.1.0-alpha.22; npm and PyPI are at 0.1.0-alpha.20. Cargo links the runtime, and the helper crate is cargo install originlm-cli@=0.1.0-alpha.22. npm and Python clients speak the local protocol.",
+    foot: "Published at 0.1.0-alpha.25 on npm (the alpha tag), crates.io and PyPI. Cargo links the runtime, and the helper crate is cargo install originlm-cli@=0.1.0-alpha.25. The npm and Python clients speak the local protocol.",
   },
 };
 
 export function Install() {
-  const [track, setTrack] = useState<Track>("app");
-  const [tab, setTab] = useState("unix");
+  const [track, setTrack] = useState<Track>("project");
+  const [tab, setTab] = useState("npm");
   const trackId = useId();
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const data = TRACKS[track];
@@ -58,7 +53,7 @@ export function Install() {
 
   function chooseTrack(next: Track) {
     setTrack(next);
-    setTab(next === "app" ? "unix" : "npm");
+    setTab(next === "app" ? "source" : "npm");
   }
 
   function onTabKey(event: React.KeyboardEvent, index: number) {
@@ -78,16 +73,16 @@ export function Install() {
   return (
     <div className="container install">
       <div className="head-split">
-        <h2 id="install-title">Two tracks. One runtime.</h2>
+        <Title id="install-title" text="Install" />
         <p className="lead">
-          Use the dashboard to inspect reported access. Add the SDK to build on the AI
-          your users authorize.
+          The SDK is on npm, crates.io and PyPI as an alpha. The control center builds from source;
+          signed installers are not published yet.
         </p>
       </div>
 
       <div className="install-shell">
         <div className="install-tracks" role="tablist" aria-label="Install track" aria-orientation="vertical">
-          {(Object.keys(TRACKS) as Track[]).map((key) => {
+          {(["project", "app"] as Track[]).map((key) => {
             const item = TRACKS[key];
             return (
               <button

@@ -36,6 +36,12 @@ and [current architecture](design/architecture.md). The support matrix distingui
 - [Threat model](security/threat-model.md), [shared-runtime security review](security/SHARED-RUNTIME-REVIEW.md), and the [security policy](../SECURITY.md).
 - [Third-party notices](../THIRD_PARTY_NOTICES.md) preserve upstream revisions and attribution.
 
+## Product design
+
+- [Desktop control center audit](design/desktop-audit.md): findings, the `ds.rs` design system, every page in both themes with before/after captures, accessibility and contrast results, and the decision log.
+- [Landing page audit](design/landing-audit.md): the developer-first rebuild of `apps/site`, compiled code samples, motion and performance measurements, accessibility and SEO checks, and the decision log.
+- [Detection lab](design/detection-lab.md) (proposal, not built): how to catch vendor client changes that break what OriginLM reads, before users do.
+
 ## Contributing
 
 [CONTRIBUTING.md](../CONTRIBUTING.md), [Code of Conduct](../CODE_OF_CONDUCT.md), and [migration guide](integration/migration.md).

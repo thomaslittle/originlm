@@ -8,14 +8,40 @@ const KEYWORDS = new Set([
   "None", "True", "False", "and", "or", "not", "is",
 ]);
 
+type Token = { text: string; cls?: string };
+
 /** Small deterministic highlighter for the short, authored snippets on this page. */
 export function highlight(source: string): ReactNode[] {
+  return tokens(source).map((token, key) => <span key={key} className={token.cls}>{token.text}</span>);
+}
+
+/** The first `count` characters of a highlighted snippet, for code that types itself. */
+export function highlightTyped(source: string, count: number): ReactNode[] {
   const out: ReactNode[] = [];
+  let left = count;
+  for (const [key, token] of tokens(source).entries()) {
+    if (left <= 0) break;
+    const text = token.text.slice(0, left);
+    left -= text.length;
+    out.push(<span key={key} className={token.cls}>{text}</span>);
+  }
+  return out;
+}
+
+/* The snippets are fixed strings, and the story re-renders them while scrolling: tokenise
+   each one once. */
+const cache = new Map<string, Token[]>();
+function tokens(source: string): Token[] {
+  let hit = cache.get(source);
+  if (!hit) { hit = tokenize(source); cache.set(source, hit); }
+  return hit;
+}
+
+function tokenize(source: string): Token[] {
+  const out: Token[] = [];
   let i = 0;
-  let key = 0;
   const push = (text: string, cls?: string) => {
-    if (!text) return;
-    out.push(cls ? <span key={key++} className={cls}>{text}</span> : <span key={key++}>{text}</span>);
+    if (text) out.push({ text, cls });
   };
 
   while (i < source.length) {

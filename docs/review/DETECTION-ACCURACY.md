@@ -39,7 +39,7 @@ Legend:
 | Gemini CLI | **Real** (npm prefix, bare PATH) + PATH + T3 managed tools | **Real CI** (npm prefix, bare PATH) + `%APPDATA%\npm` + Programs | **Real CI** (npm prefix, bare PATH) + Homebrew/npm prefixes | Real on all four CI runners; fixture (ACP metadata/execution) | — |
 | Antigravity | PATH + `~/.gemini/antigravity-*` | PATH + per-user Programs | PATH | Fixture (passive + ACP) | Not live-qualified. |
 | Grok | PATH | PATH + Programs | PATH + Homebrew | Fixture (passive + ACP) | Not live-qualified. |
-| OpenCode | **Real** (npm prefix + local symlink dedupe) | **Real CI** (npm prefix, bare PATH) + `~/.opencode/bin` + Programs | **Real CI** (npm prefix, bare PATH) + `~/.opencode/bin` | Real on all four CI runners; v1/v2 fixtures | Metadata/usage are fixture-tested; no live account probe in this change. |
+| OpenCode | **Real** (npm prefix + local symlink dedupe) | **Real CI** (npm prefix, bare PATH) + `~/.opencode/bin` + Programs | **Real CI** (npm prefix, bare PATH) + `~/.opencode/bin` | Real on all four CI runners; v1/v2 fixtures | Metadata/usage are fixture-tested; no live account probe in this change. The Windows Desktop GUI executable is excluded; npm and desktop-bundled CLI executables are discovered explicitly. |
 | Muse Code | PATH, `LOCAL_AI_KIT_MUSE_BINARY` | PATH, `%LOCALAPPDATA%\Programs\muse` | PATH | Fixture (MSP) | No live Meta turn. |
 | Cursor | PATH, `~/.config/Cursor` | PATH, `%APPDATA%\Cursor` | PATH, `~/Library/Application Support/Cursor` | Fixture (cache, model list) | Usage requires the separate `--allow-usage cursor` grant. |
 | GitHub Copilot | `~/.copilot` | `%USERPROFILE%\.copilot` | `~/.copilot` | Fixture (passive) | Session database is not opened. |

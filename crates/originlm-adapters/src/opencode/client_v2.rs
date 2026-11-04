@@ -59,7 +59,12 @@ pub async fn open(
             "OpenCode 2 did not confirm the requested model, workspace and permissions",
         ));
     }
+    // Tool events are only expected when the session policy allows some tools.
+    let tools_allowed = permissions
+        .as_array()
+        .is_some_and(|rules| rules.iter().any(|rule| rule["effect"] == "allow"));
     Ok(Box::new(Client {
+        tools_allowed,
         endpoint,
         id: Some(id),
         model,
@@ -73,6 +78,7 @@ pub async fn open(
     }))
 }
 struct Client {
+    tools_allowed: bool,
     endpoint: Endpoint,
     id: Option<String>,
     model: Model,
@@ -213,10 +219,14 @@ impl Client {
                 started = true;
                 continue;
             }
-            if kind == "permission.asked" || kind.starts_with("session.tool.") {
+            // An approval request is never answered here. Tool events are fine
+            // when the session policy allows tools: the service runs them.
+            if kind == "permission.asked"
+                || (kind.starts_with("session.tool.") && !self.tools_allowed)
+            {
                 return Err(DomainError::new(
                     ErrorCode::IntegrationRestricted,
-                    "OpenCode 2 requested a native tool on a text-only route",
+                    "OpenCode 2 requested a tool this session does not allow",
                 ));
             }
             if !started {

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix(opencode): exclude the OpenCode Desktop GUI executable from CLI discovery on Windows, and discover the npm or desktop-bundled CLI instead. This stops version probes from opening the desktop window and lets the native service probe reach the real CLI.
 - fix(opencode): treat a saved OpenCode Console OAuth connection as native-reported authentication when no workspace limits are exposed, fixing Console logins that previously appeared as "Not checked" while `/connect` API-key logins worked.
 - feat(usage): add `usage.history` and `costs.read.historical` plus a desktop Costs page section. History now covers Gemini CLI (`~/.gemini/tmp` JSON/JSONL), Grok (`~/.grok/sessions` `updates.jsonl` `turn_completed`), and Kiro (`~/.kiro/sessions/cli` recorded turn counts) in addition to Claude Code and Codex. Codex app-server and rollout token shapes are both accepted; cache writes stay separate from fresh input.
 - feat(models): serve on-disk Ollama and LM Studio inventories through `models.local`, honor an LM Studio `modelDirectory` from `LMStudio/config.json`, and show them on the desktop Models page.
