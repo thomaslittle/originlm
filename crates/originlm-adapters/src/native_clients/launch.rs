@@ -283,6 +283,15 @@ fn prepare_for(
                     .into(),
             );
             env.insert("ANTIGRAVITY_HARNESS_PATH".into(), harness.into_os_string());
+            env.insert("AGY_ACP_FORCE_FILE_STORAGE".into(), "1".into());
+            let temp = profile.profile_home.join("tmp");
+            let _ = std::fs::create_dir_all(&temp);
+            if cfg!(windows) {
+                env.insert("TEMP".into(), temp.clone().into_os_string());
+                env.insert("TMP".into(), temp.into_os_string());
+            } else {
+                env.insert("TMPDIR".into(), temp.into_os_string());
+            }
             env.insert("PYTHONUNBUFFERED".into(), "1".into());
             env.insert("ELECTRON_RUN_AS_NODE".into(), "1".into());
             // Metadata probes must not start an interactive OAuth flow. Use
