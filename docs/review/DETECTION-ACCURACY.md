@@ -113,3 +113,7 @@ Legend:
    not grant to a real account.
 7. No macOS execution was performed for this change. The arm64 runner is in
    the matrix; its result is not recorded here.
+8. `scan --include-locations` now reports a `checkedProviders` status for every
+   known provider (`found` or `not_found`), but it does not yet distinguish
+   "not installed" from "installed but blocked" or record every path tried.
+   The desktop still has no per-tool not-installed list.

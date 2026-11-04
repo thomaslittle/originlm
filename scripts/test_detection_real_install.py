@@ -40,7 +40,9 @@ def main() -> int:
     document = json.loads(args.scan.read_text(encoding="utf-8"))
     snapshot = document["snapshot"]
     locations = document.get("locations", [])
-    providers = {item["id"] for item in snapshot.get("providers", [])}
+    providers = {
+        item["providerId"] for item in snapshot.get("connections", [])
+    }
     executable_by_provider: dict[str, list[str]] = {}
     for location in locations:
         executable = location.get("executable")

@@ -244,9 +244,30 @@ async fn execute(args: Args) -> Result<()> {
                         })
                     })
                     .collect();
+                let found: std::collections::BTreeSet<&str> = result
+                    .snapshot
+                    .connections
+                    .iter()
+                    .map(|connection| connection.provider_id.as_str())
+                    .collect();
+                let checked: Vec<_> = originlm_discovery::definitions()
+                    .iter()
+                    .map(|definition| {
+                        json!({
+                            "providerId": definition.id,
+                            "name": definition.name,
+                            "status": if found.contains(definition.id) { "found" } else { "not_found" },
+                        })
+                    })
+                    .collect();
                 println!(
                     "{}",
-                    json!({"snapshot": snapshot, "locations": locations, "metadataProbes": result.metadata_probes})
+                    json!({
+                        "snapshot": snapshot,
+                        "locations": locations,
+                        "metadataProbes": result.metadata_probes,
+                        "checkedProviders": checked,
+                    })
                 );
             } else {
                 println!("{snapshot}");

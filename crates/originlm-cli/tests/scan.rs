@@ -29,6 +29,13 @@ fn scan_locations_are_explicitly_opt_in() {
         "an empty home has no private locations"
     );
     assert!(detailed.get("metadataProbes").is_some());
+    let checked = detailed["checkedProviders"].as_array().unwrap();
+    assert!(
+        checked
+            .iter()
+            .any(|provider| provider["providerId"] == "kiro" && provider["status"] == "not_found"),
+        "every known provider has a found/not_found status"
+    );
 }
 
 #[test]
