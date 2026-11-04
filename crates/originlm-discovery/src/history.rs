@@ -743,18 +743,8 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
 type AggregatedModel = (UsageTotals, BTreeSet<String>, u32);
 type GrokRecordKey = (String, String, u64, u64);
 
-fn number(value: &serde_json::Value, keys: &[&str]) -> u64 {
-    keys.iter()
-        .find_map(|key| value[*key].as_u64())
-        .unwrap_or(0)
-}
-
-fn optional_number(value: &serde_json::Value, keys: &[&str]) -> Option<u64> {
-    keys.iter().find_map(|key| value[*key].as_u64())
-}
-
 fn add_usage(
-    by_model: &mut BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)>,
+    by_model: &mut BTreeMap<String, AggregatedModel>,
     session: &str,
     model: &str,
     totals: UsageTotals,
@@ -772,7 +762,7 @@ fn model_rows(
     provider_id: &str,
     roots: &[PathBuf],
     walk: &Walk,
-    by_model: BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)>,
+    by_model: BTreeMap<String, AggregatedModel>,
     malformed_lines: u32,
     files_read: u32,
     files_skipped: u32,
@@ -815,34 +805,83 @@ fn model_rows(
     }
 }
 
-fn gemini_totals(tokens: &serde_json::Value) -> UsageTotals {
-    let input = number(
-        tokens,
-        &[
-            "input",
-            "prompt",
-            "input_tokens",
-            "prompt_tokens",
-            "promptTokenCount",
-        ],
-    );
-    let output = number(
-        tokens,
-        &[
-            "output",
-            "candidates",
-            "output_tokens",
-            "completion_tokens",
-            "candidatesTokenCount",
-        ],
-    );
-    let cached = number(
-        tokens,
-        &["cached", "cached_tokens", "cachedContentTokenCount"],
-    );
-    let thoughts = number(tokens, &["thoughts", "reasoning", "thoughts_tokens"]);
-    let tool = number(tokens, &["tool", "tool_tokens"]);
-    let total = optional_number(tokens, &["total", "totalTokenCount", "total_tokens"]);
+fn positive(value: Option<i64>) -> u64 {
+    value.unwrap_or(0).max(0).try_into().unwrap_or(u64::MAX)
+}
+
+fn positive_value(value: Option<i64>) -> Option<u64> {
+    value.map(|value| value.max(0).try_into().unwrap_or(u64::MAX))
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct GeminiTokens {
+    #[serde(
+        default,
+        alias = "prompt",
+        alias = "input_tokens",
+        alias = "prompt_tokens",
+        alias = "promptTokenCount"
+    )]
+    input: Option<i64>,
+    #[serde(
+        default,
+        alias = "candidates",
+        alias = "output_tokens",
+        alias = "completion_tokens",
+        alias = "candidatesTokenCount"
+    )]
+    output: Option<i64>,
+    #[serde(default, alias = "cached_tokens", alias = "cachedContentTokenCount")]
+    cached: Option<i64>,
+    #[serde(default, alias = "reasoning", alias = "thoughts_tokens")]
+    thoughts: Option<i64>,
+    #[serde(default, alias = "tool_tokens")]
+    tool: Option<i64>,
+    #[serde(default, alias = "totalTokenCount", alias = "total_tokens")]
+    total: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiMessage {
+    id: Option<String>,
+    model: Option<String>,
+    tokens: Option<GeminiTokens>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiSession {
+    #[serde(rename = "sessionId")]
+    session_id: Option<String>,
+    #[serde(rename = "session_id")]
+    session_id_snake: Option<String>,
+    messages: Option<Vec<GeminiMessage>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiLine {
+    #[serde(rename = "sessionId")]
+    session_id: Option<String>,
+    #[serde(rename = "session_id")]
+    session_id_snake: Option<String>,
+    model: Option<String>,
+    id: Option<String>,
+    tokens: Option<GeminiTokens>,
+}
+
+fn model_name(name: &Option<String>) -> Option<String> {
+    name.as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty() && name.len() <= 256)
+        .map(str::to_owned)
+}
+
+fn gemini_totals(tokens: &GeminiTokens) -> UsageTotals {
+    let input = positive(tokens.input);
+    let output = positive(tokens.output);
+    let cached = positive(tokens.cached);
+    let thoughts = positive(tokens.thoughts);
+    let tool = positive(tokens.tool);
+    let total = positive_value(tokens.total);
     // Gemini sometimes reports a total where cache-read tokens are included in
     // the prompt count and sometimes disjoint. Only subtract when the total
     // proves the inclusive shape; otherwise preserve the provider value.
@@ -897,28 +936,26 @@ fn read_gemini(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             let mut session = stem.clone();
             let mut model = "unknown".to_owned();
             let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
-                let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                let Ok(value) = serde_json::from_str::<GeminiLine>(line) else {
                     return false;
                 };
-                if let Some(id) = value["session_id"]
-                    .as_str()
-                    .or_else(|| value["sessionId"].as_str())
+                if let Some(id) = value
+                    .session_id
+                    .as_deref()
+                    .or(value.session_id_snake.as_deref())
                     .filter(|id| !id.is_empty() && id.len() <= 256)
                 {
                     session = id.to_owned();
                 }
-                if let Some(name) = value["model"]
-                    .as_str()
-                    .map(str::trim)
-                    .filter(|name| !name.is_empty() && name.len() <= 256)
-                {
-                    model = name.to_owned();
+                if let Some(name) = model_name(&value.model) {
+                    model = name;
                 }
-                let Some(tokens) = value.get("tokens").filter(|tokens| tokens.is_object()) else {
+                let Some(tokens) = value.tokens.as_ref() else {
                     return true;
                 };
-                let key = value["id"]
-                    .as_str()
+                let key = value
+                    .id
+                    .as_deref()
                     .filter(|id| !id.is_empty())
                     .map(|id| format!("{session}:{id}"))
                     .unwrap_or_else(|| format!("{}:{}", path.display(), records.len()));
@@ -942,32 +979,29 @@ fn read_gemini(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             continue;
         }
         budget = budget.saturating_sub(bytes.len() as u64);
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        let Ok(value) = serde_json::from_slice::<GeminiSession>(&bytes) else {
             malformed_lines += 1;
             continue;
         };
-        let session = value["sessionId"]
-            .as_str()
-            .or_else(|| value["session_id"].as_str())
+        let session = value
+            .session_id
+            .as_deref()
+            .or(value.session_id_snake.as_deref())
             .filter(|id| !id.is_empty() && id.len() <= 256)
             .unwrap_or(&stem)
             .to_owned();
-        let Some(messages) = value["messages"].as_array() else {
+        let Some(messages) = value.messages.as_ref() else {
             malformed_lines += 1;
             continue;
         };
         for (index, message) in messages.iter().enumerate() {
-            let Some(tokens) = message.get("tokens").filter(|tokens| tokens.is_object()) else {
+            let Some(tokens) = message.tokens.as_ref() else {
                 continue;
             };
-            let model = message["model"]
-                .as_str()
-                .map(str::trim)
-                .filter(|name| !name.is_empty() && name.len() <= 256)
-                .unwrap_or("unknown")
-                .to_owned();
-            let key = message["id"]
-                .as_str()
+            let model = model_name(&message.model).unwrap_or_else(|| "unknown".into());
+            let key = message
+                .id
+                .as_deref()
                 .filter(|id| !id.is_empty())
                 .map(|id| format!("{session}:{id}"))
                 .unwrap_or_else(|| format!("{}:{index}", path.display()));
@@ -990,33 +1024,63 @@ fn read_gemini(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
     )
 }
 
-fn grok_totals(usage: &serde_json::Value) -> UsageTotals {
-    let input = number(usage, &["inputTokens", "input_tokens", "promptTokens"]);
-    let output = number(
-        usage,
-        &["outputTokens", "output_tokens", "completionTokens"],
-    );
-    let cached = number(
-        usage,
-        &[
-            "cachedReadTokens",
-            "cacheReadTokens",
-            "cache_read_input_tokens",
-        ],
-    );
-    let cache_write = number(
-        usage,
-        &[
-            "cachedWriteTokens",
-            "cacheWriteTokens",
-            "cacheCreationTokens",
-            "cache_creation_input_tokens",
-        ],
-    );
-    let reasoning = number(
-        usage,
-        &["reasoningTokens", "thoughtTokens", "thinkingTokens"],
-    );
+#[derive(Debug, Default, Deserialize)]
+struct GrokUsage {
+    #[serde(default, alias = "inputTokens", alias = "promptTokens")]
+    input_tokens: Option<i64>,
+    #[serde(default, alias = "outputTokens", alias = "completionTokens")]
+    output_tokens: Option<i64>,
+    #[serde(
+        default,
+        alias = "cachedReadTokens",
+        alias = "cacheReadTokens",
+        alias = "cache_read_input_tokens"
+    )]
+    cached_read_tokens: Option<i64>,
+    #[serde(
+        default,
+        alias = "cachedWriteTokens",
+        alias = "cacheWriteTokens",
+        alias = "cacheCreationTokens",
+        alias = "cache_creation_input_tokens"
+    )]
+    cached_write_tokens: Option<i64>,
+    #[serde(
+        default,
+        alias = "reasoningTokens",
+        alias = "thoughtTokens",
+        alias = "thinkingTokens"
+    )]
+    reasoning_tokens: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GrokUpdate {
+    #[serde(rename = "sessionUpdate")]
+    session_update: Option<String>,
+    usage: Option<GrokUsage>,
+    model: Option<String>,
+    #[serde(rename = "modelID")]
+    model_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GrokParams {
+    update: Option<GrokUpdate>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GrokLine {
+    timestamp: Option<String>,
+    params: Option<GrokParams>,
+}
+
+fn grok_totals(usage: &GrokUsage) -> UsageTotals {
+    let input = positive(usage.input_tokens);
+    let output = positive(usage.output_tokens);
+    let cached = positive(usage.cached_read_tokens);
+    let cache_write = positive(usage.cached_write_tokens);
+    let reasoning = positive(usage.reasoning_tokens);
     // Grok's input includes cache reads; output includes reasoning. Keep the
     // contract's reasoning-as-subset shape.
     UsageTotals {
@@ -1048,28 +1112,30 @@ fn read_grok(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| "unknown".into());
         let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
-            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            let Ok(value) = serde_json::from_str::<GrokLine>(line) else {
                 return false;
             };
-            let update = &value["params"]["update"];
-            if update["sessionUpdate"].as_str() != Some("turn_completed") {
+            let Some(update) = value
+                .params
+                .as_ref()
+                .and_then(|params| params.update.as_ref())
+            else {
+                return true;
+            };
+            if update.session_update.as_deref() != Some("turn_completed") {
                 return true;
             }
-            let Some(usage) = update.get("usage").filter(|usage| usage.is_object()) else {
+            let Some(usage) = update.usage.as_ref() else {
                 return true;
             };
             let totals = grok_totals(usage);
             if totals.is_zero() {
                 return true;
             }
-            let model = update["model"]
-                .as_str()
-                .or_else(|| update["modelID"].as_str())
-                .map(str::trim)
-                .filter(|name| !name.is_empty() && name.len() <= 256)
-                .unwrap_or("unknown")
-                .to_owned();
-            let timestamp = value["timestamp"].as_str().unwrap_or("").to_owned();
+            let model = model_name(&update.model)
+                .or_else(|| model_name(&update.model_id))
+                .unwrap_or_else(|| "unknown".into());
+            let timestamp = value.timestamp.clone().unwrap_or_default();
             let key = (
                 session.clone(),
                 timestamp,
@@ -1101,19 +1167,57 @@ fn read_grok(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
     )
 }
 
-fn kiro_totals(turn: &serde_json::Value) -> UsageTotals {
-    let input = number(turn, &["input_token_count", "uncached_input_tokens"]);
-    let output = number(turn, &["output_token_count", "output_tokens"]);
-    let cached = number(turn, &["cache_read_input_token_count", "cache_read_tokens"]);
-    let cache_write = number(
-        turn,
-        &["cache_write_input_token_count", "cache_creation_tokens"],
-    );
+#[derive(Debug, Default, Deserialize)]
+struct KiroTurn {
+    #[serde(default, alias = "uncached_input_tokens")]
+    input_token_count: Option<i64>,
+    #[serde(default, alias = "output_tokens")]
+    output_token_count: Option<i64>,
+    #[serde(default, alias = "cache_read_tokens")]
+    cache_read_input_token_count: Option<i64>,
+    #[serde(default, alias = "cache_creation_tokens")]
+    cache_write_input_token_count: Option<i64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct KiroConversation {
+    #[serde(default)]
+    user_turn_metadatas: Vec<KiroTurn>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KiroModelInfo {
+    model_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KiroModelState {
+    model_info: Option<KiroModelInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KiroState {
+    rts_model_state: Option<KiroModelState>,
+    conversation_metadata: Option<KiroConversation>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KiroSession {
+    #[serde(rename = "sessionId")]
+    session_id: Option<String>,
+    #[serde(rename = "session_id")]
+    session_id_snake: Option<String>,
+    model: Option<String>,
+    session_state: Option<KiroState>,
+    conversation_metadata: Option<KiroConversation>,
+}
+
+fn kiro_totals(turn: &KiroTurn) -> UsageTotals {
     UsageTotals {
-        input_tokens: input,
-        cached_input_tokens: cached,
-        cache_creation_tokens: cache_write,
-        output_tokens: output,
+        input_tokens: positive(turn.input_token_count),
+        cached_input_tokens: positive(turn.cache_read_input_token_count),
+        cache_creation_tokens: positive(turn.cache_write_input_token_count),
+        output_tokens: positive(turn.output_token_count),
         reasoning_tokens: 0,
     }
 }
@@ -1138,7 +1242,7 @@ fn read_kiro(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             continue;
         }
         budget = budget.saturating_sub(bytes.len() as u64);
-        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        let Ok(value) = serde_json::from_slice::<KiroSession>(&bytes) else {
             malformed_lines += 1;
             continue;
         };
@@ -1146,26 +1250,25 @@ fn read_kiro(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             .file_stem()
             .map(|stem| stem.to_string_lossy().into_owned())
             .unwrap_or_else(|| "unknown".into());
-        let session = value["session_id"]
-            .as_str()
-            .or_else(|| value["sessionId"].as_str())
+        let session = value
+            .session_id
+            .as_deref()
+            .or(value.session_id_snake.as_deref())
             .filter(|id| !id.is_empty() && id.len() <= 256)
             .unwrap_or(&stem)
             .to_owned();
-        let model = value["session_state"]["rts_model_state"]["model_info"]["model_id"]
-            .as_str()
-            .or_else(|| value["model"].as_str())
-            .map(str::trim)
-            .filter(|name| !name.is_empty() && name.len() <= 256)
-            .unwrap_or("unknown")
-            .to_owned();
-        let turns = value["session_state"]["conversation_metadata"]["user_turn_metadatas"]
-            .as_array()
-            .or_else(|| value["conversation_metadata"]["user_turn_metadatas"].as_array());
-        let Some(turns) = turns else {
-            malformed_lines += 1;
-            continue;
-        };
+        let state = value.session_state.as_ref();
+        let model = state
+            .and_then(|state| state.rts_model_state.as_ref())
+            .and_then(|model| model.model_info.as_ref())
+            .and_then(|info| model_name(&info.model_id))
+            .or_else(|| model_name(&value.model))
+            .unwrap_or_else(|| "unknown".into());
+        let turns = state
+            .and_then(|state| state.conversation_metadata.as_ref())
+            .or(value.conversation_metadata.as_ref())
+            .map(|conversation| conversation.user_turn_metadatas.as_slice())
+            .unwrap_or_default();
         for (index, turn) in turns.iter().enumerate() {
             let totals = kiro_totals(turn);
             if totals.is_zero() {
