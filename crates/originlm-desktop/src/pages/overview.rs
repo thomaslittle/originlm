@@ -12,6 +12,7 @@ use gpui_kit::*;
 use originlm_contracts::{BillingMode, Freshness, Observation, Snapshot};
 
 /// What a single allowance window can honestly say.
+#[derive(Clone)]
 enum Reading {
     /// A fraction of the window remains.
     Fraction(f32),
@@ -21,6 +22,7 @@ enum Reading {
     Unavailable(String),
 }
 
+#[derive(Clone)]
 struct WindowView {
     label: String,
     reading: Reading,
@@ -28,6 +30,7 @@ struct WindowView {
     stale: bool,
 }
 
+#[derive(Clone)]
 struct AccountView {
     connection_id: String,
     provider_id: String,
@@ -441,15 +444,110 @@ impl Desktop {
             .gap(px(sp::MD))
             .children(views.iter().map(|view| self.account_card(view, &theme, cx)));
 
+        // Compact all-account index. The detailed cards below still carry
+        // every window, but this row list stays readable in one viewport so a
+        // provider cannot appear to be missing just because its card is below
+        // the fold.
+        let mut summary_views = views.clone();
+        summary_views
+            .sort_by_key(|view| (view.provider.to_lowercase(), view.account.to_lowercase()));
+        let summary = ds::panel(&theme)
+            .child(ds::panel_head(
+                "All accounts",
+                Some(
+                    ds::caption(
+                        format!(
+                            "{} accounts · {} signed in",
+                            summary_views.len(),
+                            summary_views
+                                .iter()
+                                .filter(|view| view.auth.kind == data::AuthKind::Verified)
+                                .count()
+                        ),
+                        &theme,
+                    )
+                    .into_any_element(),
+                ),
+                &theme,
+            ))
+            .children(summary_views.iter().enumerate().map(|(index, view)| {
+                let lowest = view
+                    .windows
+                    .iter()
+                    .filter_map(|window| match window.reading {
+                        Reading::Fraction(fraction) => Some(fraction),
+                        _ => None,
+                    })
+                    .min_by(|left, right| left.total_cmp(right));
+                let metric = lowest
+                    .map(|fraction| format!("{:.0}% left", fraction * 100.))
+                    .unwrap_or_else(|| "No quota window".into());
+                let tone = lowest.map(ds::remaining_tone).unwrap_or(Tone::Neutral);
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::MD))
+                    .min_h(px(38.))
+                    .px(px(sp::LG))
+                    .border_t_1()
+                    .border_color(if index == 0 {
+                        theme.border
+                    } else {
+                        theme.border.opacity(0.55)
+                    })
+                    .child(crate::icons::provider_tile(
+                        &view.provider_id,
+                        &view.provider,
+                        22.,
+                        &theme,
+                    ))
+                    .child(
+                        div()
+                            .v_flex()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .truncate()
+                                    .child(view.provider.clone()),
+                            )
+                            .child(ds::caption(view.account.clone(), &theme).truncate()),
+                    )
+                    .child(auth_chip(&view.auth, &theme))
+                    .child(
+                        div()
+                            .w(px(120.))
+                            .flex_shrink_0()
+                            .child(ds::chip(metric, tone, &theme)),
+                    )
+                    .into_any_element()
+            }));
+
         // Needs attention.
         let attention: Vec<(Tone, String)> = self
             .snapshot()
             .map(|snapshot| {
-                let mut items: Vec<(Tone, String)> = data::open_issues(snapshot)
+                let open = data::open_issues(snapshot);
+                let metadata_failures = open
                     .iter()
+                    .filter(|issue| issue.title == "Provider metadata could not be refreshed")
+                    .count();
+                let mut items: Vec<(Tone, String)> = open
+                    .iter()
+                    .filter(|issue| issue.title != "Provider metadata could not be refreshed")
                     .take(4)
                     .map(|issue| (Tone::Amber, issue.title.clone()))
                     .collect();
+                if metadata_failures > 0 {
+                    items.push((
+                        Tone::Neutral,
+                        format!(
+                            "{metadata_failures} provider metadata refreshes failed · see Diagnostics"
+                        ),
+                    ));
+                }
                 for connection in &snapshot.connections {
                     let view = data::auth_view(connection);
                     let name = data::connection_title(snapshot, connection);
@@ -611,6 +709,7 @@ impl Desktop {
             .pb(px(sp::XXL))
             .gap(px(sp::XL))
             .child(strip)
+            .child(summary)
             .child(
                 div()
                     .v_flex()
