@@ -24,6 +24,7 @@ const LOCATION_KEYS: &[&str] = &[
     "LOCALAPPDATA",
     "ProgramData",
     "ProgramFiles",
+    "ProgramFiles(x86)",
 ];
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostPlatform {
@@ -231,17 +232,22 @@ fn fallback_search_path(env: &ScanEnvironment, vars: &BTreeMap<String, String>) 
             push(env.local_app_data.join("pnpm"));
             push(env.local_app_data.join("Yarn/bin"));
             push(env.local_app_data.join("Microsoft/WindowsApps"));
+            // Kiro's self-update relocates the CLI here even when the MSI was
+            // installed under Program Files.
+            push(env.local_app_data.join("Kiro-Cli"));
             if let Some(program_data) = present(vars, "ProgramData") {
                 let program_data = PathBuf::from(program_data);
                 if valid_root(&program_data) {
                     push(program_data.join("chocolatey/bin"));
                 }
             }
-            if let Some(program_files) = present(vars, "ProgramFiles") {
-                let program_files = PathBuf::from(program_files);
-                if valid_root(&program_files) {
-                    push(program_files.join("nodejs"));
-                    push(program_files.join("Kiro-Cli"));
+            for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+                if let Some(program_files) = present(vars, key) {
+                    let program_files = PathBuf::from(program_files);
+                    if valid_root(&program_files) {
+                        push(program_files.join("nodejs"));
+                        push(program_files.join("Kiro-Cli"));
+                    }
                 }
             }
         }

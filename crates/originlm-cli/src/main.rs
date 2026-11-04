@@ -25,6 +25,9 @@ Usage:
   originlm connect --ipc LOCAL_ADDRESS
   originlm scan --json [--include-locations] [--home ABSOLUTE_DIRECTORY] [--executable-only-provider PROVIDER]
       --include-locations adds this host's private executable and profile paths.
+  originlm usage --json [--home ABSOLUTE_DIRECTORY]
+      Reads bounded Claude Code and Codex session-history token totals. No prompt,
+      tool output or credential is read; malformed or oversized input is reported.
   originlm status [--json] [--ipc ADDRESS] [--token-file ABSOLUTE_FILE]
       Prints the running helper, its providers and connected apps.
       Exit: 0 running, 3 not running, 4 credential rejected.
@@ -245,6 +248,23 @@ async fn execute(args: Args) -> Result<()> {
             } else {
                 println!("{snapshot}");
             }
+            Ok(())
+        }
+        Action::Usage => {
+            let history = match args.home.clone() {
+                Some(home) => originlm_adapters::history::read_usage(
+                    &home,
+                    originlm_adapters::history::Limits::default(),
+                ),
+                None => {
+                    let environment = originlm_discovery::ScanEnvironment::from_process()?;
+                    originlm_adapters::history::read_usage_for_environment(
+                        &environment,
+                        originlm_adapters::history::Limits::default(),
+                    )
+                }
+            };
+            println!("{}", json!(history));
             Ok(())
         }
         Action::Serve if args.ipc.is_some() => {

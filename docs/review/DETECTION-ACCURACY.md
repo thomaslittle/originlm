@@ -7,7 +7,7 @@ proven when a run on that OS recorded the result.
 
 Baseline for this change (Linux, `2026-11-04`):
 
-- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 759 passed, 0 failed after it.
+- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 766 passed, 0 failed after it.
 - `npm run build` — passed.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — passed.
 - `cargo fmt --all --check` — passed.
@@ -65,6 +65,10 @@ Legend:
   are turned into this turn's delta, with `last` as the reset fallback.
   Cache reads/writes and reasoning tokens are separate units. The old
   thread-wide `session_tokens` fallback remains for older app-servers.
+- **Session-history totals.** `originlm usage --json` reads Claude Code and
+  Codex JSONL history with bounds and explicit diagnostics. It never reads
+  prompts, tool output, or credentials. The public service/desktop surface is
+  not wired yet.
 - **Upstream pins.** T3 Code is pinned at `8b44f42b` (nightly
   `v0.1.8-nightly.20261104.4165`, stable `v0.1.7`); Tokscale is pinned at
   `b26c433d` (`v4.21.0`). Tokscale parity passes against the new snapshot.
@@ -89,11 +93,13 @@ Legend:
    [anthropics/claude-code#79223](https://github.com/anthropics/claude-code/issues/79223).
    The variable stays ahead of `CLAUDE_CONFIG_DIR`, and OriginLM does not read
    either credential file.
-4. Session-history token totals (`~/.claude/projects/*.jsonl`,
-   `~/.codex/sessions/`, Gemini, Cursor, Grok, Copilot, Antigravity, Kiro) are
-   not aggregated yet. The live adapters now report cached/reasoning units,
-   but there is no bounded history scanner, day-boundary handling, resumed
-   session dedupe, or cross-check against Tokscale on a shared fixture.
+4. Session-history token totals are implemented for Claude Code and Codex
+   through `originlm usage --json` (`history.rs`), including streaming
+   duplicate merge, split-aware cache fields, Codex resumed-copy dedupe,
+   mixed-model totals, and bounded malformed/oversized input reporting.
+   Gemini, Cursor, Grok, Copilot, Antigravity, and Kiro history remain
+   unaggregated; day-boundary rollups, a public API/desktop surface, and a
+   shared-fixture cross-check against Tokscale/t3code are still missing.
 5. Ollama/LM Studio on-disk model discovery (API plus manifests, custom model
    directories, server stopped) is not implemented.
 6. The detection workflow asserts provider and executable identity. It does

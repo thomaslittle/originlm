@@ -139,6 +139,7 @@ fn windows_bare_path_finds_npm_winget_scoop_and_per_user_programs() {
     write(local_app_data.join("Microsoft/WinGet/Links/grok.exe"));
     write(home.join("scoop/shims/opencode.exe"));
     write(local_app_data.join("Programs/Codex/codex.exe"));
+    write(local_app_data.join("Kiro-Cli/kiro-cli.exe"));
     let program_files = tmp.path().join("Program Files");
     write(program_files.join("Kiro-Cli/kiro-cli.exe"));
     let program_data = tmp.path().join("ProgramData");
@@ -175,7 +176,7 @@ fn windows_bare_path_finds_npm_winget_scoop_and_per_user_programs() {
     );
     assert_eq!(
         executable_for(&result, "kiro"),
-        program_files.join("Kiro-Cli/kiro-cli.exe")
+        local_app_data.join("Kiro-Cli/kiro-cli.exe")
     );
     assert_eq!(
         executable_for(&result, "pi"),

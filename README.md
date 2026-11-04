@@ -67,6 +67,15 @@ target/debug/originlm scan --json
 
 To see exactly what discovery finds without touching your real home directory, point it at an empty directory: `scan --json --home /absolute/empty/dir`.
 
+Session-history token totals are a separate explicit read:
+
+```sh
+target/debug/originlm usage --json
+```
+
+It reads bounded Claude Code and Codex JSONL totals, never prompts, tool output,
+or credentials. See [session-history usage](docs/adapters/usage-history.md).
+
 ### One shared runtime and the control center
 
 ```sh

@@ -5,6 +5,7 @@ pub enum Action {
     Help,
     Version,
     Scan,
+    Usage,
     Status,
     Serve,
     Connect,
@@ -79,6 +80,7 @@ impl Args {
             Some("--help" | "-h") => Action::Help,
             Some("--version" | "-V") => Action::Version,
             Some("scan") => Action::Scan,
+            Some("usage") => Action::Usage,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
             Some("install") => {
@@ -150,11 +152,15 @@ impl Args {
                 return Err(invalid());
             }
             match flag {
-                "--json" if matches!(args.action, Action::Scan | Action::Status) => json = true,
+                "--json"
+                    if matches!(args.action, Action::Scan | Action::Status | Action::Usage) =>
+                {
+                    json = true
+                }
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
                 }
-                "--home" if matches!(args.action, Action::Scan | Action::Serve) => {
+                "--home" if matches!(args.action, Action::Scan | Action::Serve | Action::Usage) => {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
                 }
                 "--endpoints" if matches!(args.action, Action::Serve | Action::Scan) => {

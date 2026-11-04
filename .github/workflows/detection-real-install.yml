@@ -54,6 +54,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
           irm 'https://cli.kiro.dev/install.ps1' | iex
+      - name: Record Kiro install locations
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:ProgramFiles\Kiro-Cli", "$env:LOCALAPPDATA\Kiro-Cli", "${env:ProgramFiles(x86)}\Kiro-Cli" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+      - name: Record Kiro install locations (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ls -l "$HOME/.local/bin/kiro-cli" || true
+          ls -ld "$HOME/.kiro" || true
       - name: Detect with the inherited PATH (Unix)
         if: runner.os != 'Windows'
         shell: bash
