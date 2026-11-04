@@ -40,6 +40,15 @@ Earlier source revisions were exercised on Windows and Ubuntu/WSL2; qualify each
 
 Read [native Google/Grok status](native-google-grok-status.md), [Cursor cached metadata](cursor.md) before treating a provider as available for a specific account or platform.
 
+## Token history and detection status
+
+`usage.history` and `costs.read.historical` expose bounded local token totals for
+Claude Code, Codex, Gemini CLI, Grok, and Kiro (`originlm usage` is the CLI
+form). Cursor stays on its separate dashboard allowance grant; Copilot and
+Antigravity conversation databases are not opened. `detection.status` reports
+every known provider as found, configuration-only, or not-found with its
+diagnostics and the paths checked; the desktop Diagnostics page renders it.
+
 ## Session-start authentication
 
 `sessions.create` re-reads the selected connection's live account/auth status before validating the selection whenever its metadata is older than the 60-second probe cache, the way native clients judge login at session start. Hosts therefore do not depend on the 15-minute metadata freshness window: a still-valid login is re-confirmed, and a logged-out client fails with `AUTH_REQUIRED` instead of riding a stale cache. Unknown billing is still refused unless the host declares it.

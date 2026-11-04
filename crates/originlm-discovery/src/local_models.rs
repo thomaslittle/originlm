@@ -334,7 +334,9 @@ mod tests {
         write(&custom.join("publisher/model/model.gguf"), b"gguf");
         write(
             &home.join(".config/LMStudio/config.json"),
-            format!(r#"{{"modelDirectory":"{}"}}"#, custom.display()).as_bytes(),
+            serde_json::to_string(&serde_json::json!({"modelDirectory": custom}))
+                .unwrap()
+                .as_bytes(),
         );
         let inventory = read_lmstudio_models(home, &home.join(".config"), 100);
         assert_eq!(inventory.models.len(), 1);
