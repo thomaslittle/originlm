@@ -64,6 +64,7 @@ async fn local_models_are_served_from_the_configured_home() {
         .unwrap();
     assert_eq!(models[0]["providerId"], "ollama");
     assert_eq!(models[0]["models"][0]["nativeId"], "llama3.2:latest");
+    assert!(models[0]["roots"].as_array().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -149,6 +150,7 @@ async fn usage_history_is_served_from_the_configured_home_and_cached_in_costs() 
         .unwrap();
     assert_eq!(claude["totals"]["inputTokens"], 10);
     assert_eq!(claude["totals"]["cachedInputTokens"], 90);
+    assert!(claude["roots"].as_array().unwrap().is_empty());
     let costs: Value = service
         .handle("owner", "costs.read", json!({}))
         .await
@@ -160,4 +162,7 @@ async fn usage_history_is_served_from_the_configured_home_and_cached_in_costs() 
             .iter()
             .any(|provider| provider["totals"]["outputTokens"] == 2)
     );
+    for provider in costs["historical"]["providers"].as_array().unwrap() {
+        assert!(provider["roots"].as_array().unwrap().is_empty());
+    }
 }

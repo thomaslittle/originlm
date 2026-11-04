@@ -83,7 +83,8 @@ Legend:
 - **Usage service.** `usage.history` and `costs.read.historical` serve the same
   bounded totals to the authenticated broker; the desktop Costs page shows
   provider totals. Gemini CLI, Grok, and Kiro readers join Claude Code and
-  Codex.
+  Codex. Service responses clear absolute roots; only the local CLI prints
+  them.
 - **Model service.** `models.local` serves Ollama/LM Studio on-disk inventories
   to the desktop Models page. An LM Studio `modelDirectory` in
   `LMStudio/config.json` is honored.

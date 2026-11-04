@@ -90,9 +90,9 @@ tokens.
 ## Service surface
 
 `usage.history` and `costs.read.historical` use a broker-configured home
-(`set_usage_home`) and cache the scan for 60 seconds. The public snapshot still
-contains no host paths. The CLI prints `roots` for local debugging; the
-service keeps them inside the same private report.
+(`set_usage_home`) and cache the scan for 60 seconds. The CLI prints `roots`
+for local debugging; the service clears them, so a broker client gets totals
+and diagnostics without host directory paths, matching the public snapshot.
 
 ## Limits
 

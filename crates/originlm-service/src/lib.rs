@@ -152,6 +152,12 @@ impl NativeService {
                 .providers
                 .retain(|provider| visible.contains(&provider.provider_id));
         }
+        // The CLI prints absolute roots for local debugging. A broker client
+        // gets the totals and diagnostics but not host directory paths, which
+        // the public snapshot also omits.
+        for provider in &mut history.providers {
+            provider.roots.clear();
+        }
         Ok(history)
     }
     fn local_environment(&self) -> Result<ScanEnvironment> {
@@ -259,6 +265,9 @@ impl NativeService {
         };
         if let Some(visible) = self.visible_providers(client)? {
             inventories.retain(|inventory| visible.contains(&inventory.provider_id));
+        }
+        for inventory in &mut inventories {
+            inventory.roots.clear();
         }
         Ok(inventories)
     }
