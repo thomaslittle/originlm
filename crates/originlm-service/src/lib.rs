@@ -229,22 +229,33 @@ impl NativeService {
         Ok(originlm_contracts::DetectionReport { providers })
     }
     fn local_models(&self, client: &str) -> Result<Vec<originlm_contracts::LocalModelInventory>> {
-        let environment = self.local_environment()?;
-        let mut inventories = vec![
-            originlm_discovery::local_models::read_ollama_models(
-                &environment.home,
-                environment
-                    .overrides
-                    .get("OLLAMA_MODELS")
-                    .map(std::path::PathBuf::as_path),
-                8192,
-            ),
-            originlm_discovery::local_models::read_lmstudio_models(
-                &environment.home,
-                &originlm_discovery::local_models::lmstudio_config_home(&environment),
-                8192,
-            ),
-        ];
+        let mut inventories = if let Ok(cached) = self.local_models_cache.read()
+            && let Some((observed, models)) = cached.as_ref()
+            && observed.elapsed() < Duration::from_secs(60)
+        {
+            models.clone()
+        } else {
+            let environment = self.local_environment()?;
+            let models = vec![
+                originlm_discovery::local_models::read_ollama_models(
+                    &environment.home,
+                    environment
+                        .overrides
+                        .get("OLLAMA_MODELS")
+                        .map(std::path::PathBuf::as_path),
+                    8192,
+                ),
+                originlm_discovery::local_models::read_lmstudio_models(
+                    &environment.home,
+                    &originlm_discovery::local_models::lmstudio_config_home(&environment),
+                    8192,
+                ),
+            ];
+            if let Ok(mut cached) = self.local_models_cache.write() {
+                *cached = Some((std::time::Instant::now(), models.clone()));
+            }
+            models
+        };
         if let Some(visible) = self.visible_providers(client)? {
             inventories.retain(|inventory| visible.contains(&inventory.provider_id));
         }
