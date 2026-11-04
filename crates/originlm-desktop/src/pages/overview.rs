@@ -266,6 +266,17 @@ impl Desktop {
         } else {
             let id = view.connection_id.clone();
             let required = view.auth.kind == data::AuthKind::Required;
+            let tokens = self
+                .bundle
+                .as_ref()
+                .and_then(|bundle| bundle.costs.as_ref())
+                .and_then(|costs| {
+                    costs
+                        .historical
+                        .providers
+                        .iter()
+                        .find(|provider| provider.provider_id == view.provider_id)
+                });
             div()
                 .v_flex()
                 .gap(px(sp::XS))
@@ -279,12 +290,17 @@ impl Desktop {
                         .items_center()
                         .gap(px(sp::SM))
                         .child(ds::meter(None, theme))
-                        .child(ds::mono(
-                            "Not reported",
-                            ty::BODY,
-                            theme.muted_foreground,
-                            theme,
-                        )),
+                        .child(ds::chip("No quota window", Tone::Neutral, theme))
+                        .child(div().flex_1())
+                        .when(tokens.is_some(), |this| {
+                            let tokens = tokens.unwrap();
+                            this.child(ds::mono(
+                                format!("{} in · {} out", tokens.totals.total_input_tokens(), tokens.totals.output_tokens),
+                                ty::CAPTION,
+                                theme.muted_foreground,
+                                theme,
+                            ))
+                        }),
                 )
                 .child(
                     div()
@@ -297,12 +313,13 @@ impl Desktop {
                                     data::AuthKind::Required => {
                                         "Sign in to the client to read its allowance."
                                     }
-                                    // Nothing was read yet, so nothing can be said about
-                                    // whether this client has an allowance window.
                                     data::AuthKind::Unknown => {
-                                        "Not checked yet. No allowance has been read."
+                                        "No allowance has been read. This client may not publish one."
                                     }
-                                    _ => "This client reported no allowance window.",
+                                    _ if tokens.is_some() => {
+                                        "This client publishes local transcript totals, not a quota window."
+                                    }
+                                    _ => "Signed in. This client does not publish an allowance window.",
                                 },
                                 theme,
                             )

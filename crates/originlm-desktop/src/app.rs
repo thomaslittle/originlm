@@ -622,7 +622,13 @@ impl Desktop {
                     .quota_pools
                     .iter()
                     .any(|pool| pool.connection_ids.contains(&connection.id));
-                let needed = (local && !verified) || (verified && !pooled);
+                // The private runtime has autonomous refresh lanes that probe
+                // providers concurrently. Queueing one probe per connection on
+                // this worker serialized every slow client behind the others;
+                // let the lanes fill metadata while the cached snapshot stays
+                // interactive. A shared broker still needs an explicit nudge
+                // for authenticated connections missing an allowance.
+                let needed = !local && verified && !pooled;
                 if needed && self.startup_probes.insert(connection.id.clone()) {
                     missing.push(connection.id.clone());
                 }

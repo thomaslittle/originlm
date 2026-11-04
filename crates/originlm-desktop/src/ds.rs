@@ -202,7 +202,7 @@ pub fn remaining_tone(remaining: f32) -> Tone {
     } else if remaining < 0.35 {
         Tone::Amber
     } else {
-        Tone::Neutral
+        Tone::Green
     }
 }
 
@@ -213,11 +213,12 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         .map(|value| (value.clamp(0.0, 1.0) * METER_CELLS as f32).round() as usize)
         .unwrap_or(0);
     let fill = match remaining {
+        // Availability has its own meaning: green is healthy, amber is
+        // tightening, red is close to exhausted. Brand amber stays for
+        // actions, never for a healthy quota.
         Some(value) if value < 0.15 => theme.danger,
         Some(value) if value < 0.35 => theme.warning,
-        // chart_1 is the brand amber in dark and #B47400 in light, which keeps
-        // at least 3:1 against the empty-cell track in both themes.
-        _ => theme.chart_1,
+        _ => theme.success,
     };
     let track = theme.foreground.opacity(0.08);
     // Full width and a fixed height in both flex directions: `flex_1` would

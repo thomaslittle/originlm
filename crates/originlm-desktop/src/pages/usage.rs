@@ -17,96 +17,126 @@ fn series_key(row: &data::QuotaRow) -> String {
 }
 
 fn local_token_panel(
+    snapshot: &originlm_contracts::Snapshot,
     report: Option<&originlm_contracts::CostReport>,
     theme: &Theme,
-) -> Option<Div> {
-    let report = report?;
-    let providers = &report.historical.providers;
-    Some(
-        ds::panel(theme)
-            .child(ds::panel_head(
-                "Recorded session tokens",
-                Some(
-                    ds::caption(
-                        if providers.is_empty() {
-                            "No readable transcript history".to_string()
-                        } else {
-                            format!("{} providers", providers.len())
-                        },
-                        theme,
-                    )
-                    .into_any_element(),
-                ),
-                theme,
-            ))
-            .when(providers.is_empty(), |this| {
-                this.child(
-                    div()
-                        .px(px(sp::LG))
-                        .py(px(sp::MD))
-                        .child(ds::body(
-                            "No readable Claude Code, Codex, Gemini, Grok, or Kiro session history. This is not zero usage.",
-                            theme,
-                        )),
+) -> Div {
+    use std::collections::BTreeMap;
+
+    // Keep a stable row for every provider with a documented local-history
+    // reader. A missing scan is shown as unknown, not as a vanished provider.
+    let order = ["claude_code", "codex", "gemini_cli", "grok", "kiro"];
+    let mut totals: BTreeMap<&str, &originlm_contracts::ProviderUsage> = BTreeMap::new();
+    if let Some(report) = report {
+        for provider in &report.historical.providers {
+            totals.insert(provider.provider_id.as_str(), provider);
+        }
+    }
+    let discovered: std::collections::BTreeSet<&str> = snapshot
+        .connections
+        .iter()
+        .map(|connection| connection.provider_id.as_str())
+        .collect();
+    let mut ids: Vec<&str> = order
+        .iter()
+        .copied()
+        .filter(|id| discovered.contains(id) || totals.contains_key(id))
+        .collect();
+    for id in totals.keys() {
+        if !ids.contains(id) {
+            ids.push(id);
+        }
+    }
+
+    ds::panel(theme)
+        .child(ds::panel_head(
+            "Recorded session tokens",
+            Some(
+                ds::caption(
+                    format!("{} providers", ids.len()),
+                    theme,
                 )
-            })
-            .children(providers.iter().map(|provider| {
-                div()
-                    .h_flex()
-                    .items_center()
-                    .gap(px(sp::SM))
-                    .px(px(sp::LG))
-                    .py(px(sp::SM))
-                    .border_b_1()
-                    .border_color(theme.border.opacity(0.6))
-                    .child(
-                        ds::mono(
-                            provider.provider_id.clone(),
-                            ty::SMALL,
-                            theme.foreground,
-                            theme,
+                .into_any_element(),
+            ),
+            theme,
+        ))
+        .children(ids.iter().map(|id| {
+            let entry = totals.get(id).copied();
+            let name = data::provider_name(snapshot, id);
+            let input = entry.map(|entry| entry.totals.total_input_tokens());
+            let output = entry.map(|entry| entry.totals.output_tokens);
+            let reasoning = entry.map(|entry| entry.totals.reasoning_tokens);
+            div()
+                .h_flex()
+                .items_center()
+                .gap(px(sp::SM))
+                .px(px(sp::LG))
+                .py(px(sp::SM))
+                .border_b_1()
+                .border_color(theme.border.opacity(0.6))
+                .child(
+                    div()
+                        .v_flex()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .child(
+                            div()
+                                .text_size(px(ty::SMALL))
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(name),
                         )
-                        .flex_1(),
-                    )
-                    .child(ds::mono(
-                        format!("{} in", provider.totals.total_input_tokens()),
-                        ty::CAPTION,
-                        theme.muted_foreground,
-                        theme,
-                    ))
-                    .child(ds::mono(
-                        format!("{} out", provider.totals.output_tokens),
-                        ty::CAPTION,
-                        theme.muted_foreground,
-                        theme,
-                    ))
-                    .when(provider.totals.reasoning_tokens > 0, |this| {
-                        this.child(ds::mono(
-                            format!("{} reasoning", provider.totals.reasoning_tokens),
+                        .child(ds::mono(
+                            (*id).to_string(),
                             ty::CAPTION,
                             theme.muted_foreground,
                             theme,
-                        ))
-                    })
-                    .when(!provider.diagnostics.is_empty(), |this| {
-                        this.child(ds::chip(
-                            format!("{} diagnostics", provider.diagnostics.len()),
-                            Tone::Amber,
-                            theme,
-                        ))
-                    })
-                    .into_any_element()
-            }))
-            .child(
-                div()
-                    .px(px(sp::LG))
-                    .py(px(sp::SM))
-                    .child(ds::caption(
-                        "Fresh input plus cache reads/writes; reasoning is a subset of output. Local transcript totals, not invoices or quota.",
+                        )),
+                )
+                .when_some(input, |this, input| {
+                    this.child(ds::mono(
+                        format!("{} in", input),
+                        ty::CAPTION,
+                        theme.muted_foreground,
                         theme,
-                    )),
-            ),
-    )
+                    ))
+                })
+                .when_some(output, |this, output| {
+                    this.child(ds::mono(
+                        format!("{} out", output),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                })
+                .when(reasoning.is_some_and(|reasoning| reasoning > 0), |this| {
+                    this.child(ds::mono(
+                        format!("{} reasoning", reasoning.unwrap_or(0)),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                })
+                .when(entry.is_none(), |this| {
+                    this.child(ds::caption("No local transcript history", theme))
+                })
+                .when(entry.is_some_and(|entry| !entry.diagnostics.is_empty()), |this| {
+                    this.child(ds::chip(
+                        format!("{} diagnostics", entry.map(|entry| entry.diagnostics.len()).unwrap_or(0)),
+                        Tone::Amber,
+                        theme,
+                    ))
+                })
+                .into_any_element()
+        }))
+        .child(
+            div()
+                .px(px(sp::LG))
+                .py(px(sp::SM))
+                .child(ds::caption(
+                    "Fresh input plus cache reads/writes; reasoning is a subset of output. Local transcript totals, not invoices or quota.",
+                    theme,
+                )),
+        )
 }
 
 impl Desktop {
@@ -122,6 +152,7 @@ impl Desktop {
         rows.retain(|row| seen.insert(series_key(row)));
 
         let local_tokens = local_token_panel(
+            &snapshot,
             self.bundle
                 .as_ref()
                 .and_then(|bundle| bundle.costs.as_ref()),
@@ -134,9 +165,7 @@ impl Desktop {
                 "None of the discovered clients reports a quota window. Local session-token totals and Accounts are still available below.",
                 &theme,
             )));
-            if let Some(panel) = local_tokens {
-                page = page.child(panel);
-            }
+            page = page.child(local_tokens);
             return page.into_any_element();
         }
 
@@ -440,9 +469,7 @@ impl Desktop {
         let mut page = ds::page();
         // Local token totals are the only usage evidence some clients publish.
         // Keep them above the quota panels so they are not mistaken for absent.
-        if let Some(panel) = local_tokens {
-            page = page.child(panel);
-        }
+        page = page.child(local_tokens);
         page.child(if wide {
             div()
                 .h_flex()

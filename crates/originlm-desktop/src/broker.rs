@@ -258,7 +258,7 @@ fn connect(credential: &Credential) -> Result<BrokerClient, String> {
 }
 
 fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, String> {
-    let snapshot = client.snapshot()?;
+    let snapshot = crate::data::canonical_snapshot(client.snapshot()?);
     let runtime = client
         .call("runtime.health", json!({}))
         .unwrap_or(Value::Null);

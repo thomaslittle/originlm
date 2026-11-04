@@ -311,3 +311,116 @@ pub fn chart_variation(points: &[ChartPoint]) -> f64 {
         0.0
     }
 }
+
+/// Collapse passive-discovery duplicates for the desktop view. Multiple
+/// command shims, profile roots and bundled copies of one client are one
+/// user-facing account unless the service reports distinct account ids.
+/// Distinct non-null account ids are preserved.
+pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    fn rank(connection: &Connection) -> (u8, u8, u8, u8) {
+        let auth = match &connection.auth {
+            Observation::Known {
+                value: originlm_contracts::AuthState::Authenticated,
+                ..
+            } => 3,
+            Observation::Known {
+                value:
+                    originlm_contracts::AuthState::Unauthenticated
+                    | originlm_contracts::AuthState::Expired,
+                ..
+            } => 1,
+            Observation::Unknown { .. } | Observation::Unavailable { .. } => 0,
+            Observation::Known { .. } => 2,
+        };
+        let status = match connection.status.as_str() {
+            "metadata_ready" => 3,
+            "detected" => 2,
+            "configuration_only" => 1,
+            _ => 0,
+        };
+        let account = u8::from(connection.account_id.is_some());
+        let plan = u8::from(connection.plan.value().is_some());
+        (auth, status, account, plan)
+    }
+
+    let mut groups: BTreeMap<String, Vec<Connection>> = BTreeMap::new();
+    for connection in snapshot.connections.drain(..) {
+        groups
+            .entry(connection.provider_id.clone())
+            .or_default()
+            .push(connection);
+    }
+    let mut kept: Vec<Connection> = Vec::new();
+    for (_, mut group) in groups {
+        let accounts: BTreeSet<String> = group
+            .iter()
+            .filter_map(|connection| connection.account_id.clone())
+            .collect();
+        if accounts.is_empty() {
+            group.sort_by_key(|connection| std::cmp::Reverse(rank(connection)));
+            if let Some(best) = group.drain(..).next() {
+                kept.push(best);
+            }
+            continue;
+        }
+        for account in accounts {
+            let mut same: Vec<Connection> = group
+                .iter()
+                .filter(|connection| connection.account_id.as_deref() == Some(account.as_str()))
+                .cloned()
+                .collect();
+            same.sort_by_key(|connection| std::cmp::Reverse(rank(connection)));
+            if let Some(best) = same.drain(..).next() {
+                kept.push(best);
+            }
+        }
+    }
+    let kept_connections: BTreeSet<String> = kept
+        .iter()
+        .map(|connection| connection.id.clone())
+        .collect();
+    snapshot.connections = kept;
+    let kept_profiles: BTreeSet<String> = snapshot
+        .connections
+        .iter()
+        .map(|connection| connection.profile_id.clone())
+        .collect();
+    let kept_installations: BTreeSet<String> = snapshot
+        .connections
+        .iter()
+        .map(|connection| connection.installation_id.clone())
+        .collect();
+    snapshot
+        .profiles
+        .retain(|profile| kept_profiles.contains(&profile.id));
+    snapshot
+        .installations
+        .retain(|installation| kept_installations.contains(&installation.id));
+    let kept_routes: BTreeSet<String> = snapshot
+        .routes
+        .iter()
+        .filter(|route| kept_connections.contains(&route.connection_id))
+        .map(|route| route.id.clone())
+        .collect();
+    snapshot
+        .routes
+        .retain(|route| kept_routes.contains(&route.id));
+    snapshot
+        .models
+        .retain(|model| kept_routes.contains(&model.route_id));
+    snapshot.quota_pools.retain_mut(|pool| {
+        pool.connection_ids
+            .retain(|connection| kept_connections.contains(connection));
+        pool.route_ids.retain(|route| kept_routes.contains(route));
+        !pool.connection_ids.is_empty() && !pool.route_ids.is_empty()
+    });
+    snapshot.issues.retain(|issue| {
+        issue
+            .connection_id
+            .as_ref()
+            .is_none_or(|connection| kept_connections.contains(connection))
+    });
+    snapshot
+}
