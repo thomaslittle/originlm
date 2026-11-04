@@ -1,7 +1,9 @@
 use originlm_adapters::kiro::probe;
 use originlm_contracts::*;
 use originlm_discovery::LocatedClient;
-use std::{fs, path::PathBuf};
+#[cfg(unix)]
+use std::fs;
+use std::path::PathBuf;
 
 #[cfg(unix)]
 fn fake_cli(home: &std::path::Path, body: &str) -> PathBuf {
