@@ -74,7 +74,8 @@ jobs:
         run: |
           foreach ($tool in 'codex','claude','gemini','kiro-cli','opencode') {
             Write-Host "$tool`: "
-            & $tool --version
+            if (Get-Command $tool -ErrorAction SilentlyContinue) { & $tool --version }
+            else { Write-Host 'not on PATH (the scan falls back to the install directory)' }
           }
       - name: Record Kiro install locations (Unix)
         if: runner.os != 'Windows'
