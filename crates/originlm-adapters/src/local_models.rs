@@ -14,6 +14,9 @@ use std::{
 };
 
 const MAX_MODELS: usize = 8192;
+/// Ollama manifests are small JSON documents. Bound the read so a corrupt or
+/// replaced file cannot force an unbounded allocation.
+const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,8 +94,10 @@ pub fn read_ollama_models(
                 Some("library") | None => format!("{model}:{tag}"),
                 Some(namespace) => format!("{namespace}/{model}:{tag}"),
             };
-            let size = fs::read(path)
+            let size = fs::metadata(path)
                 .ok()
+                .filter(|metadata| metadata.len() <= MAX_MANIFEST_BYTES)
+                .and_then(|_| fs::read(path).ok())
                 .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
                 .and_then(|value| {
                     value["layers"].as_array().map(|layers| {
@@ -271,6 +276,17 @@ mod tests {
         assert_eq!(inventory.models.len(), 1);
         assert_eq!(inventory.models[0].native_id, "llama3.2:latest");
         assert_eq!(inventory.models[0].size_bytes, Some(125));
+    }
+
+    #[test]
+    fn oversized_ollama_manifest_is_skipped_without_a_size() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        let manifest = home.join(".ollama/models/manifests/registry.ollama.ai/library/big/latest");
+        write(&manifest, &vec![b'{'; MAX_MANIFEST_BYTES as usize + 1]);
+        let inventory = read_ollama_models(home, None, 100);
+        assert_eq!(inventory.models.len(), 1);
+        assert_eq!(inventory.models[0].size_bytes, None);
     }
 
     #[test]
