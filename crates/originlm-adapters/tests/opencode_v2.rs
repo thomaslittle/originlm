@@ -51,7 +51,7 @@ async fn server(mode: &'static str) -> (Endpoint, Fixture, tokio::task::JoinHand
     let app=Router::new()
  .route("/api/session",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{
   assert_eq!(v["model"],json!({"providerID":if s.mode.starts_with("go-region") {"opencode-go"} else {"upstream"},"id":"native"}));
-  assert_eq!(v["permissions"],json!([{"action":"*","resource":"*","effect":"deny"}]));
+  assert_eq!(v["permissions"],if s.mode=="tools-allowed"{json!([{"action":"*","resource":"*","effect":"allow"}])}else{json!([{"action":"*","resource":"*","effect":"deny"}])});
   Json(json!({"data":{"id":"ses_owned","model":if s.mode=="bad-model"{json!({"id":"wrong","providerID":"upstream"})}else{v["model"].clone()},"location":if s.mode=="bad-workspace"{json!({"directory":"/other"})}else{v["location"].clone()},"permissions":if s.mode=="bad-permissions" {json!([])}else{v["permissions"].clone()}}}))
  }))
  .route("/api/session/ses_owned/model",post(|State(s):State<Fixture>,Json(v):Json<Value>|async move{let mut expected=json!({"providerID":if s.mode.starts_with("go-region") {"opencode-go"} else {"upstream"},"id":"native"});if s.mode=="variant"{expected["variant"]=json!("future-effort");}assert_eq!(v["model"],expected);axum::http::StatusCode::NO_CONTENT}))
@@ -105,6 +105,12 @@ async fn server(mode: &'static str) -> (Endpoint, Fixture, tokio::task::JoinHand
     })),
    "empty"=>send("session.execution.succeeded",json!({"sessionID":"ses_owned"})),
    "unterminated"=>{send("session.text.delta",json!({"sessionID":"ses_owned","assistantMessageID":"a","ordinal":0,"delta":"partial"}));send("session.execution.succeeded",json!({"sessionID":"ses_owned"}));},
+   "tool-denied"=>send("session.tool.called",json!({"sessionID":"ses_owned"})),
+   "tools-allowed"=>{
+    send("session.tool.called",json!({"sessionID":"ses_owned"}));
+    send("session.text.ended",json!({"sessionID":"ses_owned","assistantMessageID":"a","ordinal":1,"text":"done"}));
+    send("session.execution.succeeded",json!({"sessionID":"ses_owned"}));
+   },
    "tool"=>send("permission.asked",json!({"sessionID":"ses_owned","id":"per_1"})),
    _=>{
     if s.mode!="full-only"{send("session.text.delta",json!({"sessionID":"ses_owned","assistantMessageID":"a","ordinal":0,"delta":"hello"}));}
@@ -195,7 +201,11 @@ async fn run(mode: &'static str) -> (String, SessionState, usize, usize) {
             "upstream"
         }
         .into(),
-        deny_permissions(),
+        if mode == "tools-allowed" {
+            json!([{"action":"*","resource":"*","effect":"allow"}])
+        } else {
+            deny_permissions()
+        },
         Vec::new(),
         dir.path().to_string_lossy().into_owned(),
     )
@@ -286,6 +296,7 @@ async fn errors_and_tools_fail_without_approvals() {
     for mode in [
         "error",
         "tool",
+        "tool-denied",
         "mismatch",
         "empty",
         "unterminated",
@@ -491,4 +502,11 @@ async fn uncertain_delete_responses_keep_owned_id_for_retry() {
         );
         task.abort();
     }
+}
+#[tokio::test]
+async fn tool_events_complete_when_the_policy_allows_tools() {
+    let (events, status, interrupt, _) = run("tools-allowed").await;
+    assert_eq!(status, SessionState::Completed, "{events}");
+    assert_eq!(interrupt, 0);
+    assert!(events.contains("done"));
 }

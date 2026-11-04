@@ -52,55 +52,107 @@ Useful flags and environment overrides:
 
 | Option | Purpose |
 | --- | --- |
+| `--example` | Labelled synthetic data; reads no accounts and runs nothing |
 | `--refresh SECONDS` | Snapshot read cadence (5–600, default 30) |
 | `LAI_DESKTOP_THEME=light\|dark` | Start in a specific theme |
 | `LAI_DESKTOP_PAGE=<title>` | Open a page for screenshots or testing |
-| `LAI_DESKTOP_WINDOW=1280x820` | Window size for layout checks |
+| `LAI_DESKTOP_WINDOW=1280x820` | Window size for layout checks (minimum 1000×660) |
 | `LAI_DESKTOP_STATE_DIR` | History and preference directory |
+| `LAI_DESKTOP_MINI_VIEW=1` | Example mode only: open with the mini view showing |
+| `LAI_DESKTOP_EXAMPLE_STATE=loading\|offline\|stale\|empty` | Example mode only: preview the shell's loading, offline, stale and empty states |
 
 ## What works
 
-- **Overview** — access summary, the most constrained allowance windows, next
-  reset, locally collected usage history, per-provider authentication and open
-  issues.
-- **Providers & accounts** — discovered installations, profiles, plans, auth
-  evidence, diagnostics, routes and billing, with copyable identifiers and a
-  metadata probe action.
-- **Models** — search, favorites, provider-native IDs, capabilities, context
-  evidence and option descriptors. Selection always shows its route and billing.
-- **Usage** — 24h/7d/30d ranges, per-pool windows, remaining-share line with
-  gaps left as gaps, reset countdowns, freshness and a tabular alternative.
-- **Connected apps** — live broker clients, permissions as the broker reports
-  them, and app-scoped revocation with an explicit confirmation.
-- **Sessions** — sessions this app started, their status, usage and cancellation.
-  External sessions are explicitly described as unobservable.
-- **Playground** — one explicit, read-only turn through
-  `sessions.create` → `turns.start` → `events.read`, streamed into the window.
-  Paid and unknown-billing routes require the per-run consent switch.
-- **Diagnostics** — health, plain-language issues with evidence and remediation,
-  revision copy and a redacted diagnostic export.
-- **Settings** — theme, refresh cadence, the socket and credential *paths* (never
-  the token), and where local history lives.
-- **Command palette** — `Ctrl/⌘ K` for pages and models; `Ctrl/⌘ R` refreshes;
-  `Ctrl/⌘ T` switches theme; `Esc` closes overlays.
+Navigation is grouped as **Usage** (Overview, Usage history), **Inventory**
+(Accounts, Models), **Build** (Developer, Apps & grants, Sessions, Playground)
+and **System** (Diagnostics, Settings). Earlier page titles still work for
+`LAI_DESKTOP_PAGE` and saved preferences.
+
+- **Overview**: a runtime strip, then one card per account with a segmented
+  meter for every allowance window it reports, percent left, reset countdown and
+  freshness. Accounts that report nothing say so (or say they were not checked
+  yet) and offer a metadata probe; unknown readings stay unknown. Below: what
+  needs attention, a developer summary and observed turn cost.
+- **Usage history**: every allowance window as a list with meters; the selected
+  window's recorded readings (percent left) over 24h/7d/30d as a chart or table,
+  with gaps left as gaps; the reset schedule.
+- **Accounts**: one compact table of connections (plan, sign-in, stale flag,
+  model count) with an inspector: identity, discovery diagnostics, routes with
+  their supported capabilities and billing, and a metadata probe.
+- **Models**: search, an All/Favorites filter, 44px rows with a labelled star,
+  and an inspector with copyable native and route IDs, capabilities and every
+  provider option.
+- **Developer**: the permission model (discover, select, grant, run), SDK quick
+  starts in TypeScript, Rust and Python with install commands, a protocol
+  reference, every route on this machine with its supported capabilities,
+  sign-in state and a copyable route ID, recent turns from the runtime's cost
+  evidence (tokens, cost, basis), apps with access, runtime facts and guides.
+- **Apps & grants**: apps connected right now with their scopes, app-scoped
+  revocation with an explicit confirmation, and how an app gets access (grants
+  file, `Broker::authorize`, `grants.request`). This window does not approve
+  requests; approval belongs to the host or the broker owner.
+- **Sessions**: sessions this window started, with status, usage and cancel.
+  Sessions opened elsewhere are described as not visible here.
+- **Playground**: one explicit, read-only turn through `sessions.create` →
+  `turns.start` → events, streamed into the window. Paid and unknown-billing
+  routes require the per-run consent switch.
+- **Diagnostics**: health in plain language, issues with evidence and numbered
+  remediation, diagnostic lines, and the redacted report (copy to clipboard or
+  save to a file).
+- **Settings**: appearance, data source (runtime, endpoint, credential *kind*,
+  never the token; state folder), refresh cadence, layout, local model prices
+  (advanced, last) and about.
+- **Mini view**: `Ctrl+Shift+M` shows up to four allowance windows over any page.
+- **Command palette**: `Ctrl/⌘ K` for pages and models; `Ctrl/⌘ R` refreshes;
+  `Ctrl/⌘ T` switches theme; `Ctrl/⌘ B` toggles the sidebar; `Esc` closes
+  overlays.
+
+**States.** Pages that need a snapshot show a loading state until the first
+one arrives and an offline state (with the error and a Retry button) if none
+can be read. If the runtime stops answering after a good read, the last
+snapshot stays on screen under a "Stale: showing the last snapshot, read N ago"
+banner, the header says "Last read N", and the status bar says the runtime is
+not answering. Empty states say what was looked for and what to do next.
+
+**Keyboard and accessibility.** Tab and Shift+Tab move through every control in
+reading order (title bar, sidebar, header, page); Enter or Space activates.
+Keyboard focus draws a 2px amber ring (`focus_visible`, so pointer clicks do
+not show it). Sidebar items, tabs, rows, copy buttons and icon-only buttons
+carry accessibility roles and labels; icon-only buttons also have tooltips.
+Text and meter colours meet WCAG AA in both themes; `cargo test` checks the
+contrast pairs (`theme::tests::theme_pairs_meet_wcag`).
+
+Shared layout and components (spacing, type and radius scales, panels, state
+blocks, banners, tabs, selectable rows, tables, meters, chips, copyable values,
+icon buttons, code samples, the focus ring) live in `src/ds.rs`; `src/ui.rs`
+keeps only small primitives and formatters. The design audit, decisions and
+screenshots are in
+[`docs/design/desktop-audit.md`](../../docs/design/desktop-audit.md). On
+Windows, `scripts/capture_desktop_example.ps1` refreshes every page in both
+themes, the mini view, the example states and other window sizes.
 
 Preferences (theme, page, refresh cadence, favorites) and the bounded usage
-history live in `~/.local/state/originlm/desktop/`. History is collected
-only from observations the broker actually reports and is capped and pruned; it
-never fabricates earlier points.
+history live in the platform state directory under `desktop/`. History is
+collected only from observations the broker actually reports and is capped and
+pruned; it never fabricates earlier points.
 
 ## Design
 
 Graphite surfaces, warm off-white text and a restrained amber accent, with a
-matching paper-light theme; one type scale, tabular figures, a consistent 2/4/8
-spacing rhythm and Lucide icons from the component library. Charts are GPUI
-Kit's native plots, with hover values, readable units, and a table alternative
-for the usage series.
+paper-light theme. Type scale: 11px captions, 12px secondary text, 13px body,
+15px titles, 22px page headings; nothing smaller. 4px spacing scale, 4px control
+and 6px panel radii, hairline borders. The UI face is the bundled Red Hat
+Display; the mono face is the first installed of Cascadia Mono or Consolas
+(Windows), SF Mono or Menlo (macOS), JetBrains Mono, DejaVu Sans Mono or Adwaita
+Mono (Linux), falling back to the platform `monospace`. Charts are GPUI Kit's
+native plots with a table alternative.
 
 ## Known limits
 
-- Verified interactively on Linux/X11 (Xvfb, software rendering) and launched on
-  GNOME Wayland. Windows and macOS were not built or run here.
+- Verified interactively on Windows 11 (example mode, every page in both themes
+  at 1000×660, 1440×920 and 2560×1440, plus live mode against this machine's
+  runtime) and earlier on Linux/X11 (Xvfb) and GNOME Wayland. macOS has not been
+  run.
 - The Playground is deliberately read-only. Paid and unknown-billing routes stay
   off until the user turns on the per-run consent switch, and the private runtime
   grants execution only in its dedicated playground workspace. Provider-native
@@ -109,9 +161,9 @@ for the usage series.
   apps page says so rather than guessing.
 - Admin credentials cannot reveal account identity in alpha.18; the app shows
   "identity hidden" instead of implying it can see it.
-- Usage charts plot the share of each window **used**, not remaining
-  percentage, and replace a flat line with the current figure when nothing
-  changed in the range. Opening the app makes one bounded metadata probe per
+- Usage charts plot the share of each window **left**, matching the meters,
+  and replace a flat line with the current figure when nothing changed in the
+  range. Opening the app makes one bounded metadata probe per
   authenticated connection whose allowance is missing or stale, so usage
   returns after a broker restart without polling.
 - Cursor is probed through the installed `cursor-agent` CLI: signed-in state,
@@ -127,10 +179,11 @@ for the usage series.
   installed client's transport and are offered in the Playground when the
   runtime grants execution. OpenCode 2 sessions are text-only and do not
   support native resumption.
-- Detail rails (Providers, Models) keep a fixed comfortable width; only the
-  sidebar is drag-resizable today. Model lists are search-filtered and capped,
-  not virtualized.
+- Inspectors (Accounts, Models) keep a fixed width and stack under the list
+  below about 1000px of content width; only the sidebar is drag-resizable. Model
+  lists are search-filtered and capped at 300 rows, not virtualized.
 - The command palette does not yet move its selection with arrow keys; Enter
   activates the best match. Menus/dialogs are inline rather than modal.
-- Custom rows and navigation are pointer-accessible GPUI elements; they do not
-  yet carry full accessibility roles, and there is no tray integration.
+- Accessibility roles and labels are set through GPUI's AccessKit integration;
+  screen-reader output (Narrator, VoiceOver, Orca) has not been verified. There
+  is no tray integration.

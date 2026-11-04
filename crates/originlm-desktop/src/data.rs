@@ -258,13 +258,13 @@ pub fn series_points(history: &[Sample], pool: &str, window: &str, since: i64) -
     matching
         .into_iter()
         .filter_map(|sample| {
-            let remaining = sample.remaining?;
-            let used = (1.0 - remaining).clamp(0.0, 1.0) * 100.0;
+            // Percent left, the same measure the meters show everywhere else.
+            let left = sample.remaining?.clamp(0.0, 1.0) * 100.0;
             Some(ChartPoint {
                 label: chrono::DateTime::from_timestamp(sample.t, 0)
                     .map(|stamp| stamp.format(format).to_string())
                     .unwrap_or_else(|| "—".into()),
-                value: (used * 10.0).round() / 10.0,
+                value: (left * 10.0).round() / 10.0,
             })
         })
         .collect()
@@ -291,6 +291,9 @@ pub fn capability_label(id: &str) -> &'static str {
         "input.audio" => "audio",
         "output.reasoning" => "reasoning",
         "context.long" => "long context",
+        "input.text" => "text input",
+        "tools" | "tools.call" => "tools",
+        "structured.output" => "structured output",
         _ => "",
     }
 }

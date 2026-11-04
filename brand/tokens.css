@@ -15,9 +15,9 @@
   --originlm-dark-danger: #e0776b;
   --originlm-light-border: #e5dfd4;
   --originlm-light-muted: #6b635c;
-  --originlm-light-success: #557a62;
-  --originlm-light-warning: #9a6b14;
-  --originlm-light-danger: #b4544a;
+  --originlm-light-success: #4c6f58;
+  --originlm-light-warning: #876012;
+  --originlm-light-danger: #a64b42;
   --originlm-scene-bronze: #c98a3c;
   --originlm-scene-sage: #a9b29f;
   --originlm-scene-terracotta: #c97e5a;
@@ -30,4 +30,5 @@
   --originlm-scene-raised: #1b1e24;
   --originlm-dark-input: #807975;
   --originlm-light-input: #6b635c;
+  --originlm-light-amber-text: #8f5d00;
 }

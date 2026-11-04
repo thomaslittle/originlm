@@ -18,14 +18,35 @@ pub fn install(cx: &mut App, dark: bool) {
     apply(cx, dark);
 }
 
+/// First installed monospace family. The brand font is bundled; mono is not,
+/// so pick one each platform ships rather than a name that falls back silently.
+fn mono_family(cx: &App) -> String {
+    const CANDIDATES: [&str; 7] = [
+        "Cascadia Mono",
+        "Consolas",
+        "SF Mono",
+        "Menlo",
+        "JetBrains Mono",
+        "DejaVu Sans Mono",
+        "Adwaita Mono",
+    ];
+    let installed = cx.text_system().all_font_names();
+    CANDIDATES
+        .iter()
+        .find(|name| installed.iter().any(|font| font == *name))
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| "monospace".into())
+}
+
 pub fn apply(cx: &mut App, dark: bool) {
+    let mono = mono_family(cx);
     Theme::update(cx, |theme| {
         theme.font_family = brand::FONT.into();
-        theme.mono_font_family = "Adwaita Mono".into();
+        theme.mono_font_family = mono.into();
         theme.font_size = px(14.);
-        theme.mono_font_size = px(12.5);
-        theme.radius = px(7.);
-        theme.radius_lg = px(12.);
+        theme.mono_font_size = px(12.);
+        theme.radius = px(4.);
+        theme.radius_lg = px(6.);
         theme.shadow = dark;
 
         let c = &mut theme.colors;
@@ -75,7 +96,7 @@ pub fn apply(cx: &mut App, dark: bool) {
             c.table_foot_foreground = rgb(0x9C978E).into();
             c.table_row_border = rgb(0x1E2126).into();
             c.selection = rgb(0x3C4756).into();
-            c.ring = rgb(0xB47400).into();
+            c.ring = rgb(brand::AMBER).into();
             c.title_bar = rgb(brand::GRAPHITE).into();
             c.status_bar = rgb(brand::GRAPHITE).into();
             c.sidebar = rgb(brand::GRAPHITE).into();
@@ -117,7 +138,8 @@ pub fn apply(cx: &mut App, dark: bool) {
             c.muted_foreground = rgb(brand::LIGHT_MUTED).into();
             c.accent = rgb(0xF0E9DC).into();
             c.accent_foreground = rgb(brand::GRAPHITE).into();
-            c.primary = rgb(0xB47400).into();
+            // Amber dark enough for text and the selection edge on paper (5.3:1).
+            c.primary = rgb(brand::LIGHT_AMBER_TEXT).into();
             c.primary_foreground = rgb(0xFFF9EF).into();
             c.primary_hover = rgb(0xC98A12).into();
             c.primary_active = rgb(0x9C6400).into();
@@ -154,7 +176,7 @@ pub fn apply(cx: &mut App, dark: bool) {
             c.table_foot_foreground = rgb(brand::LIGHT_MUTED).into();
             c.table_row_border = rgb(0xEFE9DE).into();
             c.selection = rgb(0xF0E2C4).into();
-            c.ring = rgb(0xB47400).into();
+            c.ring = rgb(brand::LIGHT_AMBER_TEXT).into();
             c.title_bar = rgb(0xF3F0E9).into();
             c.status_bar = rgb(0xF3F0E9).into();
             c.sidebar = rgb(0xF3F0E9).into();
@@ -162,11 +184,11 @@ pub fn apply(cx: &mut App, dark: bool) {
             c.sidebar_accent = rgb(0xE7DFD2).into();
             c.sidebar_accent_foreground = rgb(brand::GRAPHITE).into();
             c.sidebar_border = rgb(brand::LIGHT_BORDER).into();
-            c.sidebar_primary = rgb(0xB47400).into();
+            c.sidebar_primary = rgb(brand::LIGHT_AMBER_TEXT).into();
             c.sidebar_primary_foreground = rgb(0xFFF9EF).into();
             c.caret = rgb(0xB47400).into();
             c.drop_target = rgb(0xB47400).into();
-            c.chart_1 = rgb(0xC98A12).into();
+            c.chart_1 = rgb(0xB47400).into();
             c.chart_2 = rgb(brand::LIGHT_SUCCESS).into();
             c.chart_3 = rgb(0x4A6B8A).into();
             c.chart_4 = rgb(0xA5644F).into();
@@ -190,4 +212,80 @@ pub fn apply(cx: &mut App, dark: bool) {
             c.button_danger_active = rgb(0x9C463D).into();
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::brand_tokens as brand;
+
+    fn luminance(color: u32) -> f64 {
+        let channel = |shift: u32| {
+            let c = f64::from((color >> shift) & 0xff) / 255.0;
+            if c <= 0.03928 {
+                c / 12.92
+            } else {
+                ((c + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
+    }
+
+    fn contrast(a: u32, b: u32) -> f64 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    /// Text pairs the pages use must meet WCAG AA (4.5:1); the focus ring and
+    /// meter fills must meet the 3:1 non-text minimum.
+    #[test]
+    fn theme_pairs_meet_wcag() {
+        const WHITE: u32 = 0xffffff;
+        let text = [
+            ("dark text on page", brand::PAPER, brand::DARK_BACKGROUND),
+            ("dark muted on panel", brand::DARK_MUTED, brand::DARK_CARD),
+            (
+                "dark muted on raised",
+                brand::DARK_MUTED,
+                brand::DARK_RAISED,
+            ),
+            ("dark amber on panel", brand::AMBER, brand::DARK_CARD),
+            (
+                "dark success on panel",
+                brand::DARK_SUCCESS,
+                brand::DARK_CARD,
+            ),
+            (
+                "dark warning on panel",
+                brand::DARK_WARNING,
+                brand::DARK_CARD,
+            ),
+            ("dark danger on panel", brand::DARK_DANGER, brand::DARK_CARD),
+            ("light text on paper", brand::GRAPHITE, brand::PAPER),
+            ("light muted on paper", brand::LIGHT_MUTED, brand::PAPER),
+            ("light muted on panel", brand::LIGHT_MUTED, WHITE),
+            (
+                "light amber text on paper",
+                brand::LIGHT_AMBER_TEXT,
+                brand::PAPER,
+            ),
+            ("light success on panel", brand::LIGHT_SUCCESS, WHITE),
+            ("light warning on panel", brand::LIGHT_WARNING, WHITE),
+            ("light danger on panel", brand::LIGHT_DANGER, WHITE),
+            ("primary button", brand::GRAPHITE, brand::AMBER),
+        ];
+        for (name, fg, bg) in text {
+            let ratio = contrast(fg, bg);
+            assert!(ratio >= 4.5, "{name}: {ratio:.2} < 4.5");
+        }
+        let non_text = [
+            ("dark focus ring", brand::AMBER, brand::DARK_BACKGROUND),
+            ("light focus ring", brand::LIGHT_AMBER_TEXT, brand::PAPER),
+            // Meter fill against the empty-cell track (graphite at 8% on white).
+            ("light meter fill", 0xB47400, 0xececec),
+        ];
+        for (name, fg, bg) in non_text {
+            let ratio = contrast(fg, bg);
+            assert!(ratio >= 3.0, "{name}: {ratio:.2} < 3.0");
+        }
+    }
 }

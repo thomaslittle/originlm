@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check } from "../components/Icon";
 import { OP_LABELS, PROVIDERS, type ProviderEntry, type ProviderOps } from "../data/providers";
+import { Title } from "../components/Title";
 
 const FILTERS = [
   { id: "all", label: "All providers" },
@@ -45,12 +46,14 @@ function ProviderRow({ provider }: { provider: ProviderEntry }) {
   return (
     <tr>
       <th scope="row">
-        <span className="provider-name">{provider.name}</span>
-        <span className="provider-kind">{provider.kind}</span>
-        <details>
-          <summary>Evidence and limits</summary>
-          <p>{provider.note}</p>
-        </details>
+        <div className="cell">
+          <span className="provider-name">{provider.name}</span>
+          <span className="provider-kind">{provider.kind}</span>
+          <details>
+            <summary>Limits</summary>
+            <p>{provider.note}</p>
+          </details>
+        </div>
       </th>
       {OP_LABELS.map((operation) => (
         <td key={operation.key} title={`${operation.label}: ${STATE_LABEL[provider.ops[operation.key]]}`}>
@@ -72,12 +75,12 @@ export function Providers() {
     <section className="section providers" id="providers" aria-labelledby="providers-title">
       <div className="container">
         <div className="head-split">
-          <h2 id="providers-title">The AI already on the machine, with the truth about what each one exposes.</h2>
+          <Title id="providers-title" text="What each client exposes, per operation." />
           <p className="lead">
-            Eighteen documented integrations. “Supported” does not mean every operation works everywhere:
-            plan data can be missing, a client can refuse text-only sessions, and an offline local
-            runtime is still detected. We show the gaps instead of filling them in.
+            Support is claimed per axis, not per brand. Plan data can be missing, a client can refuse
+            text-only sessions, and fixture-tested is not live-qualified. The gaps are part of the table.
           </p>
+          <p className="matrix-date">Condensed from <a href="https://github.com/thomaslittle/originlm/blob/main/docs/adapters/SUPPORT-MATRIX.md">SUPPORT-MATRIX.md</a>, last changed 2026-11-02. Version pins are in <a href="https://github.com/thomaslittle/originlm/blob/main/docs/adapters/VERSIONING.md">VERSIONING.md</a>.</p>
         </div>
 
         <div className="provider-toolbar">
@@ -120,11 +123,9 @@ export function Providers() {
           <span><span aria-hidden="true"><OpMark state="none" /></span> not supported or not reported</span>
         </div>
 
-        <p className="fine-print">
-          Condensed from the{" "}
-          <a href="https://github.com/thomaslittle/originlm/blob/main/docs/adapters/SUPPORT-MATRIX.md">provider support matrix</a>.
-          Evidence and verification follow each field; unknown is never rendered as zero, and passive
-          detection is not execution.
+        <p className="fine">
+          Open “Limits” on a row for the conditions behind each mark. Unknown is never
+          rendered as zero, and passive detection is not execution.
         </p>
       </div>
     </section>

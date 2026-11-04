@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { CodeBlock } from "../components/CodeBlock";
 import { ArrowUpRight } from "../components/Icon";
 import { INTEGRATIONS } from "../data/integrations";
+import { Title } from "../components/Title";
 
 export function Integrations() {
   const [active, setActive] = useState(INTEGRATIONS[0].id);
@@ -24,10 +25,12 @@ export function Integrations() {
     <section className="section integrations-section" id="integrations" aria-labelledby="integrations-title">
       <div className="container">
         <div className="head-split">
-          <h2 id="integrations-title">One protocol. Imports stay inert.</h2>
+          <Title id="integrations-title" text="Fits the host you already ship." />
           <p className="lead">
-            Every example talks to the same protocol. Pick your host: in-process Rust, a stdio helper,
-            or the browser extension bridge. None of them read credentials on import.
+            Keep permission in the trusted side of your app: the Tauri or GPUI host, Electron’s main
+            process, a Python service, or a registered extension page. Generated references cover the
+            rest: <a href="https://github.com/thomaslittle/originlm/blob/main/protocol/methods.json">methods.json</a> and{" "}
+            <a href="https://github.com/thomaslittle/originlm/blob/main/protocol/openapi.json">OpenAPI</a>.
           </p>
         </div>
 

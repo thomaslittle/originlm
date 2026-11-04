@@ -4,13 +4,14 @@ import { BrandLogo } from "./BrandLogo";
 
 const COLUMNS = [
   {
-    title: "Product",
+    title: "On this page",
     links: [
-      ["See your AI", "#paths-title"],
-      ["Build with it", "#developers"],
-      ["How it works", "#how"],
-      ["Providers", "#providers"],
-      ["Security", "#security"],
+      ["How it fits", "#how"],
+      ["SDK", "#sdk"],
+      ["Grants", "#grants"],
+      ["Sessions", "#sessions"],
+      ["Support matrix", "#providers"],
+      ["Control center", "#usage"],
     ],
   },
   {
@@ -44,11 +45,11 @@ export function Footer({ children }: { children?: ReactNode }) {
           <div className="footer-brand">
             <BrandLogo />
             <p>
-              A local control center for every AI client on your machine, and the one dependency that
-              puts the user’s own AI in your app. Private by design.
+              A local runtime and SDK for building on the AI clients your users already have, and a
+              control center that shows them what is left. MIT-licensed alpha.
             </p>
             <a className="btn btn-ghost" href="https://github.com/thomaslittle/originlm">
-              <Github size={16} /> Star on GitHub
+              <Github size={16} /> Source on GitHub
             </a>
           </div>
 

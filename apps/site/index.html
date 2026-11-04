@@ -3,13 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OriginLM: all your AI in one place, one dependency for every app</title>
+    <title>OriginLM: build on the AI your users already have</title>
     <meta
       name="description"
-      content="OriginLM is a local control center for every AI client, model, account and subscription on your machine, and the one dependency that puts the user's own AI in your app."
+      content="A local runtime and SDK for TypeScript, Rust and Python. Discover the Claude Code, Codex, Cursor, Gemini CLI and Ollama installs on a machine and run turns the user approves, on their own subscriptions. MIT-licensed alpha."
     />
+    <link rel="preload" href="./src/assets/fonts/Fraunces-Display.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="../../brand/fonts/RedHatDisplay-Variable.woff2" as="font" type="font/woff2" crossorigin />
-    <meta name="theme-color" content="#1e1a1b" />
+    <meta name="theme-color" content="#120f0f" />
+    <script>
+      /* Before first paint: .js, and .motion unless reduced motion is asked for or WebGL2 is
+         missing. Without .motion the page uses its static layout and pre-rendered stills. */
+      (function (root) {
+        root.classList.add("js");
+        try {
+          if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "WebGL2RenderingContext" in window) root.classList.add("motion");
+        } catch (error) { /* static layout */ }
+      })(document.documentElement);
+    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="alternate icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
@@ -17,24 +28,39 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="canonical" href="https://originlm.dev/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="OriginLM: one dependency for all your AI" />
+    <meta property="og:site_name" content="OriginLM" />
+    <meta property="og:url" content="https://originlm.dev/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="OriginLM: ship AI features on your users’ own subscriptions" />
     <meta
       property="og:description"
-      content="See and use every AI provider on your machine in one local dashboard. The same runtime is the SDK that puts the user's own AI in your app."
+      content="One typed API over the AI clients already installed on a machine. Scoped, revocable grants. No API keys to ship, no relay. MIT-licensed alpha."
     />
-    <meta property="og:image" content="/og-poster.png" />
+    <meta property="og:image" content="https://originlm.dev/og-poster.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="OriginLM — see and use all your AI, one dependency for every app." />
+    <meta property="og:image:alt" content="OriginLM: a local runtime and SDK for the AI your users already have." />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OriginLM: ship AI features on your users’ own subscriptions" />
+    <meta name="twitter:description" content="One typed API over the AI clients already installed on a machine. Scoped, revocable grants. No API keys to ship, no relay. MIT-licensed alpha." />
+    <meta name="twitter:image" content="https://originlm.dev/og-poster.png" />
+    <meta name="twitter:image:alt" content="OriginLM: a local runtime and SDK for the AI your users already have." />
+    <meta name="color-scheme" content="dark" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "OriginLM",
+        "url": "https://originlm.dev/",
         "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "macOS, Windows, Linux",
-        "description": "A local control center for AI usage, quotas, models and routes, and a dependency that puts the user's own AI in applications.",
+        "applicationSubCategory": "Software development kit",
+        "operatingSystem": "macOS, Windows, Linux (alpha; support varies by platform and client)",
+        "softwareVersion": "0.1.0-alpha.25",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "sameAs": ["https://github.com/thomaslittle/originlm"],
+        "description": "A local runtime and SDK for building on the AI clients a user already has, with scoped, revocable grants, and a desktop control center for usage and quotas.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
     </script>

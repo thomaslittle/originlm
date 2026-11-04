@@ -1,7 +1,7 @@
 pub mod apps;
 pub mod costs;
+pub mod developer;
 pub mod diagnostics;
-pub mod guide;
 pub mod models;
 pub mod overview;
 pub mod playground;

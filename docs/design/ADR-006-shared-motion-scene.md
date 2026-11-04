@@ -3,6 +3,8 @@
 Accepted 2026-10-28, following Thomas's revised motion direction.
 
 > **Update 2026-10-30:** the `media/video` film source was removed from the repository. The film is no longer part of this checkout; the product tour remains in `apps/site`.
+>
+> **Superseded 2026-11-04:** the landing page no longer uses the scene. The hero is an interactive request trace and the system is an HTML/CSS diagram (see [landing-audit.md](landing-audit.md)). The unused renderer (`apps/site/src/scene/`), `scene-render.html`, `public/scene/` textures and posters, `scripts/capture_example_ui.mjs` and the `three` dependency were deleted; they remain in git history. The rest of this record is kept as history.
 
 The v1 branch owns `apps/site` and `media/video`; no further landing-site branch merges are permitted. The scene has five opaque layers: app, SDK, transport, runtime and providers. Real example-mode app captures supply textures. There are no account captures, translucent placeholder panels, or particle packets.
 

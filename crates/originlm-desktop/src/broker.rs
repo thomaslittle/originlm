@@ -65,6 +65,75 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                     serde_json::from_str(include_str!("../assets/example-costs.json"))
                         .expect("bundled example costs");
                 // Example mode never connects, probes, loads history or executes.
+                // LAI_DESKTOP_EXAMPLE_STATE previews the shell's other states
+                // with the same synthetic data, so they can be reviewed and
+                // captured without a broker.
+                match std::env::var("LAI_DESKTOP_EXAMPLE_STATE").ok().as_deref() {
+                    Some("loading") => {
+                        // Never answer: the window stays in its loading state.
+                        let _ = command_rx.recv();
+                        return;
+                    }
+                    Some("offline") => {
+                        let _ = update_tx.send(offline_bundle(
+                            "Example: the runtime did not answer on its local address.",
+                        ));
+                        let _ = command_rx.recv();
+                        return;
+                    }
+                    Some("empty") => {
+                        let _ = update_tx.send(Bundle {
+                            snapshot: Snapshot::empty(originlm_contracts::DataMode::Synthetic),
+                            runtime: json!({"mode":"synthetic"}),
+                            apps: Vec::new(),
+                            apps_error: None,
+                            adapters: Vec::new(),
+                            history: Vec::new(),
+                            costs: None,
+                            cost_error: None,
+                            fetched_at: chrono::Utc::now().timestamp(),
+                            error: None,
+                        });
+                        let _ = command_rx.recv();
+                        return;
+                    }
+                    Some("stale") => {
+                        let mut first = true;
+                        loop {
+                            let bundle = if first {
+                                Bundle {
+                                    snapshot: snapshot.clone(),
+                                    runtime: json!({"mode":"synthetic"}),
+                                    apps: Vec::new(),
+                                    apps_error: Some(
+                                        "Example mode has no connected applications.".into(),
+                                    ),
+                                    adapters: Vec::new(),
+                                    history: Vec::new(),
+                                    costs: Some(costs.clone()),
+                                    cost_error: None,
+                                    // Pretend the last good read was 7 minutes ago.
+                                    fetched_at: chrono::Utc::now().timestamp() - 420,
+                                    error: None,
+                                }
+                            } else {
+                                offline_bundle(
+                                    "Example: the runtime stopped answering after the last read.",
+                                )
+                            };
+                            first = false;
+                            if update_tx.send(bundle).is_err() {
+                                return;
+                            }
+                            if let Err(std::sync::mpsc::RecvTimeoutError::Disconnected) =
+                                command_rx.recv_timeout(Duration::from_secs(2))
+                            {
+                                return;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
                 loop {
                     if update_tx
                         .send(Bundle {
@@ -122,6 +191,22 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
     BrokerHandle {
         commands: command_tx,
         updates: update_rx,
+    }
+}
+
+/// The bundle the worker sends when the runtime cannot be read.
+fn offline_bundle(error: &str) -> Bundle {
+    Bundle {
+        snapshot: Snapshot::empty(originlm_contracts::DataMode::Live),
+        runtime: Value::Null,
+        apps: Vec::new(),
+        apps_error: Some("Broker became unavailable; reconnecting.".into()),
+        adapters: Vec::new(),
+        costs: None,
+        cost_error: Some("Runtime is offline".into()),
+        history: Vec::new(),
+        fetched_at: chrono::Utc::now().timestamp(),
+        error: Some(error.to_string()),
     }
 }
 

@@ -1,11 +1,11 @@
 # SDK and framework quickstarts
 
-The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run:
+All three registries carry `0.1.0-alpha.25` (checked 2026-11-04): npm under the `alpha` dist-tag (npm's `latest` tag still points at `0.1.0-alpha.20`, so install with `@alpha` or an exact version), the 14 Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a25` on PyPI:
 
 ```sh
-npm install originlm
-pip install originlm==0.1.0a21
-cargo add originlm@=0.1.0-alpha.22
+npm install originlm@alpha
+pip install originlm==0.1.0a25
+cargo add originlm@=0.1.0-alpha.25
 ```
 
 The local-artifact flow below remains for source development and offline
@@ -78,13 +78,13 @@ iteration, `LAI_HELPER_PATH` can point at an absolute executable instead.
 Install from the registry:
 
 ```sh
-python -m pip install originlm==0.1.0a21
+python -m pip install originlm==0.1.0a25
 ```
 
 For offline or source development, install the matching wheel by its actual path:
 
 ```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a21-py3-none-PLATFORM.whl
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a25-py3-none-PLATFORM.whl
 python hello.py
 ```
 
@@ -105,7 +105,7 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm@=0.1.0-alpha.22
+cargo add originlm@=0.1.0-alpha.25
 cargo run
 ```
 

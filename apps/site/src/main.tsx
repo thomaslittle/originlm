@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
-import "./styles/site.css";
+import "./styles/page.css";
 import App from "./App";
 
 document.documentElement.classList.add("js");

@@ -1,6 +1,7 @@
 use crate::bootstrap::Credential;
 use crate::broker::{self, BrokerHandle, Bundle, ExecEvent, ExecHandle, ModelChoice};
 use crate::consent::PaidConsent;
+use crate::ds::{self, Focusable as _};
 use crate::history::Sample;
 use crate::theme;
 use crate::ui::{self, Tone};
@@ -29,68 +30,107 @@ actions!(
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Page {
     Overview,
+    Usage,
     Providers,
     Models,
-    Usage,
+    Developer,
     Apps,
     Sessions,
     Playground,
-    Guide,
     Diagnostics,
     Settings,
 }
 
+/// Sidebar groups, in order. Usage first for people who opened the app to
+/// check what is left; Build is the developer surface.
+pub const NAV_GROUPS: [(&str, &[Page]); 4] = [
+    ("Usage", &[Page::Overview, Page::Usage]),
+    ("Inventory", &[Page::Providers, Page::Models]),
+    (
+        "Build",
+        &[
+            Page::Developer,
+            Page::Apps,
+            Page::Sessions,
+            Page::Playground,
+        ],
+    ),
+    ("System", &[Page::Diagnostics, Page::Settings]),
+];
+
 impl Page {
     pub const ALL: [Page; 10] = [
         Page::Overview,
+        Page::Usage,
         Page::Providers,
         Page::Models,
-        Page::Usage,
+        Page::Developer,
         Page::Apps,
         Page::Sessions,
         Page::Playground,
-        Page::Guide,
         Page::Diagnostics,
         Page::Settings,
     ];
     pub fn title(self) -> &'static str {
         match self {
             Page::Overview => "Overview",
-            Page::Providers => "Providers & accounts",
+            Page::Usage => "Usage history",
+            Page::Providers => "Accounts",
             Page::Models => "Models",
-            Page::Usage => "Usage",
-            Page::Apps => "Connected apps",
+            Page::Developer => "Developer",
+            Page::Apps => "Apps & grants",
             Page::Sessions => "Sessions",
             Page::Playground => "Playground",
-            Page::Guide => "How to use",
             Page::Diagnostics => "Diagnostics",
             Page::Settings => "Settings",
         }
     }
+    /// Earlier titles, so saved preferences and capture scripts keep working.
+    fn legacy_title(self) -> Option<&'static str> {
+        match self {
+            Page::Usage => Some("Usage"),
+            Page::Providers => Some("Providers & accounts"),
+            Page::Developer => Some("How to use"),
+            Page::Apps => Some("Connected apps"),
+            _ => None,
+        }
+    }
+    pub fn from_name(name: &str) -> Option<Page> {
+        Page::ALL.into_iter().find(|page| {
+            page.title().eq_ignore_ascii_case(name)
+                || page
+                    .legacy_title()
+                    .is_some_and(|legacy| legacy.eq_ignore_ascii_case(name))
+        })
+    }
     pub fn subtitle(self) -> &'static str {
         match self {
-            Page::Overview => "What you can use right now, and what needs attention.",
+            Page::Overview => {
+                "What is left on each account, when it resets, and what needs attention."
+            }
+            Page::Usage => "Allowance readings this app has recorded over time.",
             Page::Providers => "Installations, profiles and the accounts behind them.",
             Page::Models => "Provider-native catalogs, capabilities and options.",
-            Page::Usage => "Allowance used over time, what remains, and when it resets.",
-            Page::Apps => "Applications connected to this broker and their permissions.",
-            Page::Sessions => "Work this broker is managing for this app.",
+            Page::Developer => {
+                "Build on this runtime: transports, routes, SDKs and the grant model."
+            }
+            Page::Apps => "Applications connected to this runtime and what they may do.",
+            Page::Sessions => "Sessions this app started, and their turns.",
             Page::Playground => "One explicit test turn. Nothing runs in the background.",
-            Page::Guide => "Broker API, client setup, and the components this app is built from.",
             Page::Diagnostics => "Plain-language failures, freshness and a redacted export.",
-            Page::Settings => "Appearance, data source and refresh cadence.",
+            Page::Settings => "Appearance, data source, refresh cadence and local prices.",
         }
     }
     pub fn icon(self) -> IconName {
         match self {
             Page::Overview => IconName::LayoutDashboard,
+            Page::Usage => IconName::ChartPie,
             Page::Providers => IconName::Bot,
             Page::Models => IconName::Cpu,
-            Page::Usage => IconName::ChartPie,
-            Page::Apps => IconName::SquareTerminal,
-            Page::Sessions => IconName::Inbox,
+            Page::Developer => IconName::SquareTerminal,
+            Page::Apps => IconName::Inbox,
+            Page::Sessions => IconName::GalleryVerticalEnd,
             Page::Playground => IconName::Play,
-            Page::Guide => IconName::BookOpen,
             Page::Diagnostics => IconName::CircleAlert,
             Page::Settings => IconName::Settings,
         }
@@ -193,6 +233,8 @@ pub struct Desktop {
     pub refresh_seconds: u64,
     pub error: Option<String>,
     pub connected: bool,
+    /// The runtime stopped answering and `bundle` is the last good snapshot.
+    pub stale: bool,
     pub example: bool,
     pub last_event: Instant,
     pub palette_open: bool,
@@ -209,6 +251,8 @@ pub struct Desktop {
     pub range: Range,
     pub usage_table: bool,
     pub favorites: BTreeSet<String>,
+    /// Models page shows favorites only.
+    pub favorites_only: bool,
     pub sessions: Vec<UiSession>,
     pub transcript: Vec<TranscriptLine>,
     pub running: bool,
@@ -220,6 +264,10 @@ pub struct Desktop {
     pub revoke_confirm: Option<String>,
     pub toast: Option<(String, Instant)>,
     pub mini_view: bool,
+    /// Last rendered viewport width, for responsive page layouts.
+    pub viewport_w: f32,
+    /// Selected SDK sample on the Developer page.
+    pub dev_sample: usize,
     pub broker: BrokerHandle,
     pub executor: ExecHandle,
     pub credential: Credential,
@@ -333,18 +381,8 @@ impl Desktop {
             example,
             page: std::env::var("LAI_DESKTOP_PAGE")
                 .ok()
-                .and_then(|name| {
-                    Page::ALL
-                        .into_iter()
-                        .find(|page| page.title().eq_ignore_ascii_case(&name))
-                })
-                .or_else(|| {
-                    prefs.page.as_deref().and_then(|name| {
-                        Page::ALL
-                            .into_iter()
-                            .find(|page| page.title().eq_ignore_ascii_case(name))
-                    })
-                })
+                .and_then(|name| Page::from_name(&name))
+                .or_else(|| prefs.page.as_deref().and_then(Page::from_name))
                 .unwrap_or(Page::Overview),
             brand_marks,
             bundle: None,
@@ -352,6 +390,7 @@ impl Desktop {
             refresh_seconds,
             error: None,
             connected: false,
+            stale: false,
             last_event: Instant::now(),
             palette_open: false,
             palette_input,
@@ -367,6 +406,7 @@ impl Desktop {
             range: Range::Day,
             usage_table: false,
             favorites: prefs.favorites.into_iter().collect(),
+            favorites_only: false,
             sessions: Vec::new(),
             transcript: Vec::new(),
             running: false,
@@ -378,6 +418,8 @@ impl Desktop {
             revoke_confirm: None,
             toast: None,
             mini_view: example && std::env::var_os("LAI_DESKTOP_MINI_VIEW").is_some(),
+            viewport_w: 1440.,
+            dev_sample: 0,
             broker,
             executor,
             credential,
@@ -449,7 +491,19 @@ impl Desktop {
                     }
                     self.connected = bundle.error.is_none();
                     self.error = bundle.error.clone();
-                    self.bundle = Some(bundle);
+                    // A failed read arrives as an empty snapshot. If the last
+                    // good snapshot is still here, keep showing it, marked
+                    // stale with its real age, instead of blanking every page.
+                    let keep_last = bundle.error.is_some()
+                        && self.bundle.as_ref().is_some_and(|last| {
+                            last.error.is_none() && !last.snapshot.connections.is_empty()
+                        });
+                    if keep_last {
+                        self.stale = true;
+                    } else {
+                        self.stale = false;
+                        self.bundle = Some(bundle);
+                    }
                     self.last_event = Instant::now();
                     changed = true;
                 }
@@ -577,6 +631,34 @@ impl Desktop {
         for id in missing {
             let _ = self.broker.commands.send(broker::Command::Probe(id));
         }
+    }
+
+    /// Width available to page content, for responsive page layouts.
+    pub fn content_width(&self) -> f32 {
+        let sidebar = if self.sidebar_collapsed {
+            48.
+        } else {
+            self.sidebar_width
+        };
+        (self.viewport_w - sidebar - ds::GUTTER * 2.).max(0.)
+    }
+
+    /// Ask the runtime to re-read one connection's metadata and usage. Example
+    /// mode reads nothing, and says so instead of pretending.
+    pub fn request_probe(&mut self, connection_id: String, cx: &mut Context<Self>) {
+        if self.example {
+            self.toast("Example mode probes nothing. Run without --example to read this account.");
+        } else if self
+            .broker
+            .commands
+            .send(broker::Command::Probe(connection_id))
+            .is_ok()
+        {
+            self.toast("Metadata refresh requested. The page updates when the runtime answers.");
+        } else {
+            self.toast("The runtime worker is not running; restart the app.");
+        }
+        cx.notify();
     }
 
     pub fn snapshot(&self) -> Option<&originlm_contracts::Snapshot> {
@@ -932,6 +1014,7 @@ impl Render for Desktop {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
         let entity = cx.entity();
+        self.viewport_w = window.viewport_size().width.as_f32();
         if self.initial_focus {
             self.initial_focus = false;
             window.focus(&self.focus, cx);
@@ -949,17 +1032,35 @@ impl Render for Desktop {
             self.toast = None;
         }
 
-        let page_body: AnyElement = match self.page {
-            Page::Overview => self.page_overview(cx),
-            Page::Providers => self.page_providers(cx),
-            Page::Models => self.page_models(cx),
-            Page::Usage => self.page_usage(cx),
-            Page::Apps => self.page_apps(cx),
-            Page::Sessions => self.page_sessions(cx),
-            Page::Playground => self.page_playground(cx),
-            Page::Guide => self.page_guide(cx),
-            Page::Diagnostics => self.page_diagnostics(cx),
-            Page::Settings => self.page_settings(cx),
+        let gated = matches!(
+            self.page,
+            Page::Overview
+                | Page::Usage
+                | Page::Providers
+                | Page::Models
+                | Page::Apps
+                | Page::Diagnostics
+        );
+        let gate = if gated {
+            self.data_gate(&theme, cx)
+        } else {
+            None
+        };
+        let page_body: AnyElement = if let Some(gate) = gate {
+            gate
+        } else {
+            match self.page {
+                Page::Overview => self.page_overview(cx),
+                Page::Providers => self.page_providers(cx),
+                Page::Models => self.page_models(cx),
+                Page::Usage => self.page_usage(cx),
+                Page::Apps => self.page_apps(cx),
+                Page::Sessions => self.page_sessions(cx),
+                Page::Playground => self.page_playground(cx),
+                Page::Developer => self.page_developer(cx),
+                Page::Diagnostics => self.page_diagnostics(cx),
+                Page::Settings => self.page_settings(cx),
+            }
         };
 
         let entity_keys = entity.clone();
@@ -985,10 +1086,19 @@ impl Render for Desktop {
                 let command =
                     event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
                 let key = event.keystroke.key.to_lowercase();
-                if key == "escape" {
+                if key == "tab" && !command {
+                    if event.keystroke.modifiers.shift {
+                        window.focus_prev(cx);
+                    } else {
+                        window.focus_next(cx);
+                    }
+                } else if key == "escape" {
                     entity_keys.update(cx, |this, cx| {
                         if this.palette_open {
                             this.close_palette(cx);
+                        } else if this.mini_view {
+                            this.mini_view = false;
+                            cx.notify();
                         }
                     });
                 } else if command && key == "k" {
@@ -1024,7 +1134,7 @@ impl Render for Desktop {
                     .min_w(px(0.))
                     .h_full()
                     .child(self.header(&theme, entity.clone()))
-                    .children(self.connection_banner(&theme))
+                    .children(self.connection_banner(&theme, entity.clone()))
                     .child(
                         div()
                             .id("page-scroll")
@@ -1128,13 +1238,14 @@ impl Desktop {
                     })
                     .child(
                         div()
-                            .text_size(px(11.5))
-                            .font_weight(FontWeight::MEDIUM)
+                            .text_size(px(crate::ds::ty::SMALL))
                             .text_color(theme.muted_foreground)
-                            .child(self.page.title()),
+                            .child("OriginLM"),
                     )
                     .child(div().flex_1())
-                    .when(!client_decorated, |this| {
+                    // gpui-kit's TitleBar draws caption buttons on Windows and on
+                    // client-decorated Linux. Only add ours where it does not.
+                    .when(cfg!(target_os = "linux") && !client_decorated, |this| {
                         this.child(
                             div()
                                 .h_flex()
@@ -1182,10 +1293,17 @@ impl Desktop {
             .children(Page::ALL.into_iter().map(|page| {
                 let selected = self.page == page;
                 let entity = entity.clone();
+                let tip: SharedString = page.title().into();
                 div()
                     .id(("rail-page", page as usize))
-                    .size(px(34.))
-                    .rounded(px(7.))
+                    .role(gpui::Role::Tab)
+                    .aria_label(page.title())
+                    .tooltip(move |window, cx| {
+                        gpui_kit::component::tooltip::Tooltip::new(tip.clone()).build(window, cx)
+                    })
+                    .size(px(36.))
+                    .rounded(px(ds::radius::CONTROL))
+                    .focus_ring(theme)
                     .h_flex()
                     .items_center()
                     .justify_center()
@@ -1226,21 +1344,22 @@ impl Desktop {
     }
 
     fn sidebar(&self, theme: &Theme, entity: Entity<Self>, collapsed: bool) -> AnyElement {
+        use crate::ds::{sp, ty};
         if collapsed {
             return self.sidebar_rail(theme, entity);
         }
         let nav_group = |label: &'static str, pages: &[Page]| {
             div()
                 .v_flex()
-                .gap(px(1.))
+                .gap(px(2.))
+                .pb(px(sp::MD))
                 .child(
                     div()
-                        .px_3()
-                        .pt_3()
-                        .pb_1()
-                        .text_size(px(10.))
+                        .px(px(sp::LG))
+                        .pb(px(sp::XS))
+                        .text_size(px(ty::CAPTION))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(theme.muted_foreground.opacity(0.8))
+                        .text_color(theme.muted_foreground.opacity(0.85))
                         .child(label),
                 )
                 .children(pages.iter().map(|page| {
@@ -1249,12 +1368,16 @@ impl Desktop {
                     let entity = entity.clone();
                     div()
                         .id(("nav", page as usize))
+                        .role(gpui::Role::Tab)
+                        .aria_label(page.title())
+                        .focus_ring(theme)
                         .h_flex()
-                        .gap_2()
-                        .mx_2()
-                        .px_2()
-                        .py(px(6.))
-                        .rounded(px(7.))
+                        .items_center()
+                        .gap(px(10.))
+                        .mx(px(sp::SM))
+                        .px(px(6.))
+                        .h(px(34.))
+                        .rounded(px(crate::ds::radius::CONTROL))
                         .cursor_pointer()
                         .when(selected, |this| {
                             this.bg(theme.sidebar_accent).text_color(theme.foreground)
@@ -1267,7 +1390,7 @@ impl Desktop {
                         })
                         .child(ui::icon(
                             page.icon(),
-                            14.,
+                            15.,
                             if selected {
                                 theme.primary
                             } else {
@@ -1276,7 +1399,7 @@ impl Desktop {
                         ))
                         .child(
                             div()
-                                .text_size(px(12.5))
+                                .text_size(px(ty::BODY))
                                 .font_weight(if selected {
                                     FontWeight::MEDIUM
                                 } else {
@@ -1284,10 +1407,6 @@ impl Desktop {
                                 })
                                 .child(page.title().to_string()),
                         )
-                        .when(selected, |this| {
-                            this.child(div().flex_1())
-                                .child(div().size(px(5.)).rounded_full().bg(theme.primary))
-                        })
                         .on_click(move |_, window, cx| {
                             entity.update(cx, |this, cx| {
                                 this.set_page(page, cx);
@@ -1298,19 +1417,28 @@ impl Desktop {
                 }))
         };
 
-        let status_tone = if self.example {
-            Tone::Amber
+        let (status_tone, status_text, status_detail) = if self.example {
+            (
+                Tone::Amber,
+                "Example data",
+                "No runtime. Nothing on this machine is read.",
+            )
         } else if self.connected {
-            Tone::Green
+            (
+                Tone::Green,
+                "Runtime connected",
+                if self
+                    .bundle
+                    .as_ref()
+                    .is_some_and(|bundle| bundle.error.is_none() && bundle.apps_error.is_none())
+                {
+                    "Administrator access"
+                } else {
+                    "Scoped credential"
+                },
+            )
         } else {
-            Tone::Red
-        };
-        let status_text = if self.example {
-            "Example data"
-        } else if self.connected {
-            "Broker connected"
-        } else {
-            "Reconnecting"
+            (Tone::Red, "Reconnecting", "The runtime is not answering.")
         };
 
         div()
@@ -1322,171 +1450,155 @@ impl Desktop {
             .border_color(theme.sidebar_border)
             .child(
                 div()
-                    .px(px(16.))
-                    .pt(px(18.))
-                    .pb(px(10.))
-                    .child(self.brand_marks[0].clone()),
+                    .h_flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .px(px(sp::LG))
+                    .pt(px(sp::LG))
+                    .pb(px(sp::XL))
+                    .flex_shrink_0()
+                    .child(self.brand_marks[0].clone())
+                    .child(
+                        div()
+                            .v_flex()
+                            .child(
+                                div()
+                                    .text_size(px(ty::TITLE))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(theme.foreground)
+                                    .child("OriginLM"),
+                            )
+                            .child(crate::ds::caption("Control center, alpha", theme)),
+                    ),
             )
             .child(
+                // Scrolls when the window is short, so the status block below
+                // never overlaps the last items.
                 div()
+                    .id("nav-scroll")
                     .v_flex()
                     .flex_1()
                     .min_h(px(0.))
-                    .child(nav_group(
-                        "Monitor",
-                        &[Page::Overview, Page::Providers, Page::Models, Page::Usage],
-                    ))
-                    .child(nav_group(
-                        "Operate",
-                        &[Page::Apps, Page::Sessions, Page::Playground],
-                    ))
-                    .child(nav_group(
-                        "Support",
-                        &[Page::Guide, Page::Diagnostics, Page::Settings],
-                    )),
+                    .overflow_y_scroll()
+                    .children(
+                        NAV_GROUPS
+                            .iter()
+                            .map(|(label, pages)| nav_group(label, pages)),
+                    ),
             )
             .child(
                 div()
                     .v_flex()
-                    .gap_2()
-                    .p_3()
+                    .flex_shrink_0()
+                    .gap(px(2.))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
                     .border_t_1()
                     .border_color(theme.sidebar_border)
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(ui::dot(status_tone, theme))
-                            .child(
-                                div()
-                                    .text_size(px(11.))
-                                    .text_color(theme.foreground)
-                                    .child(status_text),
-                            ),
-                    )
-                    .child(
-                        div().h_flex().gap(px(6.)).child(
-                            div()
-                                .text_size(px(10.))
-                                .text_color(theme.muted_foreground)
-                                .child(if self.example {
-                                    "No runtime connected"
-                                } else if self.bundle.as_ref().is_some_and(|bundle| {
-                                    bundle.error.is_none() && bundle.apps_error.is_none()
-                                }) {
-                                    "Administrator access confirmed"
-                                } else {
-                                    "Scoped credential"
-                                }),
-                        ),
-                    ),
+                    .child(crate::ds::status(status_text, status_tone, theme))
+                    .child(crate::ds::caption(status_detail, theme).pl(px(13.))),
             )
             .into_any_element()
     }
 
     fn header(&self, theme: &Theme, entity: Entity<Self>) -> AnyElement {
-        let updated = self
+        use crate::ds::{sp, ty};
+        let updated = match &self.bundle {
+            None => "Waiting for data".to_string(),
+            Some(bundle) if bundle.error.is_some() && !self.stale => "Not connected".to_string(),
+            Some(bundle) => {
+                let age = chrono::Utc::now().timestamp() - bundle.fetched_at;
+                format!(
+                    "{} {}",
+                    if self.stale { "Last read" } else { "Updated" },
+                    ui::format_age(age)
+                )
+            }
+        };
+        let synthetic = self
             .bundle
             .as_ref()
-            .map(|b| {
-                let age = chrono::Utc::now().timestamp() - b.fetched_at;
-                ui::format_age(age)
-            })
-            .unwrap_or_else(|| "waiting".into());
+            .is_some_and(|bundle| bundle.snapshot.mode == originlm_contracts::DataMode::Synthetic);
 
         div()
             .h_flex()
-            .px(px(ui::PAGE_PAD))
-            .pt(px(20.))
-            .pb(px(14.))
-            .gap_4()
+            .items_center()
+            .px(px(crate::ds::GUTTER))
+            .pt(px(sp::XL))
+            .pb(px(sp::LG))
+            .gap(px(sp::LG))
             .child(
                 div()
                     .v_flex()
-                    .gap(px(2.))
+                    .gap(px(sp::XS))
                     .flex_1()
+                    .min_w(px(0.))
                     .child(
                         div()
-                            .text_size(px(20.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(self.page.title()),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(11.5))
-                            .text_color(theme.muted_foreground)
+                            .h_flex()
+                            .items_center()
+                            .gap(px(sp::SM))
                             .child(
-                                if self.bundle.as_ref().is_some_and(|bundle| {
-                                    bundle.snapshot.mode == originlm_contracts::DataMode::Synthetic
-                                }) {
-                                    "Example data. No accounts inspected; execution disabled."
-                                } else {
-                                    self.page.subtitle()
-                                },
-                            ),
-                    ),
+                                div()
+                                    .text_size(px(ty::HEADING))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(self.page.title()),
+                            )
+                            .when(synthetic, |this| {
+                                this.child(crate::ds::chip("Example data", Tone::Amber, theme))
+                            }),
+                    )
+                    .child(crate::ds::body(
+                        if synthetic {
+                            "Synthetic records. No accounts inspected; execution disabled."
+                        } else {
+                            self.page.subtitle()
+                        },
+                        theme,
+                    )),
             )
             .child(
                 div()
                     .h_flex()
-                    .gap_2()
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap(px(5.))
-                            .px_2()
-                            .py(px(4.))
-                            .rounded(px(6.))
-                            .border_1()
-                            .border_color(theme.border)
-                            .text_size(px(10.5))
-                            .text_color(theme.muted_foreground)
-                            .child(ui::icon(IconName::RefreshCw, 11., theme.muted_foreground))
-                            .child(updated),
-                    )
+                    .items_center()
+                    .gap(px(sp::SM))
                     .child({
                         let e = entity.clone();
                         Button::new("refresh")
-                            .secondary()
-                            .label("Reload")
+                            .ghost()
+                            .label(updated)
                             .icon(IconName::RefreshCw)
+                            .tooltip("Refresh now (Ctrl+R)")
                             .on_click(move |_, _, cx| {
                                 e.update(cx, |this, cx| this.refresh(cx));
                             })
                     })
                     .child({
                         let e = entity.clone();
-                        Button::new("theme")
-                            .secondary()
-                            .icon(if self.dark {
-                                IconName::Sun
-                            } else {
-                                IconName::Moon
-                            })
-                            .on_click(move |_, _, cx| {
-                                e.update(cx, |this, cx| this.toggle_theme(cx));
-                            })
-                    })
-                    .child({
-                        let e = entity.clone();
                         div()
                             .id("palette-button")
+                            .role(gpui::Role::Button)
+                            .aria_label("Open the command palette")
+                            .focus_ring(theme)
                             .h_flex()
-                            .gap_2()
-                            .px_3()
-                            .py(px(5.))
-                            .rounded(px(7.))
-                            .border_1()
+                            .items_center()
+                            .gap(px(sp::SM))
+                            .h(px(32.))
+                            .pl(px(sp::MD))
+                            .pr(px(6.))
+                            .w(px(240.))
+                            .rounded(px(crate::ds::radius::CONTROL))
                             .border_color(theme.border)
-                            .bg(theme.muted)
+                            .bg(crate::ds::surface(theme, crate::ds::Surface::Panel))
                             .cursor_pointer()
                             .hover(|s| s.bg(theme.secondary_hover))
-                            .child(ui::icon(IconName::Search, 12., theme.muted_foreground))
+                            .child(ui::icon(IconName::Search, 13., theme.muted_foreground))
                             .child(
                                 div()
-                                    .text_size(px(11.5))
+                                    .flex_1()
+                                    .text_size(px(ty::SMALL))
                                     .text_color(theme.muted_foreground)
-                                    .child("Command"),
+                                    .child("Jump to a page or model"),
                             )
                             .child(ui::keycap(command_key(), theme))
                             .on_click(move |_, window, cx| {
@@ -1497,41 +1609,94 @@ impl Desktop {
             .into_any_element()
     }
 
-    fn connection_banner(&self, theme: &Theme) -> Option<AnyElement> {
-        let error = self.error.as_ref()?;
+    fn connection_banner(&self, theme: &Theme, entity: Entity<Self>) -> Option<AnyElement> {
+        // Without a retained snapshot the page itself shows the offline state.
+        if !self.stale {
+            return None;
+        }
+        let error = self.error.clone().unwrap_or_default();
+        let age = self
+            .bundle
+            .as_ref()
+            .map(|bundle| ui::format_age(chrono::Utc::now().timestamp() - bundle.fetched_at))
+            .unwrap_or_else(|| "?".into());
         Some(
             div()
-                .mx(px(ui::PAGE_PAD))
-                .mb(px(12.))
-                .h_flex()
-                .gap_2()
-                .p_3()
-                .rounded(px(9.))
-                .border_1()
-                .border_color(theme.danger.opacity(0.3))
-                .bg(theme.danger.opacity(0.07))
-                .child(ui::icon(IconName::CircleAlert, 13., theme.danger))
+                .px(px(ds::GUTTER))
+                .pb(px(ds::sp::LG))
                 .child(
-                    div()
-                        .v_flex()
-                        .gap(px(1.))
-                        .child(
-                            div()
-                                .text_size(px(11.5))
-                                .text_color(theme.danger)
-                                .child(format!("Broker unavailable: {error}")),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(10.))
-                                .text_color(theme.muted_foreground)
-                                .child(format!(
-                                    "Retrying with {}. {}",
-                                    self.credential.label(),
-                                    self.credential.recovery_hint()
-                                )),
+                    ds::banner(
+                        Tone::Amber,
+                        format!("Stale: showing the last snapshot, read {age} ago"),
+                        Some(
+                            format!(
+                                "The runtime stopped answering ({error}). Nothing below is live. Retrying with {}. {}",
+                                self.credential.label(),
+                                self.credential.recovery_hint()
+                            )
+                            .into(),
                         ),
+                        theme,
+                    )
+                    .child(
+                        Button::new("stale-retry")
+                            .secondary()
+                            .label("Retry now")
+                            .icon(IconName::RefreshCw)
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |this, cx| this.refresh(cx));
+                            }),
+                    ),
                 )
+                .into_any_element(),
+        )
+    }
+
+    /// Loading and offline states for pages that need a snapshot.
+    fn data_gate(&self, theme: &Theme, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let entity = cx.entity();
+        let block = match &self.bundle {
+            None => ds::state(
+                ds::StateKind::Loading,
+                if self.example {
+                    "Loading example data"
+                } else {
+                    "Connecting to the runtime"
+                },
+                if self.example {
+                    "Reading the bundled synthetic snapshot. No accounts on this machine are inspected."
+                } else {
+                    "Looking for this user's shared broker, or starting a private runtime for this window. Pages fill in when the first snapshot arrives; nothing is guessed before then."
+                },
+                theme,
+            ),
+            Some(bundle) if bundle.error.is_some() && !self.stale => ds::state(
+                ds::StateKind::Error,
+                "The runtime is not answering",
+                format!(
+                    "{} No snapshot has been read in this session, so there is nothing to show yet. Tried {}. {}",
+                    bundle.error.clone().unwrap_or_default(),
+                    self.credential.label(),
+                    self.credential.recovery_hint()
+                ),
+                theme,
+            )
+            .child(
+                div().pt(px(ds::sp::SM)).child(
+                    Button::new("gate-retry")
+                        .secondary()
+                        .label("Retry now")
+                        .icon(IconName::RefreshCw)
+                        .on_click(move |_, _, cx| {
+                            entity.update(cx, |this, cx| this.refresh(cx));
+                        }),
+                ),
+            ),
+            _ => return None,
+        };
+        Some(
+            ds::page()
+                .child(ds::panel(theme).child(block))
                 .into_any_element(),
         )
     }
@@ -1561,7 +1726,7 @@ impl Desktop {
             .border_t_1()
             .border_color(theme.border)
             .bg(theme.title_bar)
-            .text_size(px(10.5))
+            .text_size(px(crate::ds::ty::CAPTION))
             .text_color(theme.muted_foreground)
             .child(
                 div()
@@ -1583,25 +1748,40 @@ impl Desktop {
                     .h_flex()
                     .gap(px(5.))
                     .child(ui::dot(
-                        if self.connected {
+                        if self.example {
+                            Tone::Amber
+                        } else if self.connected {
                             Tone::Green
                         } else {
                             Tone::Red
                         },
                         theme,
                     ))
-                    .child(format!("refreshed {freshness} ago")),
+                    .child(match freshness.as_str() {
+                        _ if self.stale => "stale, runtime not answering".to_string(),
+                        "now" => "refreshed just now".to_string(),
+                        "stale" => "runtime not answering".to_string(),
+                        "offline" => "waiting for the runtime".to_string(),
+                        _ => format!("refreshed {freshness} ago"),
+                    }),
             )
             .child(div().flex_1())
             .child({
                 div()
                     .id("mini-view-toggle")
+                    .role(gpui::Role::Button)
+                    .aria_label("Toggle the mini view (Ctrl+Shift+M)")
+                    .focus_ring(theme)
                     .h_flex()
+                    .items_center()
+                    .h(px(26.))
+                    .px(px(6.))
+                    .rounded(px(ds::radius::CONTROL))
                     .gap_1()
                     .cursor_pointer()
                     .hover(|style| style.text_color(theme.foreground))
                     .child(ui::icon(IconName::ChartPie, 11., theme.muted_foreground))
-                    .child("Today")
+                    .child("Mini view")
                     .on_click(move |_, _, cx| {
                         entity.update(cx, |this, cx| {
                             this.mini_view = !this.mini_view;
@@ -1711,7 +1891,7 @@ impl Desktop {
                 .ml(px(-280.))
                 .w(px(560.))
                 .v_flex()
-                .rounded(px(12.))
+                .rounded(px(ds::radius::PANEL))
                 .border_1()
                 .border_color(theme.border)
                 .bg(theme.popover)
@@ -1734,13 +1914,14 @@ impl Desktop {
                                 .gap_3()
                                 .px_3()
                                 .py_2()
-                                .rounded(px(7.))
+                                .rounded(px(ds::radius::CONTROL))
                                 .cursor_pointer()
+                                .focus_ring(theme)
                                 .hover(|s| s.bg(theme.list_hover))
                                 .child(
                                     div()
-                                        .size(px(22.))
-                                        .rounded(px(6.))
+                                        .size(px(24.))
+                                        .rounded(px(ds::radius::CONTROL))
                                         .bg(theme.muted)
                                         .h_flex()
                                         .items_center()
@@ -1755,10 +1936,10 @@ impl Desktop {
                                     div()
                                         .v_flex()
                                         .gap(px(1.))
-                                        .child(div().text_size(px(12.5)).child(title))
+                                        .child(div().text_size(px(ds::ty::BODY)).child(title))
                                         .child(
                                             div()
-                                                .text_size(px(10.))
+                                                .text_size(px(ds::ty::CAPTION))
                                                 .text_color(theme.muted_foreground)
                                                 .child(detail),
                                         ),
@@ -1831,11 +2012,11 @@ impl Desktop {
                 .absolute()
                 .top(px(52.))
                 .right(px(18.))
-                .w(px(320.))
+                .w(px(340.))
                 .v_flex()
                 .gap_2()
                 .p_3()
-                .rounded(px(12.))
+                .rounded(px(ds::radius::PANEL))
                 .border_1()
                 .border_color(theme.border)
                 .bg(theme.popover)
@@ -1847,29 +2028,23 @@ impl Desktop {
                         .items_center()
                         .child(
                             div()
-                                .text_size(px(12.5))
-                                .font_weight(FontWeight::MEDIUM)
+                                .text_size(px(ds::ty::BODY))
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child("Allowances"),
                         )
-                        .child(
-                            div()
-                                .id("mini-close")
-                                .size(px(32.))
-                                .h_flex()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(6.))
-                                .cursor_pointer()
-                                .text_color(theme.muted_foreground)
-                                .hover(|style| style.bg(theme.secondary_hover))
-                                .child("×")
-                                .on_click(move |_, _, cx| {
-                                    close.update(cx, |this, cx| {
-                                        this.mini_view = false;
-                                        cx.notify();
-                                    });
-                                }),
-                        ),
+                        .child(ds::icon_button(
+                            "mini-close",
+                            IconName::Close,
+                            "Close the mini view (Esc)",
+                            theme.muted_foreground,
+                            theme,
+                            move |_, _, cx| {
+                                close.update(cx, |this, cx| {
+                                    this.mini_view = false;
+                                    cx.notify();
+                                });
+                            },
+                        )),
                 )
                 .children(rows.iter().map(|row| {
                     let remaining = row
@@ -1897,14 +2072,14 @@ impl Desktop {
                                 .min_w(px(0.))
                                 .child(
                                     div()
-                                        .text_size(px(11.5))
+                                        .text_size(px(ds::ty::SMALL))
                                         .font_weight(FontWeight::MEDIUM)
                                         .truncate()
                                         .child(row.pool_label.clone()),
                                 )
                                 .child(
                                     div()
-                                        .text_size(px(9.5))
+                                        .text_size(px(ds::ty::CAPTION))
                                         .text_color(theme.muted_foreground)
                                         .child(format!(
                                             "{}: {reset}{}",
@@ -1916,7 +2091,7 @@ impl Desktop {
                         .child(
                             div()
                                 .font_family(theme.mono_font_family.clone())
-                                .text_size(px(14.))
+                                .text_size(px(ds::ty::BODY))
                                 .child(remaining),
                         )
                         .into_any_element()
@@ -1924,9 +2099,13 @@ impl Desktop {
                 .when(rows.is_empty(), |this| {
                     this.child(
                         div()
-                            .text_size(px(10.5))
+                            .text_size(px(ds::ty::SMALL))
                             .text_color(theme.muted_foreground)
-                            .child("No provider-reported allowance yet."),
+                            .child(if self.bundle.is_none() {
+                                "Waiting for the first snapshot."
+                            } else {
+                                "No client has reported an allowance window yet."
+                            }),
                     )
                 })
                 .child(
@@ -1943,9 +2122,13 @@ impl Desktop {
                 )
                 .child(
                     div()
-                        .text_size(px(9.))
+                        .text_size(px(ds::ty::CAPTION))
                         .text_color(theme.muted_foreground)
-                        .child("Optional mini view (Ctrl+Shift+M)"),
+                        .child(if self.stale {
+                            "Stale: the runtime is not answering. Ctrl+Shift+M or Esc closes."
+                        } else {
+                            "Ctrl+Shift+M or Esc closes this view."
+                        }),
                 )
                 .into_any_element(),
         )
@@ -1960,12 +2143,12 @@ impl Desktop {
             .max_w(px(420.))
             .px_4()
             .py_3()
-            .rounded(px(9.))
+            .rounded(px(ds::radius::PANEL))
             .border_1()
             .border_color(theme.border)
             .bg(theme.popover)
             .shadow_lg()
-            .text_size(px(12.))
+            .text_size(px(ds::ty::SMALL))
             .child(message.clone());
         Some(
             toast

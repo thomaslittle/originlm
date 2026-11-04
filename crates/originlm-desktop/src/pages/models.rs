@@ -1,33 +1,46 @@
+//! Models: the provider-native catalog across every account, with an
+//! inspector for route, billing, capabilities and options.
+
 use crate::app::{Desktop, Page};
 use crate::data;
+use crate::ds::{self, sp, ty};
+use crate::pages::providers::capability_name;
 use crate::ui::{self, Tone};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
-    ActiveTheme, IconName,
+    ActiveTheme, IconName, Theme,
     button::{Button, ButtonVariants},
     input::Input,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use originlm_contracts::{Model, OptionControl, Snapshot, Support};
 
 impl Desktop {
     pub fn page_models(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let Some(snapshot) = self.snapshot().cloned() else {
-            return div()
-                .px(px(ui::PAGE_PAD))
-                .child(ui::empty_state(
-                    IconName::Cpu,
-                    "Waiting for models",
-                    "The broker has not published a catalog yet.",
-                    &theme,
-                ))
-                .into_any_element();
+            return div().into_any_element();
         };
+        let entity = cx.entity();
+
+        if snapshot.models.is_empty() {
+            return ds::page()
+                .child(ds::panel(&theme).child(ds::state(
+                    ds::StateKind::Empty,
+                    "No model catalog reported",
+                    "None of the discovered clients reported a model list. Some clients only expose models after sign-in; check Accounts for sign-in state.",
+                    &theme,
+                ).child(div().pt(px(sp::SM)).child(ds::link("models-accounts", "Open Accounts", &theme, {
+                    let entity = entity.clone();
+                    move |_, _, cx| entity.update(cx, |this, cx| this.set_page(Page::Providers, cx))
+                })))))
+                .into_any_element();
+        }
 
         let query = self.query.to_lowercase();
-        let favorites_only = false;
-        let models: Vec<_> = snapshot
+        let favorites_only = self.favorites_only;
+        let models: Vec<&Model> = snapshot
             .models
             .iter()
             .filter(|model| {
@@ -37,344 +50,445 @@ impl Desktop {
             })
             .filter(|model| !favorites_only || self.favorites.contains(&model.id))
             .collect();
-
         let selected = self
             .selected_model
             .clone()
+            .filter(|id| models.iter().any(|m| &m.id == id))
             .or_else(|| models.first().map(|model| model.id.clone()));
 
-        let list: Vec<AnyElement> = models
-            .iter()
-            .take(200)
-            .map(|model| {
-                let route = data::route_for_model(&snapshot, model);
-                let connection = route.and_then(|r| data::connection_for_route(&snapshot, r));
-                let provider = connection
-                    .map(|c| data::provider_name(&snapshot, &c.provider_id))
-                    .unwrap_or_else(|| "unknown".into());
-                let provider_id = route
-                    .map(|route| route.provider_id.clone())
-                    .unwrap_or_default();
-                let is_selected = selected.as_deref() == Some(model.id.as_str());
-                let favorite = self.favorites.contains(&model.id);
-                let entity = cx.entity();
-                let entity_star = cx.entity();
-                let id = model.id.clone();
-                let star_id = model.id.clone();
+        let filter = ds::tabs(
+            "models-filter",
+            [
+                format!("All {}", snapshot.models.len()),
+                format!("Favorites {}", self.favorites.len()),
+            ],
+            usize::from(favorites_only),
+            &theme,
+            {
+                let entity = entity.clone();
+                move |index, _, cx| {
+                    entity.update(cx, |this, cx| {
+                        this.favorites_only = index == 1;
+                        cx.notify();
+                    })
+                }
+            },
+        );
 
+        let rows: Vec<AnyElement> = models
+            .iter()
+            .take(300)
+            .map(|model| self.model_row(&snapshot, model, selected.as_deref(), &theme, cx))
+            .collect();
+        let list_body: AnyElement = if rows.is_empty() {
+            ds::state(
+                ds::StateKind::Empty,
+                if favorites_only && query.is_empty() {
+                    "No favorites yet".to_string()
+                } else {
+                    format!("No models match \u{201c}{}\u{201d}", self.query)
+                },
+                if favorites_only && query.is_empty() {
+                    "Use the star on any model to keep it here."
+                } else {
+                    "Search matches model names and native IDs. Clear the search or switch to All."
+                },
+                &theme,
+            )
+            .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .py(px(sp::XS))
+                .children(rows)
+                .into_any_element()
+        };
+
+        let list = ds::panel(&theme)
+            .flex_1()
+            .child(
                 div()
-                    .id(SharedString::from(format!("model-{id}")))
                     .h_flex()
-                    .gap_3()
-                    .p_3()
-                    .rounded(px(9.))
-                    .border_1()
-                    .border_color(if is_selected {
-                        theme.border
-                    } else {
-                        gpui::transparent_black()
-                    })
-                    .bg(if is_selected {
-                        theme.list_active
-                    } else {
-                        gpui::transparent_black()
-                    })
-                    .cursor_pointer()
-                    .hover(|style| style.bg(theme.list_hover))
+                    .items_center()
+                    .gap(px(sp::MD))
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .border_b_1()
+                    .border_color(theme.border)
+                    .child(div().flex_1().min_w(px(0.)).child(Input::new(&self.search)))
+                    .child(filter),
+            )
+            .child(
+                ds::table_head(&theme)
+                    .px(px(sp::MD + 2.))
+                    .child(div().w(px(32.)).flex_shrink_0())
+                    .child(ds::th("Model", None, &theme))
+                    .child(ds::th("Billing", Some(130.), &theme))
+                    .child(ds::th("Options", Some(64.), &theme)),
+            )
+            .child(list_body);
+
+        let inspector = selected
+            .as_ref()
+            .and_then(|id| snapshot.models.iter().find(|m| &m.id == id))
+            .map(|model| self.model_inspector(&snapshot, model, &theme, cx))
+            .unwrap_or_else(|| div().into_any_element());
+
+        let wide = self.content_width() >= 1000.;
+        ds::page()
+            .child(if wide {
+                div()
+                    .h_flex()
+                    .items_start()
+                    .gap(px(sp::MD))
+                    .child(list)
                     .child(
                         div()
-                            .id(SharedString::from(format!("star-{star_id}")))
-                            .cursor_pointer()
-                            .text_color(if favorite {
-                                theme.primary
-                            } else {
-                                theme.muted_foreground.opacity(0.6)
-                            })
-                            .child(ui::icon(
-                                if favorite {
-                                    IconName::StarFill
-                                } else {
-                                    IconName::Star
-                                },
-                                12.,
-                                if favorite {
-                                    theme.primary
-                                } else {
-                                    theme.muted_foreground.opacity(0.6)
-                                },
-                            ))
-                            .on_click(move |_, _, cx| {
-                                entity_star.update(cx, |this, cx| {
-                                    if !this.favorites.remove(&star_id) {
-                                        this.favorites.insert(star_id.clone());
-                                    }
-                                    this.save_prefs();
-                                    cx.notify();
-                                });
-                            }),
+                            .w(px(self.models_inspector.clamp(360., 460.)))
+                            .flex_shrink_0()
+                            .child(inspector),
                     )
+                    .into_any_element()
+            } else {
+                div()
+                    .v_flex()
+                    .gap(px(sp::MD))
+                    .child(list)
+                    .child(inspector)
+                    .into_any_element()
+            })
+            .into_any_element()
+    }
+
+    fn model_row(
+        &self,
+        snapshot: &Snapshot,
+        model: &Model,
+        selected: Option<&str>,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let route = data::route_for_model(snapshot, model);
+        let connection = route.and_then(|r| data::connection_for_route(snapshot, r));
+        let provider = connection
+            .map(|c| data::provider_name(snapshot, &c.provider_id))
+            .unwrap_or_else(|| "Unknown provider".into());
+        let account = connection
+            .map(|c| crate::human::without_provider_prefix(&c.display_name, &provider))
+            .unwrap_or_default();
+        let favorite = self.favorites.contains(&model.id);
+        let entity = cx.entity();
+        let star_entity = cx.entity();
+        let id = model.id.clone();
+        let star_id = model.id.clone();
+        ds::select_row(
+            SharedString::from(format!("model-{}", model.id)),
+            selected == Some(model.id.as_str()),
+            theme,
+        )
+        .aria_label(format!("{}, {provider}", model.name))
+        .child(ds::icon_button(
+            SharedString::from(format!("star-{}", model.id)),
+            if favorite {
+                IconName::StarFill
+            } else {
+                IconName::Star
+            },
+            if favorite {
+                format!("Remove {} from favorites", model.name)
+            } else {
+                format!("Add {} to favorites", model.name)
+            },
+            if favorite {
+                theme.primary
+            } else {
+                theme.muted_foreground
+            },
+            theme,
+            move |_, _, cx| {
+                cx.stop_propagation();
+                star_entity.update(cx, |this, cx| {
+                    if !this.favorites.remove(&star_id) {
+                        this.favorites.insert(star_id.clone());
+                    }
+                    this.save_prefs();
+                    cx.notify();
+                });
+            },
+        ))
+        .child(
+            div()
+                .v_flex()
+                .flex_1()
+                .min_w(px(0.))
+                .child(
+                    div()
+                        .h_flex()
+                        .gap(px(sp::SM))
+                        .min_w(px(0.))
+                        .child(
+                            div()
+                                .min_w(px(0.))
+                                .truncate()
+                                .text_size(px(ty::BODY))
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(model.name.clone()),
+                        )
+                        .when(model.is_default, |this| {
+                            this.child(ds::chip("Default", Tone::Neutral, theme))
+                        }),
+                )
+                .child(
+                    div()
+                        .h_flex()
+                        .gap(px(6.))
+                        .min_w(px(0.))
+                        .children(route.and_then(|route| {
+                            crate::icons::provider_mark(
+                                &route.provider_id,
+                                12.,
+                                theme.muted_foreground,
+                            )
+                        }))
+                        .child(
+                            ds::caption(
+                                if account.is_empty() {
+                                    provider.clone()
+                                } else {
+                                    format!("{provider} · {account}")
+                                },
+                                theme,
+                            )
+                            .truncate(),
+                        ),
+                ),
+        )
+        .child(div().h_flex().w(px(130.)).flex_shrink_0().child(ds::chip(
+            route.map(ui::billing_label).unwrap_or("billing unknown"),
+            Tone::Neutral,
+            theme,
+        )))
+        .child(div().w(px(64.)).flex_shrink_0().child(ds::mono(
+            model.options.len().to_string(),
+            ty::SMALL,
+            theme.foreground,
+            theme,
+        )))
+        .on_click(move |_, _, cx| {
+            entity.update(cx, |this, cx| {
+                this.selected_model = Some(id.clone());
+                cx.notify();
+            });
+        })
+        .into_any_element()
+    }
+
+    fn model_inspector(
+        &self,
+        snapshot: &Snapshot,
+        model: &Model,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let route = data::route_for_model(snapshot, model);
+        let connection = route.and_then(|r| data::connection_for_route(snapshot, r));
+        let provider = connection
+            .map(|c| data::provider_name(snapshot, &c.provider_id))
+            .unwrap_or_else(|| "Unknown provider".into());
+        let caps: Vec<_> = model
+            .capabilities
+            .iter()
+            .filter(|cap| matches!(cap.support, Support::Supported))
+            .collect();
+        // Cursor routes are metadata only; every other route has a text driver.
+        let executable = route.is_some_and(|route| route.provider_id.as_str() != "cursor");
+        let entity = cx.entity();
+        let choice_id = model.id.clone();
+
+        ds::panel(theme)
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::MD))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
+                    .border_b_1()
+                    .border_color(theme.border)
+                    .child(crate::icons::provider_tile(
+                        route.map(|r| r.provider_id.as_str()).unwrap_or(""),
+                        &provider,
+                        40.,
+                        theme,
+                    ))
                     .child(
                         div()
                             .v_flex()
-                            .gap(px(2.))
                             .flex_1()
                             .min_w(px(0.))
                             .child(
                                 div()
-                                    .h_flex()
-                                    .gap_2()
-                                    .min_w(px(0.))
-                                    .child(
-                                        div()
-                                            .min_w(px(0.))
-                                            .truncate()
-                                            .text_size(px(12.5))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .child(model.name.clone()),
-                                    )
-                                    .when(model.is_default, |this| {
-                                        this.child(ui::chip("default", Tone::Amber, &theme))
-                                    }),
+                                    .text_size(px(ty::TITLE))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .truncate()
+                                    .child(model.name.clone()),
                             )
                             .child(
-                                div()
-                                    .h_flex()
-                                    .gap_2()
-                                    .children(crate::icons::provider_mark(
-                                        &provider_id,
-                                        14.,
-                                        theme.muted_foreground,
-                                    ))
-                                    .child(
-                                        div()
-                                            .text_size(px(10.5))
-                                            .text_color(theme.muted_foreground)
-                                            .child(provider.clone()),
-                                    )
-                                    .when_some(
-                                        connection.map(|c| {
-                                            crate::human::without_provider_prefix(
-                                                &c.display_name,
-                                                &provider,
-                                            )
-                                        }),
-                                        |this, profile| this.child(ui::mono(profile, &theme)),
-                                    )
-                                    .when_some(
-                                        route
-                                            .map(|r| data::billing(r).0)
-                                            .filter(|billing| !billing.starts_with("unknown")),
-                                        |this, billing| {
-                                            this.child(ui::chip(billing, Tone::Neutral, &theme))
-                                        },
-                                    )
-                                    .child(div().flex_1())
-                                    .child(ui::mono(
-                                        ui::plural(model.options.len(), "option"),
-                                        &theme,
-                                    )),
+                                ds::caption(
+                                    connection
+                                        .map(|c| data::connection_title(snapshot, c))
+                                        .unwrap_or_else(|| format!("{provider}, no connection")),
+                                    theme,
+                                )
+                                .truncate(),
                             ),
-                    )
-                    .on_click(move |_, _, cx| {
-                        entity.update(cx, |this, cx| {
-                            this.selected_model = Some(id.clone());
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element()
-            })
-            .collect();
-
-        let detail: AnyElement = selected
-            .as_ref()
-            .and_then(|id| snapshot.models.iter().find(|m| &m.id == id))
-            .map(|model| {
-                let route = data::route_for_model(&snapshot, model);
-                let connection = route.and_then(|r| data::connection_for_route(&snapshot, r));
-                let provider = connection
-                    .map(|c| data::provider_name(&snapshot, &c.provider_id))
-                    .unwrap_or_else(|| "unknown".into());
-                let (billing, fresh) = route.map(data::billing).unwrap_or(("unknown".into(), false));
-                let caps: Vec<_> = model
-                    .capabilities
-                    .iter()
-                    .filter(|cap| matches!(cap.support, originlm_contracts::Support::Supported))
-                    .collect();
-
-                let entity = cx.entity();
-                let choice_id = model.id.clone();
-                // Cursor remains metadata-only. OpenCode and OpenCode Go have a
-                // text-session transport through the installed client.
-                let executable =
-                    route.is_some_and(|route| route.provider_id.as_str() != "cursor");
-
+                    ),
+            )
+            .child(
+                div()
+                    .h_flex()
+                    .flex_wrap()
+                    .gap(px(sp::XS))
+                    .px(px(sp::LG))
+                    .pt(px(sp::MD))
+                    .child(ds::chip(
+                        route.map(ui::billing_label).unwrap_or("billing unknown"),
+                        Tone::Neutral,
+                        theme,
+                    ))
+                    .when(model.is_default, |this| {
+                        this.child(ds::chip("Provider default", Tone::Neutral, theme))
+                    }),
+            )
+            .child(
                 div()
                     .v_flex()
-                    .gap_3()
-                    .child(
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .child(ds::kv(
+                        "Native ID",
+                        ds::copy_value("model-native", model.native_id.clone(), 30, theme),
+                        theme,
+                    ))
+                    .child(ds::kv(
+                        "Route ID",
+                        ds::copy_value("model-route", model.route_id.clone(), 30, theme),
+                        theme,
+                    ))
+                    .child(ds::kv(
+                        "Capabilities",
                         div()
                             .h_flex()
-                            .items_center()
-                            .gap_3()
-                            .child(crate::icons::provider_tile(
-                                route.map(|r| r.provider_id.as_str()).unwrap_or(""),
-                                &provider,
-                                44.,
-                                &theme,
-                            ))
-                            .child(
-                                div()
-                                    .v_flex()
-                                    .gap_1()
-                                    .min_w(px(0.))
-                                    .child(
-                                        div()
-                                            .text_size(px(17.))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(model.name.clone()),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_size(px(11.))
-                                            .text_color(theme.muted_foreground)
-                                            .child(
-                                                connection
-                                                    .map(|c| data::connection_title(&snapshot, c))
-                                                    .unwrap_or_else(|| {
-                                                        format!("{provider}, no connection")
-                                                    }),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(ui::chip(
-                                if fresh {
-                                    billing.to_string()
-                                } else {
-                                    format!("{billing}, stale")
-                                },
-                                Tone::Neutral,
-                                &theme,
-                            ))
-                            .when(model.is_default, |this| {
-                                this.child(ui::chip("provider default", Tone::Amber, &theme))
+                            .flex_wrap()
+                            .gap(px(sp::XS))
+                            .py(px(sp::XS))
+                            .when(caps.is_empty(), |this| {
+                                this.child(ds::caption("None reported as supported", theme))
                             })
-                            .child(ui::chip(
-                                ui::plural(model.options.len(), "option"),
-                                Tone::Neutral,
-                                &theme,
-                            )),
-                    )
-                    .child(ui::divider(&theme))
-                    .child(copyable("Native ID", "native", &model.native_id, &theme))
-                    .child(copyable("Route", "route", &model.route_id, &theme))
+                            .children(caps.iter().map(|cap| {
+                                ds::chip(capability_name(&cap.id), Tone::Neutral, theme)
+                            })),
+                        theme,
+                    )),
+            )
+            .child(
+                div()
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .border_t_1()
+                    .border_color(theme.border)
+                    .child(
+                        div()
+                            .text_size(px(ty::SMALL))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(format!("Provider options ({})", model.options.len())),
+                    ),
+            )
+            .when(model.options.is_empty(), |this| {
+                this.child(div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::caption(
+                    "This model advertises no adjustable options.",
+                    theme,
+                )))
+            })
+            .children(model.options.iter().enumerate().map(|(index, option)| {
+                let control = match &option.control {
+                    OptionControl::Select { choices, .. } => {
+                        format!("select · {}", ui::plural(choices.len(), "choice"))
+                    }
+                    OptionControl::Boolean => "on / off".into(),
+                    OptionControl::Number { min, max, step } => {
+                        format!("{min} to {max}, step {step}")
+                    }
+                    OptionControl::Text { max_length } => format!("text · {max_length} chars"),
+                    OptionControl::Unknown { native_type } => format!("native {native_type}"),
+                };
+                let detail = match &option.control {
+                    OptionControl::Select { choices, .. } => Some(
+                        choices
+                            .iter()
+                            .take(6)
+                            .map(|choice| choice.label.clone())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    ),
+                    _ => None,
+                };
+                ds::panel_row(index == 0, theme)
+                    .py(px(sp::SM))
+                    .items_start()
                     .child(
                         div()
                             .v_flex()
-                            .gap_1()
-                            .child(ui::eyebrow("Capabilities", &theme))
+                            .flex_1()
+                            .min_w(px(0.))
+                            .gap(px(2.))
                             .child(
                                 div()
                                     .h_flex()
-                                    .gap_1()
-                                    .flex_wrap()
-                                    .when(caps.is_empty(), |this| {
-                                        this.child(
-                                            div()
-                                                .text_size(px(10.5))
-                                                .text_color(theme.muted_foreground)
-                                                .child("No supported capability reported."),
-                                        )
-                                    })
-                                    .children(caps.into_iter().map(|cap| {
-                                        let label = data::capability_label(&cap.id);
-                                        ui::chip(
-                                            if label.is_empty() {
-                                                cap.id.clone()
-                                            } else {
-                                                label.to_string()
-                                            },
-                                            Tone::Blue,
-                                            &theme,
-                                        )
-                                        .into_any_element()
-                                    })),
+                                    .gap(px(sp::SM))
+                                    .child(
+                                        div()
+                                            .text_size(px(ty::SMALL))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .child(option.label.clone()),
+                                    )
+                                    .when(option.billing_sensitive, |this| {
+                                        this.child(ds::chip("Affects billing", Tone::Amber, theme))
+                                    }),
+                            )
+                            .when_some(detail, |this, detail| {
+                                this.child(ds::caption(detail, theme))
+                            })
+                            .child(
+                                ds::mono(
+                                    match option.current_value.as_ref() {
+                                        Some(value) => format!("{} = {value}", option.id),
+                                        None => option.id.clone(),
+                                    },
+                                    ty::CAPTION,
+                                    theme.muted_foreground,
+                                    theme,
+                                )
+                                .truncate(),
                             ),
                     )
-                    .child(ui::section_title("Provider options", &theme))
-                    .when(model.options.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_size(px(10.5))
-                                .text_color(theme.muted_foreground)
-                                .child("This model advertises no adjustable options."),
-                        )
-                    })
-                    .children(model.options.iter().map(|option| {
-                        let control = match &option.control {
-                            originlm_contracts::OptionControl::Select { choices, .. } => {
-                                format!("select, {} choices", choices.len())
-                            }
-                            originlm_contracts::OptionControl::Boolean => "boolean".into(),
-                            originlm_contracts::OptionControl::Number { min, max, step } => {
-                                format!("{min}–{max}, step {step}")
-                            }
-                            originlm_contracts::OptionControl::Text { max_length } => {
-                                format!("{max_length} characters")
-                            }
-                            originlm_contracts::OptionControl::Unknown { native_type } => {
-                                format!("native {native_type}")
-                            }
-                        };
-                        div()
-                            .v_flex()
-                            .gap(px(2.))
-                            .py_1()
-                            .border_b_1()
-                            .border_color(theme.border.opacity(0.5))
-                            .child(
-                                div()
-                                    .h_flex()
-                                    .gap_2()
-                                    .child(div().text_size(px(11.5)).child(option.label.clone()))
-                                    .when(option.billing_sensitive, |this| {
-                                        this.child(ui::chip("billing", Tone::Amber, &theme))
-                                    })
-                                    .child(div().flex_1())
-                                    .child(ui::mono(control, &theme)),
-                            )
-                            .when_some(
-                                match &option.control {
-                                    originlm_contracts::OptionControl::Select { choices, .. } => Some(
-                                        choices
-                                            .iter()
-                                            .take(7)
-                                            .map(|choice| choice.label.clone())
-                                            .collect::<Vec<_>>()
-                                            .join(", "),
-                                    ),
-                                    _ => None,
-                                },
-                                |this, line| this.child(ui::mono(line, &theme)),
-                            )
-                            .when_some(
-                                option.current_value.as_ref().map(|v| v.to_string()),
-                                |this, value| {
-                                    this.child(ui::mono(format!("current {value}"), &theme))
-                                },
-                            )
-                            .child(ui::mono(format!("id {}", option.id), &theme))
-                            .into_any_element()
-                    }))
+                    .child(ds::caption(control, theme))
+            }))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::SM))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
+                    .border_t_1()
+                    .border_color(theme.border)
                     .when(executable, |this| {
                         this.child(
                             Button::new("use-model")
                                 .primary()
-                                .label("Open in Playground")
+                                .label("Try in Playground")
+                                .icon(IconName::Play)
                                 .on_click(move |_, _, cx| {
                                     entity.update(cx, |this, cx| {
                                         this.selected_model = Some(choice_id.clone());
@@ -384,121 +498,12 @@ impl Desktop {
                         )
                     })
                     .when(!executable, |this| {
-                        this.child(
-                            div()
-                                .text_size(px(10.5))
-                                .text_color(theme.muted_foreground)
-                                .child("Metadata is available for this Cursor route; text execution is not wired yet."),
-                        )
-                    })
-                    .into_any_element()
-            })
-            .unwrap_or_else(|| {
-                ui::empty_state(
-                    IconName::Cpu,
-                    "Select a model",
-                    "Choose a model to see its route, billing and provider-native options.",
-                    &theme,
-                )
-                .into_any_element()
-            });
-
-        div()
-            .h_flex()
-            .w_full()
-            .items_start()
-            .gap_4()
-            .px(px(ui::PAGE_PAD))
-            .pb(px(36.))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.))
-                    .v_flex()
-                    .gap_2()
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(div().flex_1().child(Input::new(&self.search)))
-                            .child(
-                                div()
-                                    .h_flex()
-                                    .gap_1()
-                                    .px_2()
-                                    .py(px(5.))
-                                    .rounded(px(6.))
-                                    .border_1()
-                                    .border_color(theme.border)
-                                    .text_size(px(10.5))
-                                    .text_color(theme.muted_foreground)
-                                    .child(ui::icon(IconName::Star, 11., theme.primary))
-                                    .child(format!("{} favorites", self.favorites.len())),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .v_flex()
-                            .p_2()
-                            .rounded(px(ui::CARD_RADIUS))
-                            .border_1()
-                            .border_color(theme.border)
-                            .bg(theme.colors.list)
-                            .when(list.is_empty(), |this| {
-                                this.child(ui::empty_state(
-                                    IconName::Search,
-                                    "No matching models",
-                                    "Try another name, native ID or clear the search.",
-                                    &theme,
-                                ))
-                            })
-                            .children(list),
-                    ),
-            )
-            .child(
-                div()
-                    .w(px(self.models_inspector))
-                    .v_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(detail),
+                        this.child(ds::caption(
+                            "Metadata only: OriginLM has no text driver for Cursor routes yet.",
+                            theme,
+                        ))
+                    }),
             )
             .into_any_element()
     }
-}
-
-fn copyable(
-    prefix: &str,
-    id: &'static str,
-    value: &str,
-    theme: &gpui_kit::component::Theme,
-) -> AnyElement {
-    let copy = value.to_string();
-    div()
-        .v_flex()
-        .gap(px(2.))
-        .child(ui::eyebrow(prefix, theme))
-        .child(
-            div()
-                .h_flex()
-                .gap_2()
-                .child(
-                    div()
-                        .id(SharedString::from(format!("copy-model-{id}")))
-                        .font_family(theme.mono_font_family.clone())
-                        .text_size(px(10.5))
-                        .text_color(theme.foreground)
-                        .cursor_pointer()
-                        .child(ui::short(value, 34))
-                        .on_click(move |_, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(copy.clone()));
-                        }),
-                )
-                .child(ui::icon(IconName::Copy, 10., theme.muted_foreground)),
-        )
-        .into_any_element()
 }
