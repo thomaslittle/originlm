@@ -537,7 +537,15 @@ async fn probe_endpoint(
             .and_then(|value| value["data"]["connections"].as_array())
             .filter(|connections| !connections.is_empty())
         {
-            Some(_) => Observation::unknown("OPENCODE_CREDENTIALS_CONFIGURED_NOT_VERIFIED"),
+            // OpenCode's own integration endpoint lists the saved account.
+            // Console OAuth accounts often expose no workspace limits, but the
+            // native client still reports the connection; treating that as
+            // unconfigured hid a working console login. This is native-reported
+            // authentication, not an independent upstream request.
+            Some(_) => observed(
+                AuthState::Authenticated,
+                service_evidence("OpenCode integration connection list"),
+            ),
             None => Observation::unknown("OPENCODE_NO_CONNECTION"),
         },
     };
@@ -550,6 +558,15 @@ async fn probe_endpoint(
         metadata.quota_pools = quota_windows(connection, route, go_route.as_deref(), limits)?;
     }
     metadata.diagnostics = vec!["OPENCODE_2_METADATA_FROM_LOCAL_SERVICE".into()];
+    if metadata.auth.value() == Some(&AuthState::Authenticated)
+        && limits
+            .as_ref()
+            .is_none_or(|limits| limits["data"]["workspace"]["id"].as_str().is_none())
+    {
+        metadata
+            .diagnostics
+            .push("OPENCODE_2_CONNECTION_REPORTED_NOT_UPSTREAM_VERIFIED".into());
+    }
     Ok(metadata)
 }
 
