@@ -1,5 +1,9 @@
+//! Playground: one explicit test turn, with the route and billing shown
+//! before anything runs.
+
 use crate::app::{Desktop, Page, TranscriptRole};
-use crate::ui::{self, Tone};
+use crate::ds::{self, sp, ty};
+use crate::ui::Tone;
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
     ActiveTheme, IconName,
@@ -13,321 +17,281 @@ use gpui_kit::*;
 impl Desktop {
     pub fn page_playground(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
+        let entity = cx.entity();
         let choices = self.model_choices();
         let selected = self.selected_choice();
-        let transcript = self.transcript.clone();
-        let transcript_empty = transcript.is_empty();
         let running = self.running;
         let paid_consent = self
             .paid_consent
             .is_armed_for(self.selected_model.as_deref());
-        let error = self.playground_error.clone();
-        let usage = self.usage_note.clone();
-        let entity_paid = cx.entity();
 
-        let picker = div()
-            .v_flex()
-            .gap_2()
-            .p_4()
-            .rounded(px(ui::CARD_RADIUS))
-            .border_1()
-            .border_color(theme.border)
-            .bg(theme.colors.list)
+        // Model choice.
+        let picker = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Model",
+                Some(
+                    ds::link("pick-elsewhere", "All models", &theme, {
+                        let entity = entity.clone();
+                        move |_, _, cx| {
+                            entity.update(cx, |this, cx| this.set_page(Page::Models, cx))
+                        }
+                    })
+                    .into_any_element(),
+                ),
+                &theme,
+            ))
+            .when(choices.is_empty(), |this| {
+                this.child(ds::state(
+                    ds::StateKind::Empty,
+                    "No runnable model",
+                    if self.bundle.is_none() {
+                        "Waiting for the first snapshot from the runtime."
+                    } else {
+                        "No signed-in account reports a model with a text driver. Check Accounts."
+                    },
+                    &theme,
+                ))
+            })
             .child(
                 div()
-                    .h_flex()
-                    .justify_between()
-                    .child(ui::section_title("Change model", &theme))
-                    .child(
-                        div()
-                            .id("pick-elsewhere")
-                            .text_size(px(10.5))
-                            .text_color(theme.primary)
-                            .cursor_pointer()
-                            .child("Browse all models")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.set_page(Page::Models, cx);
-                            })),
-                    ),
+                    .v_flex()
+                    .py(px(sp::XS))
+                    .children(choices.iter().take(6).map(|choice| {
+                        let id = choice.model_id.clone();
+                        let is_selected =
+                            self.selected_model.as_deref() == Some(choice.model_id.as_str());
+                        let entity = entity.clone();
+                        ds::select_row(
+                            SharedString::from(format!("choice-{id}")),
+                            is_selected,
+                            &theme,
+                        )
+                        .aria_label(format!("{}, {}", choice.label, choice.connection))
+                        .children(crate::icons::provider_mark(
+                            &choice.provider_id,
+                            14.,
+                            theme.muted_foreground,
+                        ))
+                        .child(
+                            div()
+                                .v_flex()
+                                .flex_1()
+                                .min_w(px(0.))
+                                .child(
+                                    div()
+                                        .text_size(px(ty::SMALL))
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .truncate()
+                                        .child(choice.label.clone()),
+                                )
+                                .child(ds::caption(choice.connection.clone(), &theme).truncate()),
+                        )
+                        .child(ds::chip(choice.billing.clone(), Tone::Neutral, &theme))
+                        .on_click(move |_, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                this.selected_model = Some(id.clone());
+                                cx.notify();
+                            });
+                        })
+                    })),
+            );
+
+        // Prompt and run.
+        let summary = match selected.as_ref() {
+            Some(choice) => div()
+                .v_flex()
+                .child(ds::kv(
+                    "Route",
+                    div()
+                        .text_size(px(ty::SMALL))
+                        .truncate()
+                        .child(format!("{} · {}", choice.provider, choice.connection)),
+                    &theme,
+                ))
+                .child(ds::kv(
+                    "Billing",
+                    ds::chip(choice.billing.clone(), Tone::Neutral, &theme),
+                    &theme,
+                ))
+                .child(ds::kv(
+                    "Permissions",
+                    div()
+                        .text_size(px(ty::SMALL))
+                        .child("Read-only workspace, no retries"),
+                    &theme,
+                ))
+                .into_any_element(),
+            None => ds::caption(
+                "Choose a model so the route and billing are explicit.",
+                &theme,
             )
-            .children(choices.iter().take(4).map(|choice| {
-                let entity = cx.entity();
-                let id = choice.model_id.clone();
-                let is_selected = self
-                    .selected_model
-                    .as_deref()
-                    .is_some_and(|selected| selected == choice.model_id);
+            .into_any_element(),
+        };
+        let prompt = ds::panel(&theme)
+            .child(ds::panel_head("Prompt", None, &theme))
+            .child(
                 div()
-                    .id(SharedString::from(format!("choice-{id}")))
-                    .h_flex()
-                    .gap_2()
-                    .p_2()
-                    .rounded(px(7.))
-                    .border_1()
-                    .border_color(if is_selected {
-                        theme.primary.opacity(0.5)
-                    } else {
-                        theme.border
-                    })
-                    .bg(if is_selected {
-                        theme.primary.opacity(0.08)
-                    } else {
-                        gpui::transparent_black()
-                    })
-                    .cursor_pointer()
-                    .hover(|style| style.bg(theme.list_hover))
-                    .child(ui::icon(
-                        if is_selected {
-                            IconName::CircleCheck
-                        } else {
-                            IconName::Bot
-                        },
-                        12.,
-                        if is_selected {
-                            theme.primary
-                        } else {
-                            theme.muted_foreground
-                        },
-                    ))
+                    .v_flex()
+                    .gap(px(sp::MD))
+                    .p(px(sp::LG))
+                    .child(Textarea::new(&self.prompt).h(px(108.)))
+                    .child(summary)
                     .child(
                         div()
-                            .v_flex()
-                            .gap(px(1.))
-                            .flex_1()
-                            .child(div().text_size(px(11.)).child(choice.label.clone()))
-                            .child(ui::mono(
-                                if choice.billing.starts_with("unknown") {
-                                    choice.connection.clone()
+                            .h_flex()
+                            .items_start()
+                            .gap(px(sp::MD))
+                            .child(
+                                Switch::new("paid-consent")
+                                    .checked(paid_consent)
+                                    .on_change({
+                                        let entity = entity.clone();
+                                        move |checked, _, cx| {
+                                            let checked = *checked;
+                                            entity.update(cx, |this, cx| {
+                                                let model = this.selected_model.clone();
+                                                this.paid_consent.set(model.as_deref(), checked);
+                                                cx.notify();
+                                            });
+                                        }
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .v_flex()
+                                    .gap(px(2.))
+                                    .child(
+                                        div()
+                                            .text_size(px(ty::SMALL))
+                                            .child("Allow paid or unknown-billing routes"),
+                                    )
+                                    .child(ds::caption(
+                                        "For the next run of this model only, then it turns off.",
+                                        &theme,
+                                    )),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .h_flex()
+                            .items_center()
+                            .gap(px(sp::MD))
+                            .child(if running {
+                                let entity = entity.clone();
+                                Button::new("cancel-turn")
+                                    .secondary()
+                                    .label("Cancel")
+                                    .icon(IconName::Square)
+                                    .on_click(move |_, _, cx| {
+                                        entity.update(cx, |this, cx| this.cancel_turn(cx))
+                                    })
+                                    .into_any_element()
+                            } else {
+                                let entity = entity.clone();
+                                Button::new("run-turn")
+                                    .primary()
+                                    .label("Run one turn")
+                                    .icon(IconName::Play)
+                                    .on_click(move |_, _, cx| {
+                                        entity.update(cx, |this, cx| this.run_prompt(cx))
+                                    })
+                                    .into_any_element()
+                            })
+                            .child(ds::caption(
+                                if running {
+                                    "Streaming…"
                                 } else {
-                                    format!("{}, {}", choice.connection, choice.billing)
+                                    "Runs once. Nothing runs in the background."
                                 },
                                 &theme,
                             )),
                     )
-                    .on_click(move |_, _, cx| {
-                        entity.update(cx, |this, cx| {
-                            this.selected_model = Some(id.clone());
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element()
-            }));
-
-        let selection_summary: AnyElement = match selected.as_ref() {
-            Some(choice) => div()
-                .v_flex()
-                .gap_2()
-                .p_3()
-                .rounded(px(8.))
-                .bg(theme.muted)
-                .child(
-                    div()
-                        .text_size(px(11.5))
-                        .font_weight(FontWeight::MEDIUM)
-                        .child(choice.label.clone()),
-                )
-                .child(
-                    div()
-                        .h_flex()
-                        .gap_2()
-                        .children(crate::icons::provider_mark(
-                            &choice.provider_id,
-                            15.,
-                            theme.foreground,
+                    .when_some(self.playground_error.clone(), |this, error| {
+                        this.child(ds::banner(
+                            Tone::Red,
+                            "The turn did not run",
+                            Some(error.into()),
+                            &theme,
                         ))
-                        .child(ui::mono(choice.connection.clone(), &theme)),
-                )
-                .child(
-                    div()
-                        .h_flex()
-                        .gap_1()
-                        .flex_wrap()
-                        .child(ui::chip(choice.provider.clone(), Tone::Blue, &theme))
-                        .child(ui::chip(choice.billing.clone(), Tone::Amber, &theme))
-                        .child(ui::chip("read-only", Tone::Neutral, &theme))
-                        .child(if paid_consent {
-                            ui::chip("paid allowed", Tone::Amber, &theme)
-                        } else {
-                            ui::chip("paid off", Tone::Green, &theme)
-                        }),
-                )
-                .into_any_element(),
-            None => div()
-                .text_size(px(11.))
-                .text_color(theme.muted_foreground)
-                .child("No usable model is visible. Check Providers & accounts first.")
-                .into_any_element(),
-        };
+                    }),
+            );
 
-        let prompt_card = div()
-            .v_flex()
-            .gap_2()
-            .p_4()
-            .rounded(px(ui::CARD_RADIUS))
-            .border_1()
-            .border_color(theme.border)
-            .bg(theme.colors.list)
-            .child(ui::section_title("Prompt", &theme))
-            .child(Textarea::new(&self.prompt).h(px(92.)))
-            .child(selection_summary)
-            .child(
-                div()
-                    .h_flex()
-                    .gap_3()
-                    .child(
-                        Switch::new("paid-consent")
-                            .checked(paid_consent)
-                            .on_change(move |checked, _, cx| {
-                                let checked = *checked;
-                                entity_paid.update(cx, |this, cx| {
-                                    let model = this.selected_model.clone();
-                                    this.paid_consent.set(model.as_deref(), checked);
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        div()
-                            .v_flex()
-                            .gap(px(1.))
-                            .child(
-                                div()
-                                    .text_size(px(11.5))
-                                    .child("Allow paid or unknown-billing routes"),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(10.))
-                                    .text_color(theme.muted_foreground)
-                                    .child("Applies to the next run of this model only, then turns off."),
-                            ),
-                    ),
-            )
-            .child(
-                div()
-                    .h_flex()
-                    .gap_2()
-                    .child(if running {
-                        let entity = cx.entity();
-                        Button::new("cancel-turn")
-                            .secondary()
-                            .label("Cancel")
-                            .icon(IconName::Square)
-                            .on_click(move |_, _, cx| {
-                                entity.update(cx, |this, cx| this.cancel_turn(cx));
-                            })
-                            .into_any_element()
-                    } else {
-                        let entity = cx.entity();
-                        Button::new("run-turn")
-                            .primary()
-                            .label("Run one turn")
-                            .icon(IconName::Play)
-                            .on_click(move |_, _, cx| {
-                                entity.update(cx, |this, cx| this.run_prompt(cx));
-                            })
-                            .into_any_element()
-                    })
-                    .child(ui::mono(
-                        if running {
-                            "streaming…".to_string()
-                        } else {
-                            "explicit, no retries".to_string()
-                        },
-                        &theme,
-                    )),
-            )
-            .when_some(error, |this, error| {
-                this.child(
-                    div()
-                        .text_size(px(10.5))
-                        .text_color(theme.danger)
-                        .child(error),
-                )
-            });
-
-        let transcript_view: AnyElement = div()
-            .v_flex()
-            .gap_3()
-            .children(transcript.into_iter().map(|line| {
-                let (label, tone) = match line.role {
-                    TranscriptRole::You => ("You", Tone::Neutral),
-                    TranscriptRole::Assistant => ("Assistant", Tone::Amber),
-                };
-                div()
-                    .v_flex()
-                    .gap_1()
-                    .p_3()
-                    .rounded(px(9.))
-                    .bg(theme.muted)
-                    .child(
-                        div()
-                            .h_flex()
-                            .gap_2()
-                            .child(ui::eyebrow(label, &theme))
-                            .when(line.role == TranscriptRole::Assistant, |this| {
-                                this.child(ui::dot(tone, &theme))
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .line_height(px(19.))
-                            .child(if line.text.is_empty() {
-                                "…".to_string()
-                            } else {
-                                line.text.clone()
-                            }),
-                    )
-                    .into_any_element()
-            }))
-            .when(transcript_empty, |this| {
-                this.child(ui::empty_state(
-                    IconName::Play,
+        // Transcript.
+        let transcript = ds::panel(&theme)
+            .flex_1()
+            .min_w(px(0.))
+            .child(ds::panel_head(
+                "Transcript",
+                self.usage_note.clone().map(|usage| {
+                    ds::mono(format!("Last turn: {usage}"), ty::CAPTION, theme.muted_foreground, &theme)
+                        .into_any_element()
+                }),
+                &theme,
+            ))
+            .when(self.transcript.is_empty(), |this| {
+                this.child(ds::state(
+                    ds::StateKind::Empty,
                     "Nothing has run",
-                    "Choose a model, write a prompt and press Run. The route and billing are shown before anything starts.",
+                    "Choose a model, write a prompt and press Run one turn. The route and billing are shown before anything starts.",
                     &theme,
                 ))
             })
-            .into_any_element();
+            .child(div().v_flex().gap(px(sp::MD)).p(px(sp::LG)).children(
+                self.transcript.iter().map(|line| {
+                    let you = line.role == TranscriptRole::You;
+                    div()
+                        .v_flex()
+                        .gap(px(sp::XS))
+                        .child(ds::caption(if you { "You" } else { "Assistant" }, &theme))
+                        .child(
+                            div()
+                                .px(px(sp::MD))
+                                .py(px(sp::SM))
+                                .rounded(px(ds::radius::PANEL))
+                                .border_1()
+                                .border_color(theme.border)
+                                .when(you, |this| this.bg(theme.muted))
+                                .text_size(px(ty::BODY))
+                                .line_height(px(20.))
+                                .child(if line.text.is_empty() {
+                                    "…".to_string()
+                                } else {
+                                    line.text.clone()
+                                }),
+                        )
+                }),
+            ));
 
-        div()
-            .h_flex()
-            .items_stretch()
-            .gap_4()
-            .px(px(ui::PAGE_PAD))
-            .pb(px(36.))
-            .child(
-                div()
-                    .w(px(400.))
-                    .v_flex()
-                    .gap_3()
-                    .child(prompt_card)
-                    .child(picker),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .h_full()
-                    .min_h(px(0.))
-                    .v_flex()
-                    .gap_2()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(
-                        div()
-                            .h_flex()
-                            .justify_between()
-                            .child(ui::section_title("Transcript", &theme))
-                            .when_some(usage, |this, usage| {
-                                this.child(ui::mono(format!("Last turn: {usage}"), &theme))
-                            }),
-                    )
-                    .child(div().flex_1().min_h(px(0.)).child(transcript_view)),
-            )
-            .into_any_element()
+        let wide = self.content_width() >= 1000.;
+        let mut page = ds::page();
+        if self.example {
+            page = page.child(ds::banner(
+                Tone::Amber,
+                "Example mode cannot run turns",
+                Some(
+                    "Nothing is sent to any provider. The controls work so the flow can be reviewed; Run reports that execution is disabled."
+                        .into(),
+                ),
+                &theme,
+            ));
+        }
+        let left = div().v_flex().gap(px(sp::MD)).child(prompt).child(picker);
+        page.child(if wide {
+            div()
+                .h_flex()
+                .items_start()
+                .gap(px(sp::MD))
+                .child(div().w(px(420.)).flex_shrink_0().child(left))
+                .child(transcript)
+                .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .gap(px(sp::MD))
+                .child(left)
+                .child(transcript)
+                .into_any_element()
+        })
+        .into_any_element()
     }
 }

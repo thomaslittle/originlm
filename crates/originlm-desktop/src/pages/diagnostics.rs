@@ -1,32 +1,38 @@
+//! Diagnostics: runtime health in plain language, open issues with their
+//! evidence and remediation, raw diagnostic lines, and a redacted report.
+
 use crate::app::Desktop;
 use crate::data;
+use crate::ds::{self, sp, ty};
 use crate::ui::{self, Tone};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
-    ActiveTheme, IconName,
+    ActiveTheme, IconName, Theme,
     button::{Button, ButtonVariants},
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use originlm_contracts::{HealthStatus, Issue, IssueSeverity, Snapshot};
+
+fn health_view(status: HealthStatus) -> (Tone, &'static str) {
+    match status {
+        HealthStatus::Healthy => (Tone::Green, "Healthy"),
+        HealthStatus::Degraded => (Tone::Amber, "Degraded"),
+        HealthStatus::Unavailable => (Tone::Red, "Unavailable"),
+        HealthStatus::Unknown => (Tone::Neutral, "Not checked yet"),
+    }
+}
 
 impl Desktop {
     pub fn page_diagnostics(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let Some(bundle) = self.bundle.as_ref() else {
-            return div()
-                .px(px(ui::PAGE_PAD))
-                .child(ui::empty_state(
-                    IconName::CircleAlert,
-                    "Nothing to diagnose yet",
-                    "Diagnostics appear after the first broker snapshot.",
-                    &theme,
-                ))
-                .into_any_element();
+            return div().into_any_element();
         };
         let snapshot = bundle.snapshot.clone();
-        let issues: Vec<_> = data::open_issues(&snapshot).into_iter().cloned().collect();
+        let issues: Vec<Issue> = data::open_issues(&snapshot).into_iter().cloned().collect();
         let health = snapshot.health.clone();
-        let hydrated = health.hydrated;
+        let (tone, status) = health_view(health.status);
         let checked = health
             .checked_at
             .as_ref()
@@ -36,300 +42,355 @@ impl Desktop {
                     .with_timezone(&chrono::Local)
                     .format("%b %d, %H:%M")
                     .to_string()
-            })
-            .unwrap_or_else(|| "not checked".into());
-        let entity_copy = cx.entity();
-        let revision = snapshot.revision.clone();
-        let export_snapshot = snapshot.clone();
-        let export_runtime = bundle.runtime.clone();
-        let export_apps = bundle.apps.clone();
-        let export_adapters = bundle.adapters.clone();
-        let entity_export = cx.entity();
+            });
+        let document = originlm_control::diagnostic_document(
+            &snapshot,
+            &bundle.runtime,
+            &bundle.apps,
+            &bundle.adapters,
+        );
+        let entity = cx.entity();
 
-        div()
-            .v_flex()
-            .w_full()
-            .px(px(ui::PAGE_PAD))
-            .pb(px(36.))
-            .gap_4()
-            .child(
-                div()
-                    .h_flex()
-                    .gap_3()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(
-                        div()
-                            .v_flex()
-                            .gap(px(2.))
-                            .flex_1()
-                            .child(
-                                div()
-                                    .h_flex()
-                                    .gap_2()
-                                    .child(ui::dot(
-                                        match health.status {
-                                            originlm_contracts::HealthStatus::Healthy => Tone::Green,
-                                            originlm_contracts::HealthStatus::Degraded => Tone::Amber,
-                                            originlm_contracts::HealthStatus::Unavailable => Tone::Red,
-                                            _ => Tone::Neutral,
-                                        },
-                                        &theme,
-                                    ))
-                                    .child(
-                                        div()
-                                            .text_size(px(14.))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .child(format!("{:?}", health.status)),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(10.5))
-                                    .text_color(theme.muted_foreground)
-                                    .child(format!(
-                                        "{} open, checked {checked}{}",
-                                        health.open_issues,
-                                        if hydrated {
-                                            " (hydrated from cache, reverification pending)"
-                                        } else {
-                                            ""
-                                        }
-                                    )),
-                            ),
-                    )
-                    .child(
-                        Button::new("copy-revision")
-                            .secondary()
-                            .label("Copy revision")
-                            .icon(IconName::Copy)
-                            .on_click(move |_, _, cx| {
-                                let revision = revision.clone();
-                                entity_copy.update(cx, |this, cx| {
-                                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(
-                                        revision,
-                                    ));
-                                    this.toast("Revision copied");
+        let summary = match (&checked, health.status) {
+            (_, HealthStatus::Unknown) | (None, _) => {
+                "The runtime has not run a health check yet. Issues below come from discovery."
+                    .to_string()
+            }
+            (Some(at), _) => format!(
+                "{} · last checked {at}{}",
+                ui::plural(health.open_issues as usize, "open issue"),
+                if health.hydrated {
+                    " · loaded from cache, re-checking"
+                } else {
+                    ""
+                }
+            ),
+        };
+
+        let health_panel = ds::panel(&theme).child(
+            div()
+                .h_flex()
+                .items_center()
+                .flex_wrap()
+                .gap(px(sp::MD))
+                .px(px(sp::LG))
+                .py(px(sp::MD))
+                .child(
+                    div()
+                        .v_flex()
+                        .flex_1()
+                        .min_w(px(260.))
+                        .gap(px(2.))
+                        .child(
+                            div()
+                                .h_flex()
+                                .items_center()
+                                .gap(px(sp::SM))
+                                .child(ui::dot(tone, &theme))
+                                .child(
+                                    div()
+                                        .text_size(px(ty::TITLE))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(status),
+                                ),
+                        )
+                        .child(ds::body(summary, &theme)),
+                )
+                .child(
+                    Button::new("copy-report")
+                        .secondary()
+                        .label("Copy redacted report")
+                        .icon(IconName::Copy)
+                        .tooltip("Copies the same redacted JSON the export writes. No credentials or account identities are included.")
+                        .on_click({
+                            let entity = entity.clone();
+                            let document = document.clone();
+                            move |_, _, cx| {
+                                let text = serde_json::to_string_pretty(&document)
+                                    .unwrap_or_else(|_| "{}".into());
+                                cx.write_to_clipboard(ClipboardItem::new_string(text));
+                                entity.update(cx, |this, cx| {
+                                    this.toast("Redacted report copied");
                                     cx.notify();
                                 });
-                            }),
-                    )
-                    .child(
-                        Button::new("export")
-                            .secondary()
-                            .label("Export redacted report")
-                            .icon(IconName::ExternalLink)
-                            .on_click(move |_, _, cx| {
-                                let document = originlm_control::diagnostic_document(
-                                    &export_snapshot,
-                                    &export_runtime,
-                                    &export_apps,
-                                    &export_adapters,
-                                );
+                            }
+                        }),
+                )
+                .child(
+                    Button::new("export")
+                        .ghost()
+                        .label("Save to file")
+                        .icon(IconName::FileText)
+                        .on_click({
+                            let entity = entity.clone();
+                            move |_, _, cx| {
                                 let path = originlm_control::default_export_path();
                                 let result = originlm_control::write_export(&path, &document);
-                                entity_export.update(cx, |this, cx| {
+                                let shown = std::fs::canonicalize(&path)
+                                    .unwrap_or_else(|_| path.clone());
+                                entity.update(cx, |this, cx| {
                                     match result {
                                         Ok(()) => this.toast(format!(
-                                            "Redacted report written to {}",
-                                            path.display()
+                                            "Redacted report saved to {}",
+                                            shown.display()
                                         )),
                                         Err(error) => this.toast(format!("Export failed: {error}")),
                                     }
                                     cx.notify();
                                 });
-                            }),
-                    ),
-            )
-            .child(
-                div()
-                    .v_flex()
-                    .gap_2()
-                    .child(ui::section_title("Open issues", &theme))
-                    .when(issues.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .h_flex()
-                                .gap_2()
-                                .p_4()
-                                .rounded(px(ui::CARD_RADIUS))
-                                .border_1()
-                                .border_color(theme.border)
-                                .bg(theme.colors.list)
-                                .child(ui::icon(IconName::CircleCheck, 14., theme.success))
-                                .child(
-                                    div()
-                                        .text_size(px(11.5))
-                                        .text_color(theme.muted_foreground)
-                                        .child("The broker reports no open issues."),
-                                ),
-                        )
-                    })
-                    .children(issues.iter().map(|issue| {
-                        let cached = issue.connection_id.as_ref().and_then(|id| {
-                            snapshot.connections.iter().find(|connection| {
-                                &connection.id == id
-                                    && data::auth_view(connection).kind == data::AuthKind::Cached
-                            })
-                        });
-                        let provider = cached.map(|connection| {
-                            data::provider_name(&snapshot, &connection.provider_id)
-                        });
-                        let tone = match issue.severity {
-                            originlm_contracts::IssueSeverity::Critical
-                            | originlm_contracts::IssueSeverity::Error => Tone::Red,
-                            originlm_contracts::IssueSeverity::Warning => Tone::Amber,
-                            _ => Tone::Neutral,
-                        };
+                            }
+                        }),
+                ),
+        );
+
+        let issues_panel = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Open issues",
+                Some(ds::caption(ui::plural(issues.len(), "issue"), &theme).into_any_element()),
+                &theme,
+            ))
+            .when(issues.is_empty(), |this| {
+                this.child(
+                    div()
+                        .h_flex()
+                        .items_center()
+                        .gap(px(sp::SM))
+                        .px(px(sp::LG))
+                        .py(px(sp::MD))
+                        .child(ui::icon(IconName::CircleCheck, 14., theme.success))
+                        .child(ds::body("The runtime reports no open issues.", &theme)),
+                )
+            })
+            .children(
+                issues
+                    .iter()
+                    .enumerate()
+                    .map(|(index, issue)| issue_row(index, issue, &snapshot, &theme)),
+            );
+
+        let detection = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Detection coverage",
+                Some(
+                    ds::caption(
+                        "Found, configuration-only, or not found with the locations checked",
+                        &theme,
+                    )
+                    .into_any_element(),
+                ),
+                &theme,
+            ))
+            .when(
+                bundle
+                    .detection
+                    .as_ref()
+                    .is_none_or(|report| report.providers.is_empty()),
+                |this| {
+                    this.child(
                         div()
-                            .v_flex()
-                            .gap_2()
-                            .p_4()
-                            .rounded(px(ui::CARD_RADIUS))
-                            .border_1()
-                            .border_color(theme.border)
-                            .bg(theme.colors.list)
-                            .child(
+                            .px(px(sp::LG))
+                            .py(px(sp::MD))
+                            .child(ds::body("No detection report from this runtime.", &theme)),
+                    )
+                },
+            )
+            .children(
+                bundle
+                    .detection
+                    .as_ref()
+                    .map(|report| {
+                        report
+                            .providers
+                            .iter()
+                            .map(|provider| {
+                                let tone = if provider.executable_found {
+                                    Tone::Green
+                                } else if provider.status == "configuration_only" {
+                                    Tone::Amber
+                                } else {
+                                    Tone::Neutral
+                                };
                                 div()
-                                    .h_flex()
-                                    .gap_2()
+                                    .v_flex()
+                                    .gap(px(2.))
+                                    .px(px(sp::LG))
+                                    .py(px(sp::SM))
+                                    .border_b_1()
+                                    .border_color(theme.border.opacity(0.6))
                                     .child(
                                         div()
-                                            .text_size(px(12.5))
-                                            .font_weight(FontWeight::MEDIUM)
-                                            .child(issue.title.clone()),
+                                            .h_flex()
+                                            .items_center()
+                                            .gap(px(sp::SM))
+                                            .child(ui::dot(tone, &theme))
+                                            .child(
+                                                div()
+                                                    .text_size(px(ty::SMALL))
+                                                    .child(provider.name.clone()),
+                                            )
+                                            .child(div().flex_1())
+                                            .child(ds::mono(
+                                                provider.status.clone(),
+                                                ty::CAPTION,
+                                                theme.muted_foreground,
+                                                &theme,
+                                            )),
                                     )
-                                    .child(ui::chip(
-                                        data::severity_label(issue.severity),
-                                        tone,
-                                        &theme,
-                                    ))
-                                    .child(div().flex_1())
-                                    .child(ui::mono(
-                                        format!("seen {}×", issue.occurrences),
-                                        &theme,
-                                    )),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(11.))
-                                    .text_color(theme.muted_foreground)
-                                    .child(match &provider {
-                                        Some(provider) => format!(
-                                            "The broker found {provider}'s local account cache but cannot verify the session. Its usage and model catalog stay inside the {provider} client."
-                                        ),
-                                        None => issue.summary.clone(),
-                                    }),
-                            )
-                            .when(!issue.evidence.is_empty(), |this| {
-                                this.child(
-                                    div()
-                                        .v_flex()
-                                        .gap_1()
-                                        .p_2()
-                                        .rounded(px(7.))
-                                        .bg(theme.muted)
-                                        .children(issue.evidence.iter().map(|evidence| {
-                                            div()
-                                                .h_flex()
-                                                .gap_2()
-                                                .child(ui::mono(evidence.code.clone(), &theme))
-                                                .child(
-                                                    div()
-                                                        .text_size(px(10.5))
-                                                        .text_color(theme.muted_foreground)
-                                                        .child(evidence.message.clone()),
-                                                )
-                                                .into_any_element()
-                                        })),
-                                )
+                                    .when(!provider.diagnostics.is_empty(), |this| {
+                                        this.child(ds::caption(
+                                            provider.diagnostics.join(" · "),
+                                            &theme,
+                                        ))
+                                    })
+                                    .when(provider.status == "not_found", |this| {
+                                        this.child(ds::caption(
+                                            format!(
+                                                "Checked: {}",
+                                                provider
+                                                    .paths_checked
+                                                    .iter()
+                                                    .take(4)
+                                                    .cloned()
+                                                    .collect::<Vec<_>>()
+                                                    .join(" · ")
+                                            ),
+                                            &theme,
+                                        ))
+                                    })
+                                    .into_any_element()
                             })
-                            .when(!issue.remediation.is_empty(), |this| {
-                                this.child(
-                                    div()
-                                        .v_flex()
-                                        .gap_1()
-                                        .child(ui::eyebrow("What to do", &theme))
-                                        .children(issue.remediation.iter().map(|step| {
-                                            div()
-                                                .h_flex()
-                                                .gap_2()
-                                                .child(ui::icon(
-                                                    IconName::ArrowRight,
-                                                    10.,
-                                                    theme.primary,
-                                                ))
-                                                .child(
-                                                    div()
-                                                        .text_size(px(10.5))
-                                                        .text_color(theme.foreground)
-                                                        .child(step.description.clone()),
-                                                )
-                                                .into_any_element()
-                                        })),
-                                )
-                            })
-                            .into_any_element()
-                    })),
-            )
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default(),
+            );
+
+        let lines = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Runtime diagnostic lines",
+                Some(
+                    ds::caption(ui::plural(snapshot.diagnostics.len(), "line"), &theme)
+                        .into_any_element(),
+                ),
+                &theme,
+            ))
             .child(
                 div()
                     .v_flex()
-                    .gap_2()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Detection coverage", &theme))
-                    .child(div().text_size(px(10.5)).text_color(theme.muted_foreground)
-                        .child("Every known tool is either found, configuration-only, or not found with the locations that were checked."))
-                    .children(bundle.detection.as_ref().map(|report| {
-                        report.providers.iter().map(|provider| {
-                            let tone = if provider.executable_found { Tone::Green } else if provider.status == "configuration_only" { Tone::Amber } else { Tone::Neutral };
-                            div().v_flex().gap(px(1.)).py(px(4.))
-                                .border_b_1().border_color(theme.border.opacity(0.4))
-                                .child(div().h_flex().gap_2()
-                                    .child(ui::dot(tone, &theme))
-                                    .child(div().text_size(px(11.5)).child(provider.name.clone()))
-                                    .child(div().flex_1())
-                                    .child(ui::mono(provider.status.clone(), &theme)))
-                                .when(!provider.diagnostics.is_empty(), |this| this.child(ui::mono(provider.diagnostics.join(" · "), &theme)))
-                                .when(provider.status == "not_found", |this| this.child(div().text_size(px(10.)).text_color(theme.muted_foreground)
-                                    .child(format!("Checked: {}", provider.paths_checked.iter().take(4).cloned().collect::<Vec<_>>().join(" · ")))))
-                                .into_any_element()
-                        }).collect::<Vec<_>>()
-                    }).unwrap_or_default())
-            )
-            .child(
-                div()
-                    .v_flex()
-                    .gap_2()
-                    .p_4()
-                    .rounded(px(ui::CARD_RADIUS))
-                    .border_1()
-                    .border_color(theme.border)
-                    .bg(theme.colors.list)
-                    .child(ui::section_title("Broker diagnostics", &theme))
+                    .gap(px(2.))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
                     .when(snapshot.diagnostics.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_size(px(10.5))
-                                .text_color(theme.muted_foreground)
-                                .child("No broker diagnostic lines."),
-                        )
+                        this.child(ds::body("No diagnostic lines.", &theme))
                     })
                     .children(snapshot.diagnostics.iter().map(|line| {
-                        div()
-                            .font_family(theme.mono_font_family.clone())
-                            .text_size(px(10.))
-                            .text_color(theme.muted_foreground)
-                            .child(line.clone())
+                        ds::mono(line.clone(), ty::SMALL, theme.muted_foreground, &theme)
                     })),
-            )
+            );
+
+        ds::page()
+            .child(health_panel)
+            .child(issues_panel)
+            .child(detection)
+            .child(lines)
             .into_any_element()
     }
+}
+
+fn issue_row(index: usize, issue: &Issue, snapshot: &Snapshot, theme: &Theme) -> Div {
+    let cached = issue.connection_id.as_ref().and_then(|id| {
+        snapshot.connections.iter().find(|connection| {
+            &connection.id == id && data::auth_view(connection).kind == data::AuthKind::Cached
+        })
+    });
+    let provider = cached.map(|connection| data::provider_name(snapshot, &connection.provider_id));
+    let tone = match issue.severity {
+        IssueSeverity::Critical | IssueSeverity::Error => Tone::Red,
+        IssueSeverity::Warning => Tone::Amber,
+        IssueSeverity::Info => Tone::Neutral,
+    };
+    div()
+        .v_flex()
+        .gap(px(sp::SM))
+        .px(px(sp::LG))
+        .py(px(sp::MD))
+        .when(index > 0, |this| this.border_t_1().border_color(theme.border))
+        .child(
+            div()
+                .h_flex()
+                .items_center()
+                .gap(px(sp::SM))
+                .child(ds::chip(data::severity_label(issue.severity), tone, theme))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .text_size(px(ty::BODY))
+                        .font_weight(FontWeight::MEDIUM)
+                        .child(issue.title.clone()),
+                )
+                .child(ds::caption(format!("seen {}×", issue.occurrences), theme)),
+        )
+        .child(ds::body(
+            match &provider {
+                Some(provider) => format!(
+                    "The runtime found {provider}'s local account cache but cannot verify the session. Its usage and model catalog stay inside the {provider} client until you sign in there."
+                ),
+                None => issue.summary.clone(),
+            },
+            theme,
+        ))
+        .when(!issue.evidence.is_empty(), |this| {
+            this.child(
+                div()
+                    .v_flex()
+                    .gap(px(2.))
+                    .px(px(sp::MD))
+                    .py(px(sp::SM))
+                    .rounded(px(ds::radius::CONTROL))
+                    .bg(ds::surface(theme, ds::Surface::Page))
+                    .children(issue.evidence.iter().map(|evidence| {
+                        div()
+                            .h_flex()
+                            .gap(px(sp::SM))
+                            .child(ds::mono(
+                                evidence.code.clone(),
+                                ty::CAPTION,
+                                theme.foreground,
+                                theme,
+                            ))
+                            .child(ds::caption(evidence.message.clone(), theme))
+                    })),
+            )
+        })
+        .when(!issue.remediation.is_empty(), |this| {
+            this.child(
+                div()
+                    .v_flex()
+                    .gap(px(sp::XS))
+                    .child(
+                        div()
+                            .text_size(px(ty::SMALL))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("What to do"),
+                    )
+                    .children(issue.remediation.iter().enumerate().map(|(step, item)| {
+                        div()
+                            .h_flex()
+                            .items_start()
+                            .gap(px(sp::SM))
+                            .child(ds::mono(
+                                format!("{}.", step + 1),
+                                ty::SMALL,
+                                theme.muted_foreground,
+                                theme,
+                            ))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .text_color(theme.foreground)
+                                    .child(item.description.clone()),
+                            )
+                    })),
+            )
+        })
 }

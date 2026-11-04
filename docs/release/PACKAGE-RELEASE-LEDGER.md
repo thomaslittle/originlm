@@ -7,9 +7,11 @@ published; it does not claim consumer migration before that happens.
 
 | Registry | Published state | Notes |
 | --- | --- | --- |
-| npm | `originlm@0.1.0-alpha.20` live; `alpha.21` pending | `alpha` dist-tag; the Windows package is `originlm-cli-windows-x64` |
-| crates.io | **14 of 14 live at `0.1.0-alpha.22`** | The `originlm` facade and the `originlm-cli` helper crate are published |
-| PyPI | `originlm==0.1.0a20` live; `0.1.0a21` pending | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
+| npm | `originlm@0.1.0-alpha.25` and the five `originlm-cli-*` helpers live under the `alpha` dist-tag | `latest` still points at `0.1.0-alpha.20`; moving it is a maintainer decision. The Windows package is `originlm-cli-windows-x64` |
+| crates.io | **14 of 14 live at `0.1.0-alpha.25`** | The `originlm` facade and the `originlm-cli` helper crate are published; `originlm-update` is not published |
+| PyPI | `originlm==0.1.0a25` live | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
+
+Registry status re-checked 2026-11-04 against the public npm, crates.io and PyPI APIs.
 
 Publication uses the protected `release-npm`, `release-crates` and `release-pypi`
 environments. The preparation workflows remain read-only and secret-free.

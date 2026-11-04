@@ -5,8 +5,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#111820",
-  "theme_color": "#111820",
+  "background_color": "#1e1a1b",
+  "theme_color": "#1e1a1b",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -26,5 +26,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "description": "A local runtime and SDK for building on the AI clients a user already has."
 }

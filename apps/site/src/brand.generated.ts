@@ -14,9 +14,9 @@ export const brand = {
   "darkDanger": "#e0776b",
   "lightBorder": "#e5dfd4",
   "lightMuted": "#6b635c",
-  "lightSuccess": "#557a62",
-  "lightWarning": "#9a6b14",
-  "lightDanger": "#b4544a",
+  "lightSuccess": "#4c6f58",
+  "lightWarning": "#876012",
+  "lightDanger": "#a64b42",
   "sceneBronze": "#c98a3c",
   "sceneSage": "#a9b29f",
   "sceneTerracotta": "#c97e5a",
@@ -28,5 +28,6 @@ export const brand = {
   "sceneOLED": "#14161a",
   "sceneRaised": "#1b1e24",
   "darkInput": "#807975",
-  "lightInput": "#6b635c"
+  "lightInput": "#6b635c",
+  "lightAmberText": "#8f5d00"
 } as const;
