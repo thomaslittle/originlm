@@ -428,14 +428,22 @@ struct Breakdown {
 
 impl Breakdown {
     fn from_json(value: &serde_json::Value) -> Option<Self> {
-        let input = value["inputTokens"].as_u64()?;
-        let output = value["outputTokens"].as_u64()?;
+        // Codex app-server events use camelCase; rollout JSONL files use
+        // snake_case. Both are accepted, and the rollout spelling wins when a
+        // file carries both.
+        let count =
+            |camel: &str, snake: &str| value[snake].as_u64().or_else(|| value[camel].as_u64());
+        let input = count("inputTokens", "input_tokens")?;
+        let output = count("outputTokens", "output_tokens")?;
         Some(Self {
             input,
-            cached: value["cachedInputTokens"].as_u64().unwrap_or(0),
-            cache_write: value["cacheWriteInputTokens"].as_u64(),
+            cached: count("cachedInputTokens", "cached_input_tokens")
+                .or_else(|| value["cache_read_input_tokens"].as_u64())
+                .unwrap_or(0),
+            cache_write: count("cacheWriteInputTokens", "cache_write_input_tokens")
+                .or_else(|| value["cache_write_tokens"].as_u64()),
             output,
-            reasoning: value["reasoningOutputTokens"].as_u64().unwrap_or(0),
+            reasoning: count("reasoningOutputTokens", "reasoning_output_tokens").unwrap_or(0),
         })
     }
 
@@ -654,6 +662,37 @@ mod tests {
     }
 
     #[test]
+    fn codex_rollout_and_app_server_token_shapes_normalize_the_same() {
+        let rollout = Breakdown::from_json(&serde_json::json!({
+            "input_tokens": 100,
+            "cached_input_tokens": 40,
+            "cache_write_input_tokens": 5,
+            "output_tokens": 20,
+            "reasoning_output_tokens": 4
+        }))
+        .unwrap();
+        let app_server = Breakdown::from_json(&serde_json::json!({
+            "inputTokens": 100,
+            "cachedInputTokens": 40,
+            "cacheWriteInputTokens": 5,
+            "outputTokens": 20,
+            "reasoningOutputTokens": 4
+        }))
+        .unwrap();
+        assert_eq!(rollout, app_server);
+        assert_eq!(
+            rollout.normalized(),
+            UsageTotals {
+                input_tokens: 55,
+                cached_input_tokens: 40,
+                cache_creation_tokens: 5,
+                output_tokens: 20,
+                reasoning_tokens: 4,
+            }
+        );
+    }
+
+    #[test]
     fn claude_streaming_duplicates_merge_but_do_not_double_count() {
         let root = tempfile::tempdir().unwrap();
         let projects = root.path().join(".claude/projects/p");
@@ -711,9 +750,9 @@ mod tests {
             &[
                 r#"{"type":"session_meta","payload":{"id":"thread-1"}}"#,
                 r#"{"type":"turn_context","payload":{"model":"gpt-a"}}"#,
-                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"inputTokens":100,"cachedInputTokens":40,"cacheWriteInputTokens":5,"outputTokens":20,"reasoningOutputTokens":4},"last_token_usage":{"inputTokens":100,"cachedInputTokens":40,"cacheWriteInputTokens":5,"outputTokens":20,"reasoningOutputTokens":4}}}}"#,
+                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":5,"output_tokens":20,"reasoning_output_tokens":4},"last_token_usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":5,"output_tokens":20,"reasoning_output_tokens":4}}}}"#,
                 r#"{"type":"turn_context","payload":{"model":"gpt-b"}}"#,
-                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"inputTokens":150,"cachedInputTokens":60,"cacheWriteInputTokens":7,"outputTokens":35,"reasoningOutputTokens":6},"last_token_usage":{"inputTokens":50,"cachedInputTokens":20,"cacheWriteInputTokens":2,"outputTokens":15,"reasoningOutputTokens":2}}}}"#,
+                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":150,"cached_input_tokens":60,"cache_write_input_tokens":7,"output_tokens":35,"reasoning_output_tokens":6},"last_token_usage":{"input_tokens":50,"cached_input_tokens":20,"cache_write_input_tokens":2,"output_tokens":15,"reasoning_output_tokens":2}}}}"#,
             ],
         );
         // A resumed copy repeats the first record; it must not add usage.
@@ -721,7 +760,7 @@ mod tests {
             &sessions.join("two.jsonl"),
             &[
                 r#"{"type":"session_meta","payload":{"id":"thread-1"}}"#,
-                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"inputTokens":100,"cachedInputTokens":40,"cacheWriteInputTokens":5,"outputTokens":20,"reasoningOutputTokens":4},"last_token_usage":{"inputTokens":100,"cachedInputTokens":40,"cacheWriteInputTokens":5,"outputTokens":20,"reasoningOutputTokens":4}}}}"#,
+                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":5,"output_tokens":20,"reasoning_output_tokens":4},"last_token_usage":{"input_tokens":100,"cached_input_tokens":40,"cache_write_input_tokens":5,"output_tokens":20,"reasoning_output_tokens":4}}}}"#,
             ],
         );
         let usage = read_usage(root.path(), Limits::default());
@@ -803,7 +842,7 @@ mod environment_tests {
             &[
                 r#"{"type":"session_meta","payload":{"id":"x1"}}"#,
                 r#"{"type":"turn_context","payload":{"model":"gpt-x"}}"#,
-                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"inputTokens":9,"cachedInputTokens":2,"outputTokens":5},"last_token_usage":{"inputTokens":9,"cachedInputTokens":2,"outputTokens":5}}}}"#,
+                r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":9,"cached_input_tokens":2,"output_tokens":5},"last_token_usage":{"input_tokens":9,"cached_input_tokens":2,"output_tokens":5}}}}"#,
             ],
         );
         std::fs::create_dir_all(&secure).unwrap();

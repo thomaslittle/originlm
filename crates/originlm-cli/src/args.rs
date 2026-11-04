@@ -6,6 +6,7 @@ pub enum Action {
     Version,
     Scan,
     Usage,
+    Models,
     Status,
     Serve,
     Connect,
@@ -81,6 +82,7 @@ impl Args {
             Some("--version" | "-V") => Action::Version,
             Some("scan") => Action::Scan,
             Some("usage") => Action::Usage,
+            Some("models") => Action::Models,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
             Some("install") => {
@@ -153,14 +155,22 @@ impl Args {
             }
             match flag {
                 "--json"
-                    if matches!(args.action, Action::Scan | Action::Status | Action::Usage) =>
+                    if matches!(
+                        args.action,
+                        Action::Scan | Action::Status | Action::Usage | Action::Models
+                    ) =>
                 {
                     json = true
                 }
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
                 }
-                "--home" if matches!(args.action, Action::Scan | Action::Serve | Action::Usage) => {
+                "--home"
+                    if matches!(
+                        args.action,
+                        Action::Scan | Action::Serve | Action::Usage | Action::Models
+                    ) =>
+                {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
                 }
                 "--endpoints" if matches!(args.action, Action::Serve | Action::Scan) => {

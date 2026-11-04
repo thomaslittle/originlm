@@ -147,7 +147,6 @@ fn windows_bare_path_finds_npm_winget_scoop_and_per_user_programs() {
     write(local_app_data.join("Programs/Codex/codex.exe"));
     write(local_app_data.join("Kiro-Cli/kiro-cli.exe"));
     let program_files = tmp.path().join("Program Files");
-    write(program_files.join("Kiro-Cli/kiro-cli.exe"));
     let program_data = tmp.path().join("ProgramData");
     write(program_data.join("chocolatey/bin/pi.exe"));
     let env = ScanEnvironment::from_map(
@@ -238,4 +237,29 @@ fn fallbacks_are_bounded_and_do_not_escape_local_absolute_roots() {
         env.fallback_search_path
     );
     assert!(env.fallback_search_path.contains(&home.join(".local/bin")));
+}
+
+#[test]
+fn windows_program_files_kiro_is_found_without_local_appdata() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().join("home");
+    let program_files = tmp.path().join("Program Files");
+    write(program_files.join("Kiro-Cli/kiro-cli.exe"));
+    let env = ScanEnvironment::from_map(
+        HostPlatform::Windows,
+        &vars(
+            HostPlatform::Windows,
+            &home,
+            &[
+                ("PATH", r"C:\Windows\System32"),
+                ("ProgramFiles", &program_files.to_string_lossy()),
+            ],
+        ),
+    )
+    .unwrap();
+    let result = scan(&env);
+    assert_eq!(
+        executable_for(&result, "kiro"),
+        program_files.join("Kiro-Cli/kiro-cli.exe")
+    );
 }

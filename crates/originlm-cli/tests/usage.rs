@@ -23,7 +23,7 @@ fn usage_reads_claude_and_codex_history_without_prompts_or_secrets() {
         &[
             r#"{"type":"session_meta","payload":{"id":"k1"},"secret":"PRIVATE_TOKEN"}"#,
             r#"{"type":"turn_context","payload":{"model":"gpt-x"}}"#,
-            r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"inputTokens":20,"cachedInputTokens":5,"outputTokens":7,"reasoningOutputTokens":1},"last_token_usage":{"inputTokens":20,"cachedInputTokens":5,"outputTokens":7,"reasoningOutputTokens":1}}}}"#,
+            r#"{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":5,"output_tokens":7,"reasoning_output_tokens":1},"last_token_usage":{"input_tokens":20,"cached_input_tokens":5,"output_tokens":7,"reasoning_output_tokens":1}}}}"#,
         ],
     );
     let output = Command::new(env!("CARGO_BIN_EXE_originlm"))

@@ -28,6 +28,9 @@ Usage:
   originlm usage --json [--home ABSOLUTE_DIRECTORY]
       Reads bounded Claude Code and Codex session-history token totals. No prompt,
       tool output or credential is read; malformed or oversized input is reported.
+  originlm models --json [--home ABSOLUTE_DIRECTORY]
+      Lists on-disk Ollama manifests and LM Studio GGUF files. Reports only ids,
+      names, sizes and a coarse format; no capability or quantization guesses.
   originlm status [--json] [--ipc ADDRESS] [--token-file ABSOLUTE_FILE]
       Prints the running helper, its providers and connected apps.
       Exit: 0 running, 3 not running, 4 credential rejected.
@@ -265,6 +268,34 @@ async fn execute(args: Args) -> Result<()> {
                 }
             };
             println!("{}", json!(history));
+            Ok(())
+        }
+        Action::Models => {
+            let environment = match args.home.clone() {
+                Some(home) => {
+                    let platform = if cfg!(windows) {
+                        originlm_discovery::HostPlatform::Windows
+                    } else if cfg!(target_os = "macos") {
+                        originlm_discovery::HostPlatform::Macos
+                    } else {
+                        originlm_discovery::HostPlatform::Linux
+                    };
+                    originlm_discovery::ScanEnvironment::for_home(home, platform)
+                }
+                None => originlm_discovery::ScanEnvironment::from_process()?,
+            };
+            let ollama_override = environment.overrides.get("OLLAMA_MODELS").cloned();
+            println!(
+                "{}",
+                json!({"providers": [
+                    originlm_adapters::local_models::read_ollama_models(
+                        &environment.home,
+                        ollama_override.as_deref(),
+                        8192,
+                    ),
+                    originlm_adapters::local_models::read_lmstudio_models(&environment.home, 8192),
+                ]})
+            );
             Ok(())
         }
         Action::Serve if args.ipc.is_some() => {

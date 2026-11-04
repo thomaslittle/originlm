@@ -7,7 +7,7 @@ proven when a run on that OS recorded the result.
 
 Baseline for this change (Linux, `2026-11-04`):
 
-- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 766 passed, 0 failed after it.
+- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 774 passed, 0 failed after it.
 - `npm run build` — passed.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — passed.
 - `cargo fmt --all --check` — passed.
@@ -69,6 +69,8 @@ Legend:
   Codex JSONL history with bounds and explicit diagnostics. It never reads
   prompts, tool output, or credentials. The public service/desktop surface is
   not wired yet.
+- **On-disk local models.** `originlm models --json` lists Ollama manifests and
+  LM Studio GGUF files without a running server and without capability guesses.
 - **Upstream pins.** T3 Code is pinned at `8b44f42b` (nightly
   `v0.1.8-nightly.20261104.4165`, stable `v0.1.7`); Tokscale is pinned at
   `b26c433d` (`v4.21.0`). Tokscale parity passes against the new snapshot.
@@ -100,8 +102,11 @@ Legend:
    Gemini, Cursor, Grok, Copilot, Antigravity, and Kiro history remain
    unaggregated; day-boundary rollups, a public API/desktop surface, and a
    shared-fixture cross-check against Tokscale/t3code are still missing.
-5. Ollama/LM Studio on-disk model discovery (API plus manifests, custom model
-   directories, server stopped) is not implemented.
+5. Ollama/LM Studio on-disk model discovery now exists through
+   `originlm models --json` (Ollama manifests, LM Studio GGUF files, missing and
+   malformed roots reported). A custom LM Studio models directory, the
+   `lms ls --json` inventory, capability claims, and service/desktop wiring are
+   still missing.
 6. The detection workflow asserts provider and executable identity. It does
    not yet assert parsed versions or home/config directories. Those need a
    metadata probe with an explicit grant, which the workflow deliberately does

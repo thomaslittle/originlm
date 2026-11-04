@@ -41,6 +41,26 @@ total input over 512 MiB, more than 4096 files, or more than one line over
 - Mixed-model Claude and Codex sessions produce one `models[]` row per native
   model id. No alias or family mapping is applied.
 
+## Cross-check against Tokscale
+
+A shared synthetic home with two Claude streaming writes and two Codex
+`token_count` events (one per model) was read by Tokscale `v4.21.0` and by
+`originlm usage`. Per-category results reconcile:
+
+| Category | OriginLM | Tokscale | Explanation |
+| --- | --- | --- | --- |
+| Claude input / output | 14 / 8 | 14 / 8 | identical |
+| Claude cache read | 90 | 90 | identical |
+| Codex fresh input | 83 | 90 | Tokscale's session parser ignores `cache_write_input_tokens`; OriginLM removes the 7 written tokens from fresh input and reports them separately |
+| Codex cache read | 60 | 60 | identical |
+| Codex output | 35 | 29 | Tokscale reports output excluding reasoning; OriginLM keeps output whole and reports the 6 reasoning tokens as a flagged subset |
+| Codex cache write | 7 | not reported | OriginLM parses the field; Tokscale's JSONL model does not |
+| Codex reasoning | 6 | 6 | identical |
+
+Summed totals agree: OriginLM `fresh input + cache read + cache write` equals
+Tokscale `input + cacheRead`, and OriginLM `output` equals Tokscale
+`output + reasoning`. No prompt or tool content was read by either run.
+
 ## Limits
 
 This command reports only what the selected roots contain. It does not infer a

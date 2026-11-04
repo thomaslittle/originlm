@@ -75,6 +75,13 @@ target/debug/originlm usage --json
 
 It reads bounded Claude Code and Codex JSONL totals, never prompts, tool output,
 or credentials. See [session-history usage](docs/adapters/usage-history.md).
+On-disk local models are a separate read:
+
+```sh
+target/debug/originlm models --json
+```
+
+See [on-disk local models](docs/adapters/local-models.md).
 
 ### One shared runtime and the control center
 

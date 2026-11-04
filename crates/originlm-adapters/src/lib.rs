@@ -14,6 +14,7 @@ pub mod grok;
 pub mod http;
 pub mod http_provider;
 pub mod kiro;
+pub mod local_models;
 pub mod muse;
 pub mod opencode;
 
