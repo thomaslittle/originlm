@@ -167,11 +167,11 @@ native plots with a table alternative.
   authenticated connection whose allowance is missing or stale, so usage
   returns after a broker restart without polling.
 - Cursor is probed through the installed `cursor-agent` CLI: signed-in state,
-  plan tier and the native model catalog. Included-usage percentages come from
-  Cursor's dashboard service only when the broker is started with
-  `--allow-usage cursor`; without that grant the app shows the local account
-  cache and says the allowance is not read. The session token stays in memory
-  for that one request and is never logged, serialized or exported.
+  plan tier, the native model catalog and included-usage percentages. The
+  desktop app's private runtime opts in to Cursor's dashboard allowance read;
+  a separately started CLI broker still needs `--allow-usage cursor`. The
+  session token stays in memory for that one request and is never logged,
+  serialized or exported.
 - OpenCode 2 is read from its running local service (owner-only descriptor,
   loopback API): authentication is marked observed only when the service
   returns authenticated workspace limits, and its rolling/weekly/monthly

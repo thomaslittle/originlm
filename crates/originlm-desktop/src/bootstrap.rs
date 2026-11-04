@@ -265,7 +265,7 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
                 }
             };
             runtime.block_on(async move {
-                let mut builder = Kit::builder().execution(true);
+                let mut builder = Kit::builder().execution(true).cursor_usage(true);
                 builder = builder.native_clients(originlm_kit::NativeClientRegistry {
                     browser_blocker: packaged_browser_blocker(),
                     ..Default::default()

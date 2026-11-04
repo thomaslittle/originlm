@@ -42,6 +42,7 @@ pub struct KitBuilder {
     registry: EndpointRegistry,
     native_registry: NativeClientRegistry,
     execute: bool,
+    cursor_usage: bool,
 }
 pub struct EmbeddedClient {
     service: Arc<NativeService>,
@@ -110,6 +111,12 @@ impl KitBuilder {
         self.execute = enabled;
         self
     }
+    /// Opt in to Cursor's dashboard allowance request. The host must treat
+    /// the local session token as in-memory request material, never export it.
+    pub fn cursor_usage(mut self, enabled: bool) -> Self {
+        self.cursor_usage = enabled;
+        self
+    }
     pub fn build(self) -> Result<Kit> {
         if self
             .home
@@ -143,13 +150,15 @@ impl KitBuilder {
             ));
         }
         Ok(Kit {
-            service: service_builder::build_service_with_state(
+            service: service_builder::build_service_with_cursor_usage(
                 inventory,
                 self.execute,
                 registry,
                 native_registry,
                 Arc::new(BillingDeclarations::default()),
                 self.state_dir,
+                None,
+                self.cursor_usage,
             ),
         })
     }

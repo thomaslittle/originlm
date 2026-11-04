@@ -16,6 +16,99 @@ fn series_key(row: &data::QuotaRow) -> String {
     format!("{}\u{1f}{}", row.pool_id, row.window_id)
 }
 
+fn local_token_panel(
+    report: Option<&originlm_contracts::CostReport>,
+    theme: &Theme,
+) -> Option<Div> {
+    let report = report?;
+    let providers = &report.historical.providers;
+    Some(
+        ds::panel(theme)
+            .child(ds::panel_head(
+                "Recorded session tokens",
+                Some(
+                    ds::caption(
+                        if providers.is_empty() {
+                            "No readable transcript history".to_string()
+                        } else {
+                            format!("{} providers", providers.len())
+                        },
+                        theme,
+                    )
+                    .into_any_element(),
+                ),
+                theme,
+            ))
+            .when(providers.is_empty(), |this| {
+                this.child(
+                    div()
+                        .px(px(sp::LG))
+                        .py(px(sp::MD))
+                        .child(ds::body(
+                            "No readable Claude Code, Codex, Gemini, Grok, or Kiro session history. This is not zero usage.",
+                            theme,
+                        )),
+                )
+            })
+            .children(providers.iter().map(|provider| {
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::SM))
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .border_b_1()
+                    .border_color(theme.border.opacity(0.6))
+                    .child(
+                        ds::mono(
+                            provider.provider_id.clone(),
+                            ty::SMALL,
+                            theme.foreground,
+                            theme,
+                        )
+                        .flex_1(),
+                    )
+                    .child(ds::mono(
+                        format!("{} in", provider.totals.total_input_tokens()),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                    .child(ds::mono(
+                        format!("{} out", provider.totals.output_tokens),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                    .when(provider.totals.reasoning_tokens > 0, |this| {
+                        this.child(ds::mono(
+                            format!("{} reasoning", provider.totals.reasoning_tokens),
+                            ty::CAPTION,
+                            theme.muted_foreground,
+                            theme,
+                        ))
+                    })
+                    .when(!provider.diagnostics.is_empty(), |this| {
+                        this.child(ds::chip(
+                            format!("{} diagnostics", provider.diagnostics.len()),
+                            Tone::Amber,
+                            theme,
+                        ))
+                    })
+                    .into_any_element()
+            }))
+            .child(
+                div()
+                    .px(px(sp::LG))
+                    .py(px(sp::SM))
+                    .child(ds::caption(
+                        "Fresh input plus cache reads/writes; reasoning is a subset of output. Local transcript totals, not invoices or quota.",
+                        theme,
+                    )),
+            ),
+    )
+}
+
 impl Desktop {
     pub fn page_usage(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
@@ -28,15 +121,23 @@ impl Desktop {
         let mut seen = std::collections::BTreeSet::new();
         rows.retain(|row| seen.insert(series_key(row)));
 
+        let local_tokens = local_token_panel(
+            self.bundle
+                .as_ref()
+                .and_then(|bundle| bundle.costs.as_ref()),
+            &theme,
+        );
         if rows.is_empty() {
-            return ds::page()
-                .child(ds::panel(&theme).child(ds::state(
-                    ds::StateKind::Empty,
-                    "No allowance windows reported",
-                    "None of the discovered clients reports a usage window, so there is nothing to record. That is not the same as zero usage. Accounts shows which clients are signed in.",
-                    &theme,
-                )))
-                .into_any_element();
+            let mut page = ds::page().child(ds::panel(&theme).child(ds::state(
+                ds::StateKind::Empty,
+                "No allowance windows reported",
+                "None of the discovered clients reports a quota window. Local session-token totals and Accounts are still available below.",
+                &theme,
+            )));
+            if let Some(panel) = local_tokens {
+                page = page.child(panel);
+            }
+            return page.into_any_element();
         }
 
         if self
@@ -336,24 +437,26 @@ impl Desktop {
             .gap(px(sp::MD))
             .child(history)
             .child(schedule);
-        ds::page()
-            .child(if wide {
-                div()
-                    .h_flex()
-                    .items_start()
-                    .gap(px(sp::MD))
-                    .child(div().w(px(380.)).flex_shrink_0().child(list))
-                    .child(right)
-                    .into_any_element()
-            } else {
-                div()
-                    .v_flex()
-                    .gap(px(sp::MD))
-                    .child(list)
-                    .child(right)
-                    .into_any_element()
-            })
-            .into_any_element()
+        let mut page = ds::page().child(if wide {
+            div()
+                .h_flex()
+                .items_start()
+                .gap(px(sp::MD))
+                .child(div().w(px(380.)).flex_shrink_0().child(list))
+                .child(right)
+                .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .gap(px(sp::MD))
+                .child(list)
+                .child(right)
+                .into_any_element()
+        });
+        if let Some(panel) = local_tokens {
+            page = page.child(panel);
+        }
+        page.into_any_element()
     }
 
     fn usage_table_view(&self, points: &[data::ChartPoint], theme: &Theme) -> AnyElement {
