@@ -62,6 +62,36 @@ for line in sys.stdin:
    emit('item/agentMessage/delta',{"threadId":"native-thread","turnId":turn,"delta":"color is red"})
    emit('turn/completed',{"threadId":"native-thread","turn":{"id":turn,"status":"completed"}})
   elif mode=='account-switch':emit('account/updated',{"authMode":None})
+  elif mode=='tokens':
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":100,"cachedInputTokens":40,"cacheWriteInputTokens":5,"outputTokens":20,"reasoningOutputTokens":4,"totalTokens":120},
+     "last":{"inputTokens":0,"cachedInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":0,"reasoningOutputTokens":0,"totalTokens":0}}})
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":130,"cachedInputTokens":60,"cacheWriteInputTokens":7,"outputTokens":30,"reasoningOutputTokens":6,"totalTokens":160},
+     "last":{"inputTokens":30,"cachedInputTokens":20,"cacheWriteInputTokens":2,"outputTokens":10,"reasoningOutputTokens":2,"totalTokens":40}}})
+   emit('item/agentMessage/delta',{"threadId":"native-thread","turnId":turn,"delta":"native reply"})
+   emit('turn/completed',{"threadId":"native-thread","turn":{"id":turn,"status":"completed"}})
+  elif mode=='tokens-stale':
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":"turn-old","tokenUsage":{
+     "total":{"inputTokens":999,"cachedInputTokens":900,"outputTokens":99,"reasoningOutputTokens":9,"totalTokens":1098},
+     "last":{"inputTokens":999,"cachedInputTokens":900,"outputTokens":99,"reasoningOutputTokens":9,"totalTokens":1098}}})
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":100,"cachedInputTokens":40,"outputTokens":20,"reasoningOutputTokens":4,"totalTokens":120},
+     "last":{"inputTokens":0,"cachedInputTokens":0,"outputTokens":0,"reasoningOutputTokens":0,"totalTokens":0}}})
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":130,"cachedInputTokens":60,"outputTokens":30,"reasoningOutputTokens":6,"totalTokens":160},
+     "last":{"inputTokens":30,"cachedInputTokens":20,"outputTokens":10,"reasoningOutputTokens":2,"totalTokens":40}}})
+   emit('item/agentMessage/delta',{"threadId":"native-thread","turnId":turn,"delta":"native reply"})
+   emit('turn/completed',{"threadId":"native-thread","turn":{"id":turn,"status":"completed"}})
+  elif mode=='tokens-reset':
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":500,"cachedInputTokens":200,"outputTokens":90,"reasoningOutputTokens":12,"totalTokens":590},
+     "last":{"inputTokens":0,"cachedInputTokens":0,"outputTokens":0,"reasoningOutputTokens":0,"totalTokens":0}}})
+   emit('thread/tokenUsage/updated',{"threadId":"native-thread","turnId":turn,"tokenUsage":{
+     "total":{"inputTokens":40,"cachedInputTokens":10,"outputTokens":8,"reasoningOutputTokens":1,"totalTokens":48},
+     "last":{"inputTokens":40,"cachedInputTokens":10,"outputTokens":8,"reasoningOutputTokens":1,"totalTokens":48}}})
+   emit('item/agentMessage/delta',{"threadId":"native-thread","turnId":turn,"delta":"native reply"})
+   emit('turn/completed',{"threadId":"native-thread","turn":{"id":turn,"status":"completed"}})
   elif mode=='token-refresh':
    emit('account/updated',{"authMode":"chatgpt","planType":"refreshed"})
    emit('item/agentMessage/delta',{"threadId":"native-thread","turnId":turn,"delta":"native reply"})

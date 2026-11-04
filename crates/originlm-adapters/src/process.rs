@@ -521,6 +521,18 @@ pub(crate) async fn exchange_with_identity(
 
 /// Execute an explicitly chosen metadata command. No shell or unbounded output.
 pub async fn capture(spec: LaunchSpec, deadline: Duration) -> Result<String> {
+    let (success, output) = capture_status(spec, deadline).await?;
+    if success {
+        Ok(output)
+    } else {
+        Err(error(ErrorCode::ProviderUnavailable))
+    }
+}
+
+/// Like [`capture`], but reports a non-zero exit as data. Some CLIs use the
+/// exit code to distinguish "signed out" from "failed", and their stdout is
+/// the only place that distinction is written down.
+pub async fn capture_status(spec: LaunchSpec, deadline: Duration) -> Result<(bool, String)> {
     if deadline.is_zero() || deadline > Duration::from_secs(60) {
         return Err(error(ErrorCode::InvalidRequest));
     }
@@ -544,10 +556,9 @@ pub async fn capture(spec: LaunchSpec, deadline: Duration) -> Result<String> {
             .wait()
             .await
             .map_err(|_| error(ErrorCode::ProviderUnavailable))?;
-        if !status.success() {
-            return Err(error(ErrorCode::ProviderUnavailable));
-        }
-        String::from_utf8(bytes).map_err(|_| error(ErrorCode::ProtocolIncompatible))
+        let output =
+            String::from_utf8(bytes).map_err(|_| error(ErrorCode::ProtocolIncompatible))?;
+        Ok((status.success(), output))
     })
     .await
     .unwrap_or_else(|_| Err(error(ErrorCode::Timeout)));

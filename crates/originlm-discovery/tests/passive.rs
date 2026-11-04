@@ -24,6 +24,9 @@ impl LocalFilesystem for ProbeSpy {
     fn read_chunk(&self, _: &Path, _: u64, _: usize) -> Result<ReadChunk> {
         panic!("executable-only scan read file content")
     }
+    fn resolve_executable(&self, path: &Path) -> Result<ExecutableIdentity> {
+        NativeFilesystem.resolve_executable(path)
+    }
 }
 #[test]
 fn executable_only_provider_never_probes_its_profiles_or_publishes_legacy_routes() {
@@ -105,6 +108,9 @@ impl LocalFilesystem for MetadataOnly {
     fn read_chunk(&self, _: &Path, _: u64, _: usize) -> Result<ReadChunk> {
         self.reads.fetch_add(1, Ordering::SeqCst);
         panic!("passive scan read file content")
+    }
+    fn resolve_executable(&self, path: &Path) -> Result<ExecutableIdentity> {
+        NativeFilesystem.resolve_executable(path)
     }
 }
 fn scan(env: &ScanEnvironment) -> ScanResult {
@@ -502,5 +508,65 @@ fn a_configured_muse_binary_replaces_the_search() {
         s.snapshot
             .diagnostics
             .contains(&"muse_CONFIGURED_EXECUTABLE_UNAVAILABLE".to_owned())
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_command_reached_through_path_and_its_real_directory_is_one_installation() {
+    use std::os::unix::fs::PermissionsExt;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::create_dir_all(tmp.path().join(".opencode/bin")).unwrap();
+    let real = tmp.path().join(".opencode/bin/opencode");
+    fs::write(&real, b"fixture").unwrap();
+    let mut permissions = fs::metadata(&real).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&real, permissions).unwrap();
+    let bin = tmp.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    std::os::unix::fs::symlink(&real, bin.join("opencode")).unwrap();
+    let mut env = environment(tmp.path(), HostPlatform::Linux);
+    env.search_path = vec![bin];
+    let s = scan(&env);
+    let located: Vec<_> = s
+        .locations
+        .values()
+        .filter(|located| located.provider_id == "opencode")
+        .collect();
+    assert_eq!(located.len(), 1, "one target must be one installation");
+    assert_eq!(located[0].executable.as_deref(), Some(real.as_path()));
+}
+
+#[cfg(unix)]
+#[test]
+fn an_npm_launcher_keeps_its_command_name_when_it_links_to_an_implementation_file() {
+    use std::os::unix::fs::PermissionsExt;
+    let tmp = tempfile::tempdir().unwrap();
+    let package_bin = tmp.path().join("lib/node_modules/@vendor/tool/cli.js");
+    fs::create_dir_all(package_bin.parent().unwrap()).unwrap();
+    fs::write(&package_bin, b"fixture").unwrap();
+    let mut permissions = fs::metadata(&package_bin).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&package_bin, permissions).unwrap();
+    let bin = tmp.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    let launcher = bin.join("claude");
+    std::os::unix::fs::symlink(&package_bin, &launcher).unwrap();
+    fs::create_dir(tmp.path().join(".claude")).unwrap();
+    NativeFilesystem
+        .resolve_executable(&launcher)
+        .expect("fixture launcher resolves");
+    let mut env = environment(tmp.path(), HostPlatform::Linux);
+    env.search_path = vec![bin];
+    let s = scan(&env);
+    let located = s
+        .locations
+        .values()
+        .find(|located| located.provider_id == "claude_code")
+        .unwrap_or_else(|| panic!("claude location missing: {:?}", s.snapshot.connections));
+    assert_eq!(
+        located.executable.as_deref(),
+        Some(launcher.as_path()),
+        "the retained path keeps the logical command name"
     );
 }

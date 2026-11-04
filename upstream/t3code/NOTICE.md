@@ -4,9 +4,9 @@ Local AI Kit reviewed [T3 Code](https://github.com/pingdotgg/t3code) as an upstr
 
 | Field | Value |
 | --- | --- |
-| Pinned commit | `e9236274a3a6e0c731a7df4092db1e686f039068` (`main`) |
-| Latest nightly at pin time | `v0.1.4-nightly.20261027.3770` (`7c3b3b3605efa695e9948051b569937fc1482c0f`) |
-| Latest stable at pin time | `v0.1.3` (`d2c440312e5f39d59827ed466838a623516454d6`) |
+| Pinned commit | `8b44f42b14c8e273156474a924ccf29680dd7857` (`main`) |
+| Latest nightly at pin time | `v0.1.8-nightly.20261104.4165` (`8b44f42b14c8e273156474a924ccf29680dd7857`) |
+| Latest stable at pin time | `v0.1.7` (`322f6544dfad0a3c8a0c8cbecf2c7f7874b14268`) |
 | License | MIT |
 | Copyright | Copyright (c) 2026 T3 Tools Inc. |
 
@@ -16,6 +16,10 @@ No T3 Code source file is copied into this build. The Pi profile, the OpenCode n
 
 Adopted at this pin:
 
+- Kiro CLI: command `kiro-cli`, profile `~/.kiro`, session store `sessions/cli`; `whoami --format json` reports sign-in and an explicit `account:null` sign-out; `chat --list-models --format json` is the account model catalog and is requested only after sign-in; `KIRO_API_KEY` is passed through but never serialized. Reimplemented from `packages/provider-kiro/src/server/status.ts` at `8b44f42b`.
+- Claude Code reported models are added to the catalog instead of relying on a fixed list; OriginLM already reads the client's `init.models` and keeps no fixed catalog. Claude result usage keeps uncached input, cache reads, cache writes, output and thinking tokens separate. Reimplemented from `ClaudeModelCatalog.ts` and `ClaudeTurnTokenUsage.ts` at `8b44f42b`.
+- Codex thread-wide token totals become a per-turn delta, with the newest response as the reset fallback; cache reads and writes stay separate. Reimplemented from `CodexTurnTokenUsage.ts` at `8b44f42b`.
+- Executable discovery no longer depends only on the inherited PATH: per-OS user and system install directories are searched. T3's shell-profile PATH loading is still not adopted.
 - Pi coding agent command `pi`, profile `PI_CODING_AGENT_DIR` or `~/.pi/agent`, session directory `sessions/` under that profile. Passive inventory only. First adopted at `42da166d131017335a1158d0b379dd68b8985796`.
 - OpenCode installer binary directory `~/.opencode/bin`. First adopted at that same commit.
 - ChatGPT OAuth: `earliest_refresh_at` is honored, ID tokens may be RS256 or ES256 with a five-second clock skew, and a sign-in that omitted plan sharing asks for consent on the next attempt. First adopted at that same commit.

@@ -23,7 +23,14 @@ Usage:
       [--admin-token-file ABSOLUTE_PATH] [--idle-timeout SECONDS] [--allow-passive-discovery]
       [--os-notifications (requires an os-notifications build)]
   originlm connect --ipc LOCAL_ADDRESS
-  originlm scan --json [--home ABSOLUTE_DIRECTORY] [--executable-only-provider PROVIDER]
+  originlm scan --json [--include-locations] [--home ABSOLUTE_DIRECTORY] [--executable-only-provider PROVIDER]
+      --include-locations adds this host's private executable and profile paths.
+  originlm usage --json [--home ABSOLUTE_DIRECTORY]
+      Reads bounded Claude Code and Codex session-history token totals. No prompt,
+      tool output or credential is read; malformed or oversized input is reported.
+  originlm models --json [--home ABSOLUTE_DIRECTORY]
+      Lists on-disk Ollama manifests and LM Studio GGUF files. Reports only ids,
+      names, sizes and a coarse format; no capability or quantization guesses.
   originlm status [--json] [--ipc ADDRESS] [--token-file ABSOLUTE_FILE]
       Prints the running helper, its providers and connected apps.
       Exit: 0 running, 3 not running, 4 credential rejected.
@@ -36,6 +43,8 @@ Usage:
   Reusable provider grants: --allow-metadata PROVIDER --allow-execution PROVIDER
   --allow-usage cursor additionally reads Cursor's own dashboard allowances with the
   session token stored by Cursor; the token is never logged, serialized or exported.
+  Kiro is metadata-only in this release: --allow-metadata kiro reads the CLI version,
+  whoami sign-in state and account model list.
   --executable-only-provider PROVIDER may repeat for known discovery providers; retains private executable candidates without publishing their profiles or routes.
   Execution providers: codex, claude_code, gemini_cli, antigravity, grok, ollama, lmstudio, openai_api, anthropic_api, gemini_api, xai_api, compatible_api, opencode, muse.
   --endpoints ABSOLUTE_JSON registers local or API endpoints without contacting them.
@@ -209,11 +218,104 @@ async fn execute(args: Args) -> Result<()> {
                     json!({"level":"passive"}),
                 )
                 .await?;
+            let snapshot = service
+                .handle("stdio-owner", "snapshot.get", json!({}))
+                .await?;
+            if args.include_locations {
+                let result = inventory::scan(
+                    &args.home,
+                    args.executable_only_providers.clone(),
+                    &std::sync::atomic::AtomicBool::new(false),
+                )?;
+                let locations: Vec<_> = result
+                    .locations
+                    .iter()
+                    .map(|(connection, located)| {
+                        let resolved = located
+                            .executable_identity
+                            .as_ref()
+                            .map(|identity| identity.resolved.to_string_lossy().into_owned());
+                        json!({
+                            "connectionId": connection,
+                            "providerId": located.provider_id,
+                            "profileHome": located.profile_home.to_string_lossy(),
+                            "executable": located.executable.as_ref().map(|path| path.to_string_lossy().into_owned()),
+                            "resolvedExecutable": resolved,
+                        })
+                    })
+                    .collect();
+                let found: std::collections::BTreeSet<&str> = result
+                    .snapshot
+                    .connections
+                    .iter()
+                    .map(|connection| connection.provider_id.as_str())
+                    .collect();
+                let checked: Vec<_> = originlm_discovery::definitions()
+                    .iter()
+                    .map(|definition| {
+                        json!({
+                            "providerId": definition.id,
+                            "name": definition.name,
+                            "status": if found.contains(definition.id) { "found" } else { "not_found" },
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    json!({
+                        "snapshot": snapshot,
+                        "locations": locations,
+                        "metadataProbes": result.metadata_probes,
+                        "checkedProviders": checked,
+                    })
+                );
+            } else {
+                println!("{snapshot}");
+            }
+            Ok(())
+        }
+        Action::Usage => {
+            let history = match args.home.clone() {
+                Some(home) => originlm_adapters::history::read_usage(
+                    &home,
+                    originlm_adapters::history::Limits::default(),
+                ),
+                None => {
+                    let environment = originlm_discovery::ScanEnvironment::from_process()?;
+                    originlm_adapters::history::read_usage_for_environment(
+                        &environment,
+                        originlm_adapters::history::Limits::default(),
+                    )
+                }
+            };
+            println!("{}", json!(history));
+            Ok(())
+        }
+        Action::Models => {
+            let environment = match args.home.clone() {
+                Some(home) => {
+                    let platform = if cfg!(windows) {
+                        originlm_discovery::HostPlatform::Windows
+                    } else if cfg!(target_os = "macos") {
+                        originlm_discovery::HostPlatform::Macos
+                    } else {
+                        originlm_discovery::HostPlatform::Linux
+                    };
+                    originlm_discovery::ScanEnvironment::for_home(home, platform)
+                }
+                None => originlm_discovery::ScanEnvironment::from_process()?,
+            };
+            let ollama_override = environment.overrides.get("OLLAMA_MODELS").cloned();
             println!(
                 "{}",
-                service
-                    .handle("stdio-owner", "snapshot.get", json!({}))
-                    .await?
+                json!({"providers": [
+                    originlm_adapters::local_models::read_ollama_models(
+                        &environment.home,
+                        ollama_override.as_deref(),
+                        8192,
+                    ),
+                    originlm_adapters::local_models::read_lmstudio_models(&environment.home, 8192),
+                ]})
             );
             Ok(())
         }

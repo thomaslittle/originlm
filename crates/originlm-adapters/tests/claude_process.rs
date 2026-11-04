@@ -86,6 +86,40 @@ async fn native_stream_and_whole_message_do_not_duplicate_text() {
     r.close("owner", &s.id).await.unwrap();
 }
 #[tokio::test]
+async fn result_usage_keeps_cached_and_reasoning_tokens_separate() {
+    let (r, s) = setup("normal").await;
+    r.start("owner", &s.id, "test".into(), "1".into())
+        .await
+        .unwrap();
+    done(&r, &s).await;
+    let events = r.events("owner", None, None).unwrap();
+    let usage: BTreeMap<String, String> = events["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|event| event["payload"]["type"] == "usage")
+        .map(|event| {
+            (
+                event["payload"]["unit"].as_str().unwrap().to_owned(),
+                event["payload"]["used"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(usage.get("input_tokens").map(String::as_str), Some("10"));
+    assert_eq!(usage.get("output_tokens").map(String::as_str), Some("3"));
+    assert_eq!(
+        usage.get("cache_read_tokens").map(String::as_str),
+        Some("7")
+    );
+    assert_eq!(
+        usage.get("cache_creation_tokens").map(String::as_str),
+        Some("2")
+    );
+    assert_eq!(usage.get("reasoning_tokens").map(String::as_str), Some("1"));
+    r.close("owner", &s.id).await.unwrap();
+}
+
+#[tokio::test]
 async fn text_only_mode_denies_unexpected_native_tool_requests() {
     let (r, s) = setup("tool").await;
     r.start("owner", &s.id, "test".into(), "1".into())

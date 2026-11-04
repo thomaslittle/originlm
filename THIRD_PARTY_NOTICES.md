@@ -36,8 +36,8 @@ The reuse ledger below and `upstream/` record inspected source revisions. For fu
 | --- | --- |
 | Project | Tokscale |
 | Source | https://github.com/junhoyeo/tokscale |
-| Pinned commit | `1d9a9395418efc6952944b794097935d7d6fa1e8` |
-| Release noted at pin time | `v4.17.0` (`dcf8d3656bbcecf05d112c6f35f9be328e4f66b7`) |
+| Pinned commit | `b26c433d03f23a2255ad9f212512ce83ede83da3` |
+| Release noted at pin time | `v4.21.0` (`b26c433d03f23a2255ad9f212512ce83ede83da3`) |
 | Upstream paths reviewed | `crates/tokscale-core/src/clients.rs`, `paths.rs`, `scanner.rs`, `cc_mirror.rs`, `sessions/` |
 | License | MIT |
 | Copyright | Copyright (c) 2025 Junho Yeo |
@@ -50,20 +50,20 @@ The reuse ledger below and `upstream/` record inspected source revisions. For fu
 
 See [upstream/tokscale/NOTICE.md](upstream/tokscale/NOTICE.md).
 
-## T3 Code provider sync (2026-10-27)
+## T3 Code provider sync (2026-11-04)
 
 | Field | Value |
 | --- | --- |
-| Source | https://github.com/pingdotgg/t3code at `e9236274a3a6e0c731a7df4092db1e686f039068` |
-| Nightly tag at pin time | `v0.1.4-nightly.20261027.3770` (`7c3b3b3605efa695e9948051b569937fc1482c0f`) |
-| Stable tag at pin time | `v0.1.3` (`d2c440312e5f39d59827ed466838a623516454d6`) |
-| Referenced paths | `packages/provider-fx/src/server/driver.ts`, `packages/provider-fx/src/server/status.ts`, `packages/provider-acp/src/server/runtimeModel.ts`, `packages/effect-acp/src/client.ts` |
+| Source | https://github.com/pingdotgg/t3code at `8b44f42b14c8e273156474a924ccf29680dd7857` |
+| Nightly tag at pin time | `v0.1.8-nightly.20261104.4165` (`8b44f42b14c8e273156474a924ccf29680dd7857`) |
+| Stable tag at pin time | `v0.1.7` (`322f6544dfad0a3c8a0c8cbecf2c7f7874b14268`) |
+| Referenced paths | `packages/provider-kiro/src/server/status.ts`, `apps/server/src/provider/ClaudeModelCatalog.ts`, `ClaudeTurnTokenUsage.ts`, `CodexTurnTokenUsage.ts`, `packages/provider-fx/src/server/driver.ts`, `packages/provider-acp/src/server/runtimeModel.ts` |
 | Upstream commits | [6df241d23](https://github.com/pingdotgg/t3code/commit/6df241d23a8b82ff786fe3253dfb08645933db26) (fx provider; inventory only), [323d9611](https://github.com/pingdotgg/t3code/commit/323d9611ff49521357fdc205f667614602ec46b6) (ACP session notices) |
 | Copied files | None. Behavior was reimplemented in Rust. |
 | License | MIT |
 | Copyright | Copyright (c) 2026 T3 Tools Inc. The license text is reproduced in the Muse section below and applies to this reuse as well. |
-| What was reused | The `fx` command and `~/.fx` as passive inventory, and ACP `notice` updates as warnings that are not assistant text. |
-| What was not reused | fx execution and its medium effort default, shortened model labels ([56695ae3](https://github.com/pingdotgg/t3code/commit/56695ae3ec2aad931030af1e7e43852f741b9eef)), the seven-day new-model badge ([0790e3891](https://github.com/pingdotgg/t3code/commit/0790e3891b7470d5a33292dedc4d4ae62d02ff29)), the Cursor SDK 1.0.38 bump ([850d1e7a](https://github.com/pingdotgg/t3code/commit/850d1e7a6c5ffd894c48e9182169cf8e25097db5)), and T3 release CI. |
+| What was reused | Kiro CLI discovery, version, `whoami` auth, and account model catalog; Claude model-list adoption and cached-token accounting; Codex per-turn token deltas; the `fx` command and `~/.fx` as passive inventory; ACP `notice` updates as warnings that are not assistant text. |
+| What was not reused | Kiro execution and its hard-coded per-model effort table, shell-profile PATH hydration, fx execution and its medium effort default, shortened model labels ([56695ae3](https://github.com/pingdotgg/t3code/commit/56695ae3ec2aad931030af1e7e43852f741b9eef)), the seven-day new-model badge ([0790e3891](https://github.com/pingdotgg/t3code/commit/0790e3891b7470d5a33292dedc4d4ae62d02ff29)), the Cursor SDK 1.0.38 bump ([850d1e7a](https://github.com/pingdotgg/t3code/commit/850d1e7a6c5ffd894c48e9182169cf8e25097db5)), and T3 release CI. |
 
 ## T3 Code provider sync (2026-10-26)
 

@@ -55,6 +55,12 @@ pub fn definitions() -> &'static [ProviderDefinition] {
             profile_prefix: None,
         },
         ProviderDefinition {
+            id: "kiro",
+            name: "Kiro",
+            commands: &["kiro-cli"],
+            profile_prefix: None,
+        },
+        ProviderDefinition {
             id: "cursor",
             name: "Cursor",
             commands: &["cursor-agent"],

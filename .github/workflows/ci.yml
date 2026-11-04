@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15-intel]
+        os: [ubuntu-24.04, windows-2025, macos-15-intel, macos-15]
         phase: [verify, lint, package]
     runs-on: ${{ matrix.os }}
     # Run independent gates concurrently; each phase still has its own result.

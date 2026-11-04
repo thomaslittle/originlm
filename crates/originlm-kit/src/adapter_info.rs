@@ -27,6 +27,7 @@ pub fn descriptors() -> Vec<AdapterDescriptor> {
                 | "gemini_cli"
                 | "antigravity"
                 | "cursor"
+                | "kiro"
                 | "ollama"
                 | "lmstudio"
                 | "opencode"
@@ -114,6 +115,17 @@ mod tests {
         assert_eq!(muse.integration, "native_client");
         assert!(muse.passive_discovery && muse.metadata && muse.text_sessions);
         assert!(muse.native_tool_approval && muse.cancellation && muse.persistent_resumption);
+    }
+
+    #[test]
+    fn kiro_is_passive_metadata_without_execution() {
+        let kiro = super::descriptors()
+            .into_iter()
+            .find(|d| d.id == "kiro")
+            .unwrap();
+        assert_eq!(kiro.name, "Kiro");
+        assert!(kiro.passive_discovery && kiro.metadata);
+        assert!(!kiro.text_sessions && !kiro.cancellation);
     }
 
     #[test]

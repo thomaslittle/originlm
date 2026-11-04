@@ -23,7 +23,7 @@ cargo add originlm@=0.1.0-alpha.22
 
 ## What it does
 
-- **Passive discovery.** Finds installed AI clients and profiles (Codex, Claude Code, Grok, Gemini CLI, Antigravity, OpenCode, Muse Code, Pi, Cursor, GitHub Copilot, Ollama, LM Studio, and API routes you configure) from metadata only. No scanning at import time, no secrets read, no network calls.
+- **Passive discovery.** Finds installed AI clients and profiles (Codex, Claude Code, Grok, Gemini CLI, Antigravity, OpenCode, Muse Code, Kiro, Pi, Cursor, GitHub Copilot, Ollama, LM Studio, and API routes you configure) from metadata only. No scanning at import time, no secrets read, no network calls.
 - **Evidence-backed inventory.** Provider, installation, profile, account, connection, route, model, billing, and quota-pool identities stay distinct, with field-level evidence. *Unknown* and *unsupported* are different states, and unknowns are never filled in with guesses.
 - **Selection.** Route-aware, framework-neutral selection logic that keeps each provider's native model IDs and option descriptors. There are no hard-coded universal "Low/Medium/High" controls.
 - **Granted sessions.** Streaming text sessions, approvals, cancellation, image input, host MCP tools, resumable sessions, and scoped result artifacts, only after a host grants them explicitly.
@@ -66,6 +66,22 @@ target/debug/originlm scan --json
 ```
 
 To see exactly what discovery finds without touching your real home directory, point it at an empty directory: `scan --json --home /absolute/empty/dir`.
+
+Session-history token totals are a separate explicit read:
+
+```sh
+target/debug/originlm usage --json
+```
+
+It reads bounded Claude Code and Codex JSONL totals, never prompts, tool output,
+or credentials. See [session-history usage](docs/adapters/usage-history.md).
+On-disk local models are a separate read:
+
+```sh
+target/debug/originlm models --json
+```
+
+See [on-disk local models](docs/adapters/local-models.md).
 
 ### One shared runtime and the control center
 

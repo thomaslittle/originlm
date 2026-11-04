@@ -8,8 +8,13 @@ T3 Code has no `nightly` branch. `.github/workflows/release.yml` schedules a nig
 
 ## What this pin adopted
 
-From `e9236274a3a6e0c731a7df4092db1e686f039068`, including facts first adopted at `42da166d131017335a1158d0b379dd68b8985796`, `cfafb4bb54d244e4612f5681aad3832ea64cb0fb`, and `f0dd86f16482595c6cfffe0ac64dc12bffb634f9`:
+From `8b44f42b14c8e273156474a924ccf29680dd7857`, including facts first adopted at `42da166d131017335a1158d0b379dd68b8985796`, `cfafb4bb54d244e4612f5681aad3832ea64cb0fb`, and `f0dd86f16482595c6cfffe0ac64dc12bffb634f9`:
 
+- Kiro CLI is a passive installation candidate with command `kiro-cli` and profile `~/.kiro`. `kiro-cli whoami --format json` reports sign-in (an explicit `{"account":null}` with a non-zero exit is signed out), `KIRO_API_KEY` is a second sign-in path, and `kiro-cli chat --list-models --format json` is the account model catalog. The catalog is requested only after sign-in because a signed-out request starts a browser login. OriginLM does not adopt Kiro execution or its hard-coded per-model effort table.
+- Claude model catalogs come from what Claude Code itself reports. OriginLM already reads `init.models`; it does not keep a fixed Claude catalog. The reported `resolvedModel` and effort levels remain separate native fields.
+- Claude result usage keeps uncached input, cache reads, cache writes, output and thinking tokens separate.
+- Codex `tokenUsage.total` is thread-wide. A turn reports the delta from the previous baseline, or `last` when the counters reset. Cache reads and writes are separate fields, and reasoning tokens are a subset of output.
+- A GUI launch does not inherit a login shell PATH. OriginLM searches per-OS user and platform install directories, including Homebrew, version-manager shims, npm global prefixes, WinGet, scoop and per-user Programs. It does not read shell profile files.
 - Pi is a passive installation candidate. The command is `pi`. The profile is `PI_CODING_AGENT_DIR` or `~/.pi/agent`. Session files live under `sessions/` and are not opened. There is no Pi execution adapter.
 - OpenCode's own installer directory `~/.opencode/bin` is searched for `opencode` in addition to `PATH`.
 - Managed ChatGPT sign-in honors `earliest_refresh_at`, accepts RS256 and P-256 ES256 identity tokens with five seconds of clock skew, and sends `prompt=consent` after a sign-in that did not grant `chatgpt.tokens.use.direct`.

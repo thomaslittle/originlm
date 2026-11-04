@@ -33,6 +33,7 @@ From the pinned Tokscale revision, OriginLM adopts discovery facts:
 - native path separators, so a Windows profile is not stored as `C:\Users\User/.codex/sessions`
 - Antigravity CLI (`antigravity-cli`) versus the home-rooted extension directory
 - GitHub Copilot's `~/.copilot` profile
+- Kiro CLI's `~/.kiro` profile and `sessions/cli` store (the model catalog comes from the official `kiro-cli` command, not session files)
 - session-store relatives used only to notice when an upstream layout moves
 
 The audited pin, watched paths, and adapter coverage are in [upstream/tokscale/lock.json](../../upstream/tokscale/lock.json). The extracted client table is [snapshot.json](../../upstream/tokscale/snapshot.json). How each client maps onto a OriginLM adapter is [mappings.json](../../upstream/tokscale/mappings.json).

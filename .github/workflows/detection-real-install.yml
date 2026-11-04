@@ -1,0 +1,127 @@
+name: Detection real install
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: detection-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  detect:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.20.0'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Install Linux desktop build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libfontconfig1-dev libfreetype6-dev pkg-config
+      - name: Build the helper
+        run: cargo build --locked -p originlm-cli
+      - name: Install CLI tools the way users do (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          npm install -g --prefix "$HOME/.local" \
+            @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
+          curl -fsSL https://cli.kiro.dev/install | bash
+      - name: Install CLI tools the way users do (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm install -g --prefix "$env:APPDATA\npm" @anthropic-ai/claude-code @openai/codex @google/gemini-cli opencode-ai
+          irm 'https://cli.kiro.dev/install.ps1' | iex
+      - name: Record Kiro install locations
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:ProgramFiles\Kiro-Cli", "$env:LOCALAPPDATA\Kiro-Cli", "${env:ProgramFiles(x86)}\Kiro-Cli" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName
+      - name: Record installed versions (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          for tool in codex claude gemini kiro-cli opencode; do
+            printf '%s: ' "$tool"
+            "$tool" --version || true
+          done
+      - name: Record installed versions (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:APPDATA\npm;$env:PATH"
+          foreach ($tool in 'codex','claude','gemini','kiro-cli','opencode') {
+            Write-Host "$tool`: "
+            if (Get-Command $tool -ErrorAction SilentlyContinue) { & $tool --version }
+            else { Write-Host 'not on PATH (the scan falls back to the install directory)' }
+          }
+      - name: Record Kiro install locations (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ls -l "$HOME/.local/bin/kiro-cli" || true
+          ls -ld "$HOME/.kiro" || true
+      - name: Detect with the inherited PATH (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ./target/debug/originlm scan --json --include-locations > detection-normal.json
+      - name: Detect with the inherited PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./target/debug/originlm.exe scan --json --include-locations > detection-normal.json
+      - name: Detect with a GUI-like bare PATH (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          env -i HOME="$HOME" PATH=/usr/bin:/bin \
+            ./target/debug/originlm scan --json --include-locations > detection-bare.json
+      - name: Detect with a GUI-like bare PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          ./target/debug/originlm.exe scan --json --include-locations > detection-bare.json
+      - name: Assert every installed tool is still found
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python scripts/test_detection_real_install.py detection-normal.json
+          python scripts/test_detection_real_install.py detection-bare.json
+      - name: Preserve detection evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detection-${{ matrix.os }}
+          path: |
+            detection-normal.json
+            detection-bare.json
+          if-no-files-found: warn

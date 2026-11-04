@@ -506,6 +506,8 @@ impl ClaudeAgent {
                     for (key, unit) in [
                         ("input_tokens", "input_tokens"),
                         ("output_tokens", "output_tokens"),
+                        ("cache_read_input_tokens", "cache_read_tokens"),
+                        ("cache_creation_input_tokens", "cache_creation_tokens"),
                     ] {
                         if let Some(used) = response["usage"][key].as_u64() {
                             cx.emit(EventPayload::Usage {
@@ -513,6 +515,14 @@ impl ClaudeAgent {
                                 used: used.to_string(),
                             })?;
                         }
+                    }
+                    if let Some(used) =
+                        response["usage"]["output_tokens_details"]["thinking_tokens"].as_u64()
+                    {
+                        cx.emit(EventPayload::Usage {
+                            unit: "reasoning_tokens".into(),
+                            used: used.to_string(),
+                        })?;
                     }
                     return Ok(());
                 }

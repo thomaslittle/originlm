@@ -5,6 +5,8 @@ pub enum Action {
     Help,
     Version,
     Scan,
+    Usage,
+    Models,
     Status,
     Serve,
     Connect,
@@ -14,6 +16,9 @@ pub enum Action {
 pub struct Args {
     pub action: Action,
     pub json: bool,
+    /// Add the private executable/profile locations to `scan --json`. Explicit
+    /// opt-in: the public snapshot deliberately omits host paths.
+    pub include_locations: bool,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -76,6 +81,8 @@ impl Args {
             Some("--help" | "-h") => Action::Help,
             Some("--version" | "-V") => Action::Version,
             Some("scan") => Action::Scan,
+            Some("usage") => Action::Usage,
+            Some("models") => Action::Models,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
             Some("install") => {
@@ -99,6 +106,7 @@ impl Args {
         let mut args = Self {
             action,
             json: false,
+            include_locations: false,
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -146,8 +154,23 @@ impl Args {
                 return Err(invalid());
             }
             match flag {
-                "--json" if matches!(args.action, Action::Scan | Action::Status) => json = true,
-                "--home" if matches!(args.action, Action::Scan | Action::Serve) => {
+                "--json"
+                    if matches!(
+                        args.action,
+                        Action::Scan | Action::Status | Action::Usage | Action::Models
+                    ) =>
+                {
+                    json = true
+                }
+                "--include-locations" if matches!(args.action, Action::Scan) => {
+                    args.include_locations = true
+                }
+                "--home"
+                    if matches!(
+                        args.action,
+                        Action::Scan | Action::Serve | Action::Usage | Action::Models
+                    ) =>
+                {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
                 }
                 "--endpoints" if matches!(args.action, Action::Serve | Action::Scan) => {
@@ -263,7 +286,8 @@ impl Args {
                                 "grok",
                             ]
                             .contains(&v.as_str())
-                                || (flag == "--allow-metadata" && v == "cursor")
+                                || (flag == "--allow-metadata"
+                                    && matches!(v.as_str(), "cursor" | "kiro"))
                         })
                         .ok_or_else(invalid)?;
                     if flag == "--allow-metadata" {
