@@ -363,7 +363,9 @@ fn retry_delay_ms(detail: &str) -> Option<u64> {
         .iter()
         .filter_map(|marker| lower.find(marker).map(|index| index + marker.len()))
         .min()?;
-    let value = detail[start..]
+    // Slice the lowercased string: its marker byte offsets are valid even
+    // when the original detail contains non-ASCII text before the marker.
+    let value = lower[start..]
         .trim_start()
         .split(|character: char| character.is_whitespace() || character == ']' || character == '}')
         .next()?;
@@ -421,6 +423,7 @@ mod tests {
             Some(90_000)
         );
         assert_eq!(retry_delay_ms("retryDelay:250ms"), Some(250));
+        assert_eq!(retry_delay_ms("échec; retryDelay:2s"), Some(2_000));
         assert_eq!(retry_delay_ms("no delay here"), None);
         assert_eq!(retry_delay_ms("retryDelay:forever"), None);
     }
