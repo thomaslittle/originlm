@@ -70,6 +70,36 @@ jobs:
           name: local-models-${{ matrix.os }}
           path: models.json
           if-no-files-found: warn
+  homebrew:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build the helper
+        run: cargo build --locked -p originlm-cli
+      - name: Install Homebrew casks
+        run: brew install --cask claude-code codex
+      - name: Detect with a GUI-like bare PATH
+        run: |
+          env -i HOME="$HOME" PATH=/usr/bin:/bin ./target/debug/originlm scan --json --include-locations --probe-versions > detection-homebrew.json
+      - name: Assert the Homebrew installs are found
+        run: python scripts/test_detection_real_install.py detection-homebrew.json --require codex,claude_code
+      - name: Preserve Homebrew evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detection-homebrew-macos-15
+          path: detection-homebrew.json
+          if-no-files-found: warn
   detect:
     strategy:
       fail-fast: false

@@ -116,10 +116,10 @@ boundaries, not silent misses:
 
 1. **Install-method coverage.** CI proves npm-installed Codex, Claude Code,
    Gemini CLI, OpenCode, and Kiro on Ubuntu, Windows, macOS arm64, and macOS
-   Intel, plus Ollama via the official installer on Linux and Homebrew on
-   macOS. Alternate npm prefixes, Homebrew-installed Claude/Codex/Gemini,
-   LM Studio's app/CLI, Copilot, and every vendor-specific installer are not
-   individually exercised yet.
+   Intel, Homebrew-installed Claude Code and Codex on macOS arm64, and Ollama
+   via the official installer on Linux and Homebrew on macOS. Alternate npm
+   prefixes, Homebrew-installed Gemini, LM Studio's app/CLI, Copilot, and every
+   vendor-specific installer are not individually exercised yet.
 2. **Token-history boundaries.** Cursor's usage is a dashboard/cache surface,
    not a transcript token feed, and remains the separate `--allow-usage cursor`
    grant. Copilot and Antigravity store conversation data in databases that
