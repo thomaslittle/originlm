@@ -39,6 +39,12 @@ pub struct NativeService {
     cost_prices: RwLock<costs::Prices>,
     usage_home: RwLock<Option<std::path::PathBuf>>,
     usage_history: RwLock<Option<(std::time::Instant, UsageHistory)>>,
+    local_models_cache: RwLock<
+        Option<(
+            std::time::Instant,
+            Vec<originlm_contracts::LocalModelInventory>,
+        )>,
+    >,
     clients: Arc<RwLock<BTreeMap<String, ClientPolicy>>>,
     adapters: Vec<originlm_contracts::AdapterDescriptor>,
     execution_state: execution::ExecutionState,
@@ -71,6 +77,7 @@ impl NativeService {
             cost_prices: RwLock::new(costs::Prices::default()),
             usage_home: RwLock::new(None),
             usage_history: RwLock::new(None),
+            local_models_cache: RwLock::new(None),
             clients: Arc::new(RwLock::new(BTreeMap::new())),
             adapters: Vec::new(),
             execution_state: Default::default(),
@@ -98,6 +105,9 @@ impl NativeService {
             *current = Some(home);
         }
         if let Ok(mut cached) = self.usage_history.write() {
+            *cached = None;
+        }
+        if let Ok(mut cached) = self.local_models_cache.write() {
             *cached = None;
         }
     }
