@@ -7,7 +7,7 @@ proven when a run on that OS recorded the result.
 
 Baseline for this change (Linux, `2026-11-04`):
 
-- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 787 passed, 0 failed after it.
+- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 789 passed, 0 failed after it.
 - `npm run build` — passed.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — passed.
 - `cargo fmt --all --check` — passed.
@@ -125,10 +125,12 @@ boundaries, not silent misses:
    grant. Copilot and Antigravity store conversation data in databases that
    OriginLM does not open during history reads. `usage.history` omits providers
    with no readable tokens rather than reporting a silent zero.
-3. **Quota-only provider work.** Grok Legacy/Privacy-mode quota and Antigravity
-   rate-limit reset extraction were not adopted: they require credential-file
-   or provider-billing endpoint access outside OriginLM's policy. Native quota
-   surfaces that are already published remain in `usage.read`.
+3. **Quota-only provider work.** ACP rate-limit errors now keep
+   `quotaResetDelay`/`retryDelay` as `retry_after_ms` for Grok/Gemini/
+   Antigravity turns. Grok Legacy/Privacy-mode quota still requires
+   credential-file or provider-billing endpoint access outside OriginLM's
+   policy; native quota surfaces that are already published remain in
+   `usage.read`.
 4. **Claude update status.** OriginLM does not report client update status, so
    no native-release update check is performed.
 5. **macOS interactive qualification.** CI runs detection, the full verify
