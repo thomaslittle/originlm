@@ -29,7 +29,7 @@ Legend:
 | Tool | Linux | Windows | macOS | Proof today | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Codex | **Real** (npm prefix, bare PATH) + PATH + version managers | **Real CI** (npm prefix, bare PATH) + `%APPDATA%\npm` + WinGet/scoop/Programs | **Real CI** (npm prefix, bare PATH) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata/execution) | Version comes from the client `userAgent`; models from `model/list`. |
-| Claude Code | **Real** (npm prefix, bare PATH) + PATH + `~/.claude/local` | **Real CI** (npm prefix, bare PATH) + `%APPDATA%\npm` + WinGet/scoop | **Real CI** (npm prefix, bare PATH) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata/process) | Models come from Claude Code's own `init.models`, not a fixed catalog. The native client owns its Keychain entry; OriginLM never reads it, and no existence-only UI indicator is implemented. |
+| Claude Code | **Real** (npm prefix, bare PATH) + PATH + `~/.claude/local` | **Real CI** (npm prefix, bare PATH) + `%APPDATA%\npm` + WinGet/scoop | **Real CI** (npm prefix, bare PATH) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata/process) | Models come from Claude Code's own `init.models`, not a fixed catalog. The native client owns its Keychain entry; OriginLM never reads the secret. A macOS existence-only check adds `CLAUDE_CREDENTIALS_PRESENT_IN_KEYCHAIN` to diagnostics. |
 | Gemini CLI | **Real** (npm prefix, bare PATH) + PATH + T3 managed tools | **Real CI** (npm prefix, bare PATH) + `%APPDATA%\npm` + Programs | **Real CI** (npm prefix, bare PATH) + Homebrew/npm prefixes | Real on all four CI runners; fixture (ACP metadata/execution) | — |
 | Antigravity | PATH + `~/.gemini/antigravity-*` | PATH + per-user Programs | PATH | Fixture (passive + ACP) | Not live-qualified. |
 | Grok | PATH | PATH + Programs | PATH + Homebrew | Fixture (passive + ACP) | Not live-qualified. |
@@ -39,8 +39,8 @@ Legend:
 | GitHub Copilot | `~/.copilot` | `%USERPROFILE%\.copilot` | `~/.copilot` | Fixture (passive) | Session database is not opened. |
 | Pi | PATH, `PI_CODING_AGENT_DIR`, `~/.pi/agent` | same | same | Fixture (passive) | Session files are not opened. |
 | fx | PATH, `~/.fx` | same | same | Fixture (passive) | Binary is not launched. |
-| Ollama | explicit endpoint / `~/.ollama` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (manifest inventory) | No network scan. On-disk ids/names/sizes are read only through the explicit CLI; no capability claims. |
-| LM Studio | explicit endpoint / `~/.lmstudio` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (GGUF inventory) | `~/.lmstudio/models` and `~/.cache/lm-studio/models`; a custom model directory is not read yet. |
+| Ollama | explicit endpoint / `~/.ollama` + `originlm models` + `models.local` | explicit endpoint + `originlm models` + `models.local` | explicit endpoint + `originlm models` + `models.local` | Fixture (manifest inventory); server-off real install on Linux and macOS CI | No network scan. On-disk ids/names/sizes are read without a running server; no capability claims. |
+| LM Studio | explicit endpoint / `~/.lmstudio` + `originlm models` + `models.local` | explicit endpoint + `originlm models` + `models.local` | explicit endpoint + `originlm models` + `models.local` | Fixture (GGUF inventory) | `~/.lmstudio/models`, `~/.cache/lm-studio/models`, and a custom `modelDirectory` from the platform `LMStudio/config.json`. |
 | Kiro | **Real CI** (official installer, `~/.local/bin`) + PATH + version managers | **Real CI** (MSI, `%LOCALAPPDATA%\Kiro-Cli`) + `%ProgramFiles%\Kiro-Cli` | **Real CI** (official installer, `~/.local/bin`) + Homebrew/npm prefixes | Real on all four CI runners; fixture (metadata on Unix) | `kiro-cli whoami` and `chat --list-models` are parsed; signed-out sessions never request models. |
 
 ## What changed in this pass
@@ -66,12 +66,14 @@ Legend:
   are turned into this turn's delta, with `last` as the reset fallback.
   Cache reads/writes and reasoning tokens are separate units. The old
   thread-wide `session_tokens` fallback remains for older app-servers.
-- **Session-history totals.** `originlm usage --json` reads Claude Code and
-  Codex JSONL history with bounds and explicit diagnostics. It never reads
-  prompts, tool output, or credentials. The public service/desktop surface is
-  not wired yet.
-- **On-disk local models.** `originlm models --json` lists Ollama manifests and
-  LM Studio GGUF files without a running server and without capability guesses.
+- **Session-history totals.** `originlm usage --json` reads Claude Code, Codex,
+  Gemini CLI, Grok, and Kiro history with bounds and explicit diagnostics. It
+  never reads prompts, tool output, or credentials. `usage.history` and
+  `costs.read.historical` serve the same totals, and the desktop Costs page
+  renders them.
+- **On-disk local models.** `originlm models --json` and `models.local` list
+  Ollama manifests and LM Studio GGUF files without a running server and
+  without capability guesses; the desktop Models page renders them.
 - **Upstream pins.** T3 Code is pinned at `8b44f42b` (nightly
   `v0.1.8-nightly.20261104.4165`, stable `v0.1.7`); Tokscale is pinned at
   `b26c433d` (`v4.21.0`). Tokscale parity passes against the new snapshot.
