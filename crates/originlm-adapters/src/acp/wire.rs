@@ -52,10 +52,18 @@ impl Wire {
             route,
         };
         let outcome = tokio::time::timeout(timeout, async {
+            // The managed Antigravity runtime only exposes its full model
+            // catalog to allowlisted ACP clients; T3 uses the Zed identity.
+            // Keep our name for every other provider.
+            let (client_name, client_version) = if this.provider == "antigravity" {
+                ("zed", "0.0.0")
+            } else {
+                ("originlm", env!("CARGO_PKG_VERSION"))
+            };
             this.init = this
                 .call(
                     "initialize",
-                    json!({"protocolVersion":1,"clientInfo":{"name":"originlm","version":env!("CARGO_PKG_VERSION")},"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false,"session":{"configOptions":{"boolean":{}},"notices":{}}}}),
+                    json!({"protocolVersion":1,"clientInfo":{"name":client_name,"version":client_version},"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false,"session":{"configOptions":{"boolean":{}},"notices":{}}}}),
                 )
                 .await?;
             if this.init["protocolVersion"].as_u64() != Some(1) {
