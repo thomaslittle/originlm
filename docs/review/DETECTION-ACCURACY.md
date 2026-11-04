@@ -38,8 +38,8 @@ Legend:
 | GitHub Copilot | `~/.copilot` | `%USERPROFILE%\.copilot` | `~/.copilot` | Fixture (passive) | Session database is not opened. |
 | Pi | PATH, `PI_CODING_AGENT_DIR`, `~/.pi/agent` | same | same | Fixture (passive) | Session files are not opened. |
 | fx | PATH, `~/.fx` | same | same | Fixture (passive) | Binary is not launched. |
-| Ollama | explicit endpoint / `~/.ollama` | explicit endpoint | explicit endpoint | Unproven | No network scan. On-disk model manifests are not read yet. |
-| LM Studio | explicit endpoint / `~/.lmstudio` | explicit endpoint | explicit endpoint | Unproven | On-disk models and custom model directory are not read yet. |
+| Ollama | explicit endpoint / `~/.ollama` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (manifest inventory) | No network scan. On-disk ids/names/sizes are read only through the explicit CLI; no capability claims. |
+| LM Studio | explicit endpoint / `~/.lmstudio` + `originlm models` | explicit endpoint + `originlm models` | explicit endpoint + `originlm models` | Fixture (GGUF inventory) | `~/.lmstudio/models` and `~/.cache/lm-studio/models`; a custom model directory is not read yet. |
 | Kiro | PATH + `~/.local/bin` + version managers | PATH + `%APPDATA%\npm` / Programs / WinGet | PATH + Homebrew + npm prefixes | Fixture (passive + metadata on Unix) | New in this change. `kiro-cli whoami` and `chat --list-models` are parsed; signed-out sessions never request models. Real install not yet observed. |
 
 ## What changed in this pass
@@ -107,10 +107,11 @@ Legend:
    malformed roots reported). A custom LM Studio models directory, the
    `lms ls --json` inventory, capability claims, and service/desktop wiring are
    still missing.
-6. The detection workflow asserts provider and executable identity. It does
-   not yet assert parsed versions or home/config directories. Those need a
-   metadata probe with an explicit grant, which the workflow deliberately does
-   not grant to a real account.
+6. The detection workflow records each installed CLI's `--version` output and
+   asserts provider and executable identity, but it does not yet verify
+   OriginLM's parsed version or home/config directory. Those need a metadata
+   probe with an explicit grant, which the workflow deliberately does not grant
+   to a real account.
 7. No macOS execution was performed for this change. The arm64 runner is in
    the matrix; its result is not recorded here.
 8. `scan --include-locations` now reports a `checkedProviders` status for every
