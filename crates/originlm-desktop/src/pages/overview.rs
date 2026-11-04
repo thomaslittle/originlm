@@ -32,9 +32,11 @@ struct WindowView {
 
 #[derive(Clone)]
 struct AccountView {
+    connection_id: String,
     provider_id: String,
     provider: String,
     account: String,
+    status: String,
     auth: data::AuthView,
     windows: Vec<WindowView>,
 }
@@ -76,9 +78,11 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
                 })
                 .collect();
             AccountView {
+                connection_id: connection.id.clone(),
                 provider_id: connection.provider_id.clone(),
                 provider: data::provider_name(snapshot, &connection.provider_id),
                 account: connection.display_name.clone(),
+                status: connection.status.clone(),
                 auth: data::auth_view(connection),
                 windows,
             }
@@ -174,19 +178,30 @@ fn allowance_cell(
     theme: &Theme,
 ) -> Div {
     if view.windows.is_empty() {
-        let (label, detail) = match view.auth.kind {
-            data::AuthKind::Required => {
-                ("No reading", "Sign in to the client to read its allowance.")
+        let (label, detail) = if view.status == "configuration_only" {
+            (
+                "Not installed",
+                "Configuration exists; the client is not installed on this machine.",
+            )
+        } else {
+            match view.auth.kind {
+                data::AuthKind::Required => {
+                    ("No reading", "Sign in to the client to read its allowance.")
+                }
+                data::AuthKind::Cached => (
+                    "No quota window",
+                    "Cached sign-in; the client published no allowance window.",
+                ),
+                data::AuthKind::Unknown => ("No reading", "Allowance has not been checked yet."),
+                data::AuthKind::Verified if tokens.is_some() => (
+                    "No quota window",
+                    "This client publishes local totals, not an allowance window.",
+                ),
+                data::AuthKind::Verified => (
+                    "No quota window",
+                    "Signed in; this client does not publish an allowance window.",
+                ),
             }
-            data::AuthKind::Cached => (
-                "No quota window",
-                "Cached sign-in; the client published no allowance window.",
-            ),
-            data::AuthKind::Unknown => ("No reading", "Allowance has not been checked yet."),
-            data::AuthKind::Verified => (
-                "No quota window",
-                "This client publishes local totals, not an allowance window.",
-            ),
         };
         let token_text = tokens.map(|tokens| {
             format!(
@@ -237,8 +252,10 @@ fn provider_row(
     view: &AccountView,
     tokens: Option<&originlm_contracts::ProviderUsage>,
     compact: bool,
+    entity: Entity<Desktop>,
     theme: &Theme,
 ) -> AnyElement {
+    let connection_id = view.connection_id.clone();
     let identity = div()
         .h_flex()
         .items_center()
@@ -301,7 +318,18 @@ fn provider_row(
             .child(status)
             .child(allowance_cell(view, tokens, theme))
     };
-    body.into_any_element()
+    let row_id = SharedString::from(format!("provider-row-{}", view.connection_id));
+    body.id(row_id)
+        .cursor_pointer()
+        .hover(|style| style.bg(theme.foreground.opacity(0.03)))
+        .on_click(move |_, _, cx| {
+            let connection_id = connection_id.clone();
+            entity.update(cx, |this, cx| {
+                this.selected_connection = Some(connection_id);
+                this.set_page(Page::Providers, cx);
+            });
+        })
+        .into_any_element()
 }
 
 impl Desktop {
@@ -404,6 +432,7 @@ impl Desktop {
             }
         }
 
+        let entity = cx.entity();
         let providers_panel = ds::panel(&theme)
             .child(ds::panel_head(
                 "Providers",
@@ -455,6 +484,7 @@ impl Desktop {
                         .get(view.provider_id.as_str())
                         .copied(),
                     compact_rows,
+                    entity.clone(),
                     &theme,
                 )
             }));
@@ -500,7 +530,6 @@ impl Desktop {
                 items
             })
             .unwrap_or_default();
-        let entity = cx.entity();
         let attention_panel = ds::panel(&theme)
             .child(ds::panel_head(
                 "Needs attention",
