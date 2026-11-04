@@ -6,6 +6,7 @@
 //! context window, vision, or text capability from a filename, and it never
 //! loads a model or starts a server.
 
+use crate::{HostPlatform, ScanEnvironment, join_relative};
 use originlm_contracts::{LocalModel, LocalModelInventory};
 use std::{
     collections::BTreeMap,
@@ -100,6 +101,15 @@ pub fn read_ollama_models(
     );
     inventory.models = seen.into_values().collect();
     inventory
+}
+
+/// Where LM Studio keeps `config.json` on this platform.
+pub fn lmstudio_config_home(environment: &ScanEnvironment) -> PathBuf {
+    match environment.platform {
+        HostPlatform::Windows => environment.app_data.clone(),
+        HostPlatform::Macos => join_relative(&environment.home, "Library/Application Support"),
+        HostPlatform::Linux => environment.config_home.clone(),
+    }
 }
 
 /// LM Studio's managed library. Both the documented `~/.lmstudio/models` and
@@ -294,6 +304,26 @@ mod tests {
             "infra-ai/ocelot-v1/ocelot-q4_0"
         );
         assert_eq!(inventory.models[0].format.as_deref(), Some("gguf"));
+    }
+
+    #[test]
+    fn lmstudio_config_home_follows_the_platform() {
+        let home = PathBuf::from("/home/person");
+        let mac = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Macos,
+        ));
+        assert_eq!(mac, home.join("Library/Application Support"));
+        let linux = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Linux,
+        ));
+        assert_eq!(linux, home.join(".config"));
+        let windows = lmstudio_config_home(&ScanEnvironment::for_home(
+            home.clone(),
+            HostPlatform::Windows,
+        ));
+        assert_eq!(windows, home.join("AppData/Roaming"));
     }
 
     #[test]

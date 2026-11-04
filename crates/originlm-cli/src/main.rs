@@ -368,7 +368,7 @@ async fn execute(args: Args) -> Result<()> {
                     ),
                     originlm_discovery::local_models::read_lmstudio_models(
                         &environment.home,
-                        &environment.config_home,
+                        &originlm_discovery::local_models::lmstudio_config_home(&environment),
                         8192,
                     ),
                 ]})
