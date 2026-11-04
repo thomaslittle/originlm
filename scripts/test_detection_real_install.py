@@ -36,6 +36,11 @@ def main() -> int:
         default=",".join(EXPECTED),
         help="comma-separated provider ids; defaults to the real-install set",
     )
+    parser.add_argument(
+        "--require-versions",
+        action="store_true",
+        help="require recorded --version output (normal PATH scans only)",
+    )
     args = parser.parse_args()
     document = json.loads(args.scan.read_text(encoding="utf-8"))
     snapshot = document["snapshot"]
@@ -73,7 +78,7 @@ def main() -> int:
         for location in locations:
             if location.get("providerId") == provider and not location.get("profileHome"):
                 failures.append(f"{provider}: profile home was not recorded")
-            if location.get("providerId") == provider:
+            if args.require_versions and location.get("providerId") == provider:
                 version = document.get("versions", {}).get(location.get("connectionId"), {})
                 if not version.get("output"):
                     failures.append(f"{provider}: --version output was not recorded")

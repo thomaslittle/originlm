@@ -92,7 +92,7 @@ jobs:
         run: |
           env -i HOME="$HOME" PATH=/usr/bin:/bin ./target/debug/originlm scan --json --include-locations --probe-versions > detection-homebrew.json
       - name: Assert the Homebrew installs are found
-        run: python scripts/test_detection_real_install.py detection-homebrew.json --require codex,claude_code
+        run: python scripts/test_detection_real_install.py detection-homebrew.json --require codex,claude_code --require-versions
       - name: Preserve Homebrew evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -204,7 +204,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          python scripts/test_detection_real_install.py detection-normal.json
+          python scripts/test_detection_real_install.py detection-normal.json --require-versions
           python scripts/test_detection_real_install.py detection-bare.json
       - name: Preserve detection evidence
         if: always()

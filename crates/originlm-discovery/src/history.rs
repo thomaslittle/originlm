@@ -876,6 +876,18 @@ fn read_gemini(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
     let mut files_skipped = walk.skipped;
     let mut budget = limits.max_total_bytes;
     for path in &walk.files {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+        let in_chats = path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .and_then(|parent| parent.to_str())
+            == Some("chats");
+        if !name.starts_with("session-") && !in_chats {
+            continue;
+        }
         let is_jsonl = path.extension().and_then(|extension| extension.to_str()) == Some("jsonl");
         let stem = path
             .file_stem()
