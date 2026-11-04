@@ -281,7 +281,7 @@ async fn execute(args: Args) -> Result<()> {
                             };
                         command.arg("--version").kill_on_drop(true);
                         let output = tokio::time::timeout(
-                            std::time::Duration::from_secs(4),
+                            std::time::Duration::from_secs(15),
                             command.output(),
                         )
                         .await;
