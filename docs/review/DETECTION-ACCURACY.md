@@ -7,7 +7,7 @@ proven when a run on that OS recorded the result.
 
 Baseline for this change (Linux, `2026-11-04`):
 
-- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 775 passed, 0 failed after it.
+- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 776 passed, 0 failed after it.
 - `npm run build` — passed.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — passed.
 - `cargo fmt --all --check` — passed.

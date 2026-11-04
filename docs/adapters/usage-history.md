@@ -3,7 +3,9 @@
 `originlm usage --json [--home ABSOLUTE_DIRECTORY]` reports token totals from
 the local Claude Code and Codex session stores. It is an explicit, bounded,
 read-only command. It does not run at import time, does not start a client, and
-never reads credentials, prompts, or tool output.
+never reads credentials, prompts, or tool output. The JSONL records are
+deserialized into usage-only structs, so `content`, tool results, and
+attachments are not materialized.
 
 ## Sources
 

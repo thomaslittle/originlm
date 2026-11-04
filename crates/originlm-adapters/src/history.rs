@@ -13,7 +13,7 @@
 //! - `cached_input_tokens` and `cache_creation_tokens` are separate.
 //! - `reasoning_tokens` is a subset of `output_tokens`, never added to it.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -271,6 +271,41 @@ fn read_lines(
     (true, rejected)
 }
 
+/// Only the fields usage accounting needs. `content`, tool results and
+/// attachments are deliberately absent, so serde skips them instead of
+/// materializing prompt text.
+#[derive(Debug, Deserialize)]
+struct ClaudeLine {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    #[serde(rename = "sessionId")]
+    session_id: Option<String>,
+    #[serde(rename = "requestId")]
+    request_id: Option<String>,
+    message: Option<ClaudeMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeMessage {
+    id: Option<String>,
+    model: Option<String>,
+    usage: Option<ClaudeUsage>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ClaudeUsage {
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+    cache_read_input_tokens: Option<u64>,
+    cache_creation_input_tokens: Option<u64>,
+    output_tokens_details: Option<ClaudeOutputDetails>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ClaudeOutputDetails {
+    thinking_tokens: Option<u64>,
+}
+
 #[derive(Debug, Clone)]
 struct ClaudeRecord {
     session: String,
@@ -291,18 +326,21 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
     let mut budget = limits.max_total_bytes;
     for path in &walk.files {
         let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
-            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            let Ok(entry) = serde_json::from_str::<ClaudeLine>(line) else {
                 return false;
             };
-            if value["type"].as_str() != Some("assistant") {
+            if entry.kind.as_deref() != Some("assistant") {
                 return true;
             }
-            let usage = &value["message"]["usage"];
-            if !usage.is_object() {
+            let Some(message) = entry.message else {
                 return true;
-            }
-            let model = value["message"]["model"]
-                .as_str()
+            };
+            let Some(usage) = message.usage else {
+                return true;
+            };
+            let model = message
+                .model
+                .as_deref()
                 .map(str::trim)
                 .filter(|model| !model.is_empty() && model.len() <= 256)
                 .unwrap_or("unknown")
@@ -312,8 +350,9 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             if model == "<synthetic>" {
                 return true;
             }
-            let session = value["sessionId"]
-                .as_str()
+            let session = entry
+                .session_id
+                .as_deref()
                 .map(str::trim)
                 .filter(|session| !session.is_empty() && session.len() <= 256)
                 .map(str::to_owned)
@@ -322,25 +361,24 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
                         .map(|stem| stem.to_string_lossy().into_owned())
                 })
                 .unwrap_or_else(|| "unknown".into());
-            let request = value["requestId"].as_str().unwrap_or("");
-            let message = value["message"]["id"].as_str().unwrap_or("");
-            let key = if request.is_empty() && message.is_empty() {
+            let request = entry.request_id.as_deref().unwrap_or("");
+            let message_id = message.id.as_deref().unwrap_or("");
+            let key = if request.is_empty() && message_id.is_empty() {
                 format!("{}:{}", path.display(), records.len())
             } else {
-                format!("{request}:{message}")
+                format!("{request}:{message_id}")
             };
-            let reports_split = usage.get("cache_read_input_tokens").is_some()
-                || usage.get("cache_creation_input_tokens").is_some();
-            let count = |key: &str| usage[key].as_u64().unwrap_or(0);
-            let reasoning = usage["output_tokens_details"]["thinking_tokens"]
-                .as_u64()
-                .unwrap_or(0);
+            let reports_split = usage.cache_read_input_tokens.is_some()
+                || usage.cache_creation_input_tokens.is_some();
             let total = UsageTotals {
-                input_tokens: count("input_tokens"),
-                cached_input_tokens: count("cache_read_input_tokens"),
-                cache_creation_tokens: count("cache_creation_input_tokens"),
-                output_tokens: count("output_tokens"),
-                reasoning_tokens: reasoning,
+                input_tokens: usage.input_tokens.unwrap_or(0),
+                cached_input_tokens: usage.cache_read_input_tokens.unwrap_or(0),
+                cache_creation_tokens: usage.cache_creation_input_tokens.unwrap_or(0),
+                output_tokens: usage.output_tokens.unwrap_or(0),
+                reasoning_tokens: usage
+                    .output_tokens_details
+                    .and_then(|details| details.thinking_tokens)
+                    .unwrap_or(0),
             };
             if let Some(existing) = records.get_mut(&key) {
                 // Streaming writes the same message several times. Each field
@@ -438,6 +476,7 @@ struct Breakdown {
 }
 
 impl Breakdown {
+    #[cfg(test)]
     fn from_json(value: &serde_json::Value) -> Option<Self> {
         // Codex app-server events use camelCase; rollout JSONL files use
         // snake_case. Both are accepted, and the rollout spelling wins when a
@@ -455,6 +494,16 @@ impl Breakdown {
                 .or_else(|| value["cache_write_tokens"].as_u64()),
             output,
             reasoning: count("reasoningOutputTokens", "reasoning_output_tokens").unwrap_or(0),
+        })
+    }
+
+    fn from_usage(value: &CodexUsage) -> Option<Self> {
+        Some(Self {
+            input: value.input_tokens?,
+            cached: value.cached_input_tokens.unwrap_or(0),
+            cache_write: value.cache_write_input_tokens,
+            output: value.output_tokens?,
+            reasoning: value.reasoning_output_tokens.unwrap_or(0),
         })
     }
 
@@ -490,6 +539,48 @@ impl Breakdown {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct CodexLine {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    timestamp: Option<String>,
+    payload: Option<CodexPayload>,
+    info: Option<CodexInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CodexPayload {
+    id: Option<String>,
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    model: Option<String>,
+    info: Option<CodexInfo>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct CodexInfo {
+    last_token_usage: Option<CodexUsage>,
+    total_token_usage: Option<CodexUsage>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct CodexUsage {
+    #[serde(default, alias = "inputTokens")]
+    input_tokens: Option<u64>,
+    #[serde(
+        default,
+        alias = "cachedInputTokens",
+        alias = "cache_read_input_tokens"
+    )]
+    cached_input_tokens: Option<u64>,
+    #[serde(default, alias = "cacheWriteInputTokens", alias = "cache_write_tokens")]
+    cache_write_input_tokens: Option<u64>,
+    #[serde(default, alias = "outputTokens")]
+    output_tokens: Option<u64>,
+    #[serde(default, alias = "reasoningOutputTokens")]
+    reasoning_output_tokens: Option<u64>,
+}
+
 #[derive(Debug, Clone)]
 struct CodexEvent {
     session: String,
@@ -521,13 +612,14 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
         let mut model = "unknown".to_owned();
         let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
             sequence = sequence.saturating_add(1);
-            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            let Ok(entry) = serde_json::from_str::<CodexLine>(line) else {
                 return false;
             };
-            let payload = &value["payload"];
-            if value["type"].as_str() == Some("session_meta") {
-                if let Some(id) = payload["id"]
-                    .as_str()
+            let kind = entry.kind.as_deref();
+            let payload = entry.payload.as_ref();
+            if kind == Some("session_meta") {
+                if let Some(id) = payload
+                    .and_then(|payload| payload.id.as_deref())
                     .map(str::trim)
                     .filter(|id| !id.is_empty() && id.len() <= 256)
                 {
@@ -535,9 +627,9 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
                 }
                 return true;
             }
-            if value["type"].as_str() == Some("turn_context") {
-                if let Some(name) = payload["model"]
-                    .as_str()
+            if kind == Some("turn_context") {
+                if let Some(name) = payload
+                    .and_then(|payload| payload.model.as_deref())
                     .map(str::trim)
                     .filter(|name| !name.is_empty() && name.len() <= 256)
                 {
@@ -545,26 +637,32 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
                 }
                 return true;
             }
-            let token_count = if value["type"].as_str() == Some("event_msg")
-                && payload["type"].as_str() == Some("token_count")
+            let info = if kind == Some("event_msg")
+                && payload.and_then(|payload| payload.kind.as_deref()) == Some("token_count")
             {
-                Some(payload)
-            } else if value["type"].as_str() == Some("token_count") {
-                Some(&value)
+                payload.and_then(|payload| payload.info.as_ref())
+            } else if kind == Some("token_count") {
+                entry.info.as_ref()
             } else {
                 None
             };
-            let Some(token_count) = token_count else {
+            let Some(info) = info else {
                 return true;
             };
-            let info = token_count.get("info").unwrap_or(token_count);
-            let total = Breakdown::from_json(&info["total_token_usage"]);
-            let last = Breakdown::from_json(&info["last_token_usage"]);
+            let total = info
+                .total_token_usage
+                .as_ref()
+                .and_then(Breakdown::from_usage);
+            let last = info
+                .last_token_usage
+                .as_ref()
+                .and_then(Breakdown::from_usage);
             if total.is_none() && last.is_none() {
                 return true;
             }
-            let timestamp = value["timestamp"]
-                .as_str()
+            let timestamp = entry
+                .timestamp
+                .as_deref()
                 .map(str::trim)
                 .filter(|stamp| !stamp.is_empty() && stamp.len() <= 64)
                 .unwrap_or("")
