@@ -266,8 +266,14 @@ impl<F: LocalFilesystem> Scanner<F> {
                     .chain(extra_dirs.iter())
                     .collect::<Vec<_>>()
             };
+            let commands: Vec<&str> = definition
+                .commands
+                .iter()
+                .copied()
+                .chain(definition.extra_commands(env))
+                .collect();
             for directory in search {
-                for command in definition.commands {
+                for command in &commands {
                     for suffix in if env.platform == HostPlatform::Windows {
                         &[".exe", ".cmd", ".bat", ""][..]
                     } else {
@@ -275,6 +281,9 @@ impl<F: LocalFilesystem> Scanner<F> {
                     } {
                         cancelled(cancel)?;
                         let path = directory.join(format!("{command}{suffix}"));
+                        if definition.excludes_discovered_executable(&path) {
+                            continue;
+                        }
                         result.metadata_probes += 1;
                         match self.filesystem.probe(&path) {
                             Ok(EntryKind::File) => {
@@ -314,7 +323,7 @@ impl<F: LocalFilesystem> Scanner<F> {
             // A command found through both PATH and its real install directory
             // is one installation. Resolve links before grouping by directory;
             // injected filesystems without link resolution keep path identity.
-            let binaries = dedupe_binaries(&self.filesystem, binaries, definition.commands);
+            let binaries = dedupe_binaries(&self.filesystem, binaries, &commands);
             if !executable_only
                 && binaries.iter().any(|binary| {
                     binary

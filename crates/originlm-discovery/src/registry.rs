@@ -109,6 +109,15 @@ impl ProviderDefinition {
             ("muse", HostPlatform::Windows) => vec![env.local_app_data.join("Programs/muse")],
             // OpenCode's own installer places the binary here even when it is
             // not on PATH. T3 Code treats this path as a native install.
+            // On Windows, also look at the npm CLI package and the CLI bundled
+            // with the desktop installer; the desktop GUI itself is filtered
+            // out by `excludes_discovered_executable`.
+            ("opencode", HostPlatform::Windows) => vec![
+                crate::join_relative(&env.home, ".opencode/bin"),
+                env.app_data.join("npm/node_modules/@opencode/cli/bin"),
+                env.local_app_data
+                    .join("Programs/@opencode-aidesktop/resources"),
+            ],
             ("opencode", _) => vec![crate::join_relative(&env.home, ".opencode/bin")],
             // T3 Code installs the Gemini CLI under its managed tools directory.
             // A Rust host that shares the same machine can use that install
@@ -144,5 +153,41 @@ impl ProviderDefinition {
     }
     pub(crate) fn has_override(&self, env: &ScanEnvironment) -> bool {
         crate::knowledge::has_profile_override(self.id, env)
+    }
+    /// Additional executable names that are still this provider's CLI but are
+    /// not installed under the primary command name.
+    pub(crate) fn extra_commands(&self, env: &ScanEnvironment) -> Vec<&'static str> {
+        match (self.id, env.platform) {
+            // The OpenCode desktop installer bundles a real CLI next to the
+            // Electron app. The app itself accepts --version by opening its
+            // window, so it must never be treated as the CLI.
+            ("opencode", HostPlatform::Windows) => vec!["opencode-cli"],
+            _ => Vec::new(),
+        }
+    }
+    /// Reject a known GUI launcher that shares the CLI's command name. An
+    /// explicit host-configured executable is never filtered.
+    pub(crate) fn excludes_discovered_executable(&self, path: &std::path::Path) -> bool {
+        if self.id != "opencode" {
+            return false;
+        }
+        let lower = path
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .replace('\\', "/");
+        if !lower.contains("/@opencode-aidesktop/") {
+            return false;
+        }
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        // The npm .cmd/.bat shims are launchers, not the CLI itself. Native
+        // npm and desktop CLI executables are discovered explicitly instead.
+        if name.ends_with(".cmd") || name.ends_with(".bat") {
+            return true;
+        }
+        name == "opencode" || name == "opencode.exe"
     }
 }
