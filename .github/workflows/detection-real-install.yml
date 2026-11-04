@@ -39,6 +39,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
+          # The installer enables a systemd service that stores models under
+          # /usr/share/ollama. Stop it and run the same binary as this user so
+          # the scan exercises the documented ~/.ollama/models layout.
+          sudo systemctl stop ollama || true
+          sudo systemctl disable ollama || true
           (ollama serve > /tmp/ollama.log 2>&1 &)
           for _ in $(seq 1 60); do
             curl -fsS http://127.0.0.1:11434/api/version >/dev/null 2>&1 && break
@@ -47,6 +52,7 @@ jobs:
           ollama pull smollm2:135m
           pkill -f 'ollama serve' || true
           sleep 1
+          test -d "$HOME/.ollama/models/manifests"
       - name: Install Ollama and pull a small model (macOS)
         if: runner.os == 'macOS'
         run: |
