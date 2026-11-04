@@ -1,6 +1,6 @@
 # T3 Code integration baseline
 
-Upstream: https://github.com/pingdotgg/t3code (MIT). Pinned source: `e9236274a3a6e0c731a7df4092db1e686f039068`. Nightly reference: `7c3b3b3605efa695e9948051b569937fc1482c0f`.
+Upstream: https://github.com/pingdotgg/t3code (MIT). Pinned source: `8b44f42b14c8e273156474a924ccf29680dd7857`. Nightly reference: `8b44f42b14c8e273156474a924ccf29680dd7857` (`v0.1.8-nightly.20261104.4165`).
 
 ## Local model providers
 

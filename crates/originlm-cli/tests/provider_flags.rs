@@ -51,3 +51,26 @@ fn muse_metadata_and_execution_grants_are_accepted() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn kiro_is_metadata_only() {
+    let metadata = Command::new(env!("CARGO_BIN_EXE_originlm"))
+        .args(["serve", "--stdio", "--allow-metadata", "kiro"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(
+        metadata.status.success(),
+        "{}",
+        String::from_utf8_lossy(&metadata.stderr)
+    );
+    let execution = Command::new(env!("CARGO_BIN_EXE_originlm"))
+        .args(["serve", "--stdio", "--allow-execution", "kiro"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(
+        !execution.status.success(),
+        "Kiro execution is not implemented"
+    );
+}

@@ -56,6 +56,31 @@
       "localAdapter": "lmstudio",
       "parity": "contained",
       "note": "LM_STUDIO_HOME or ~/.lmstudio. Tokscale reads server-logs/ for usage; OriginLM only locates the home."
+    },
+    "kiro": {
+      "localAdapter": "kiro",
+      "parity": "contained",
+      "note": "~/.kiro/sessions/cli. OriginLM detects the CLI and profile, and reads the account model catalog from kiro-cli; it does not open session files."
+    },
+    "amp": {
+      "localAdapter": null,
+      "parity": "intentionally-different",
+      "note": "Amp moves to Tokscale's own config cache. OriginLM has no Amp adapter."
+    },
+    "aside": {
+      "localAdapter": null,
+      "parity": "intentionally-different",
+      "note": "Aside transcripts are not an OriginLM provider."
+    },
+    "proma": {
+      "localAdapter": null,
+      "parity": "intentionally-different",
+      "note": "Proma transcripts are not an OriginLM provider."
+    },
+    "vibe": {
+      "localAdapter": null,
+      "parity": "intentionally-different",
+      "note": "Mistral Vibe is not adopted; VIBE_HOME is recorded only in the upstream snapshot."
     }
   },
   "localOnly": [

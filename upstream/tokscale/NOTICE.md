@@ -5,8 +5,8 @@ Local AI Kit learns discovery locations from [Tokscale](https://github.com/junho
 - Repository: https://github.com/junhoyeo/tokscale
 - License: MIT
 - Copyright: Copyright (c) 2025 Junho Yeo
-- Pinned commit: `1d9a9395418efc6952944b794097935d7d6fa1e8`
-- Latest release noted at pin time: `v4.17.0` (`dcf8d3656bbcecf05d112c6f35f9be328e4f66b7`)
+- Pinned commit: `b26c433d03f23a2255ad9f212512ce83ede83da3`
+- Latest release noted at pin time: `v4.21.0` (`b26c433d03f23a2255ad9f212512ce83ede83da3`)
 
 The MIT license text is in [licenses/tokscale-MIT.txt](../../licenses/tokscale-MIT.txt).
 

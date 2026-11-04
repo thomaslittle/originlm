@@ -38,6 +38,57 @@ fn preferred_executable(
         })
         .cloned()
 }
+fn dedupe_binaries<F: LocalFilesystem>(
+    filesystem: &F,
+    binaries: BTreeSet<std::path::PathBuf>,
+    commands: &[&str],
+) -> BTreeSet<std::path::PathBuf> {
+    let matches_command = |path: &std::path::Path| {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| {
+                let name = name.to_ascii_lowercase();
+                let name = name
+                    .strip_suffix(".exe")
+                    .or_else(|| name.strip_suffix(".cmd"))
+                    .or_else(|| name.strip_suffix(".bat"))
+                    .unwrap_or(&name);
+                commands
+                    .iter()
+                    .any(|command| command.eq_ignore_ascii_case(name))
+            })
+            .unwrap_or(false)
+    };
+    let mut by_target: BTreeMap<std::path::PathBuf, (bool, bool, std::path::PathBuf)> =
+        BTreeMap::new();
+    for binary in &binaries {
+        let (target, direct) = match filesystem.resolve_executable(binary) {
+            Ok(identity) => {
+                let direct = identity.command == identity.resolved;
+                (identity.resolved, direct)
+            }
+            Err(_) => (binary.clone(), true),
+        };
+        let named = matches_command(binary);
+        by_target
+            .entry(target)
+            .and_modify(|(kept_named, kept_direct, kept)| {
+                // A launcher named after the command (`claude` -> `cli.js`)
+                // keeps its logical name; otherwise prefer the real path over
+                // a duplicate symlink.
+                if (named, direct) > (*kept_named, *kept_direct) {
+                    *kept_named = named;
+                    *kept_direct = direct;
+                    *kept = binary.clone();
+                }
+            })
+            .or_insert((named, direct, binary.clone()));
+    }
+    by_target
+        .into_values()
+        .map(|(_, _, binary)| binary)
+        .collect()
+}
 fn cancelled(flag: &AtomicBool) -> Result<()> {
     if flag.load(Ordering::Relaxed) {
         Err(DomainError::new(
@@ -82,6 +133,13 @@ impl<F: LocalFilesystem> Scanner<F> {
         let mut directories = env
             .search_path
             .iter()
+            .chain(&env.fallback_search_path)
+            .filter(|p| valid_root(p))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut fallback_directories = env
+            .fallback_search_path
+            .iter()
             .filter(|p| valid_root(p))
             .cloned()
             .collect::<BTreeSet<_>>();
@@ -90,6 +148,60 @@ impl<F: LocalFilesystem> Scanner<F> {
             join_relative(&env.home, ".cargo/bin"),
             join_relative(&env.home, ".bun/bin"),
         ]);
+        // Version managers install each runtime under a versioned directory and
+        // expose it through a shim. The shim directories are known; the version
+        // directories are not, so enumerate only their bounded parents.
+        for (parent, suffix) in [
+            (join_relative(&env.home, ".nvm/versions/node"), Some("bin")),
+            (
+                join_relative(&env.home, ".local/share/fnm/node-versions"),
+                Some("installation/bin"),
+            ),
+            (
+                join_relative(&env.home, ".fnm/node-versions"),
+                Some("installation/bin"),
+            ),
+            (
+                join_relative(&env.home, ".local/share/mise/installs/node"),
+                Some("bin"),
+            ),
+            (
+                join_relative(&env.home, ".asdf/installs/nodejs"),
+                Some("bin"),
+            ),
+            (
+                join_relative(&env.home, "Library/Application Support/fnm/node-versions"),
+                Some("installation/bin"),
+            ),
+        ] {
+            if let Ok(listing) = self.filesystem.children(&parent, 32) {
+                for entry in listing.entries {
+                    if let Some(suffix) = suffix {
+                        let candidate = join_relative(&entry, suffix);
+                        if valid_root(&candidate) {
+                            directories.insert(candidate.clone());
+                            fallback_directories.insert(candidate);
+                        }
+                    }
+                }
+            }
+        }
+        // Per-user application directories hold CLI shims on Windows
+        // (`%LOCALAPPDATA%\Programs\...`). Bound the listing and keep only
+        // absolute local directories.
+        if env.platform == HostPlatform::Windows
+            && let Ok(listing) = self
+                .filesystem
+                .children(&env.local_app_data.join("Programs"), 32)
+        {
+            for entry in listing.entries {
+                if let Ok(EntryKind::Directory) = self.filesystem.probe(&entry) {
+                    directories.insert(entry.clone());
+                    directories.insert(join_relative(&entry, "bin"));
+                    fallback_directories.insert(entry);
+                }
+            }
+        }
         if env.platform == HostPlatform::Windows {
             directories.insert(join_relative(&env.app_data, "npm"));
         }
@@ -198,6 +310,22 @@ impl<F: LocalFilesystem> Scanner<F> {
                     .snapshot
                     .diagnostics
                     .push(format!("{}_INSTALLATION_LIST_PARTIAL", definition.id));
+            }
+            // A command found through both PATH and its real install directory
+            // is one installation. Resolve links before grouping by directory;
+            // injected filesystems without link resolution keep path identity.
+            let binaries = dedupe_binaries(&self.filesystem, binaries, definition.commands);
+            if !executable_only
+                && binaries.iter().any(|binary| {
+                    binary
+                        .parent()
+                        .is_some_and(|parent| fallback_directories.contains(parent))
+                })
+            {
+                result.snapshot.diagnostics.push(format!(
+                    "{}_EXECUTABLE_FROM_FALLBACK_LOCATION",
+                    definition.id
+                ));
             }
             // Windows launch shims in one directory represent one installation.
             // Different directories may contain different versions; retain them.

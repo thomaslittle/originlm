@@ -235,3 +235,79 @@ async fn images_are_sent_as_app_server_image_items_after_the_text() {
     );
     r.close("owner", &s.id).await.unwrap();
 }
+
+fn usage_units(r: &Runtime, _s: &Session) -> BTreeMap<String, String> {
+    r.events("owner", None, None).unwrap()["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|event| event["payload"]["type"] == "usage")
+        .map(|event| {
+            (
+                event["payload"]["unit"].as_str().unwrap().to_owned(),
+                event["payload"]["used"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn codex_thread_totals_become_this_turn_s_delta() {
+    let (r, s) = setup("tokens").await;
+    r.start("owner", &s.id, "test".into(), "1".into())
+        .await
+        .unwrap();
+    finish(&r, &s).await;
+    let usage = usage_units(&r, &s);
+    assert_eq!(usage.get("input_tokens").map(String::as_str), Some("30"));
+    assert_eq!(usage.get("output_tokens").map(String::as_str), Some("10"));
+    assert_eq!(
+        usage.get("cached_input_tokens").map(String::as_str),
+        Some("20")
+    );
+    assert_eq!(
+        usage.get("cache_creation_tokens").map(String::as_str),
+        Some("2")
+    );
+    assert_eq!(usage.get("reasoning_tokens").map(String::as_str), Some("2"));
+    assert!(
+        !usage.contains_key("session_tokens"),
+        "a per-turn delta must not be labelled as a thread-wide session total"
+    );
+    r.close("owner", &s.id).await.unwrap();
+}
+
+#[tokio::test]
+async fn codex_counter_reset_uses_the_reported_last_response() {
+    let (r, s) = setup("tokens-reset").await;
+    r.start("owner", &s.id, "test".into(), "1".into())
+        .await
+        .unwrap();
+    finish(&r, &s).await;
+    let usage = usage_units(&r, &s);
+    assert_eq!(usage.get("input_tokens").map(String::as_str), Some("40"));
+    assert_eq!(usage.get("output_tokens").map(String::as_str), Some("8"));
+    assert_eq!(
+        usage.get("cached_input_tokens").map(String::as_str),
+        Some("10")
+    );
+    r.close("owner", &s.id).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_late_prior_turn_token_event_fails_closed_without_counting_it() {
+    let (r, s) = setup("tokens-stale").await;
+    r.start("owner", &s.id, "test".into(), "1".into())
+        .await
+        .unwrap();
+    finish(&r, &s).await;
+    assert_eq!(
+        r.get("owner", &s.id).unwrap().state,
+        SessionState::Error,
+        "a delayed event from another turn is not folded into this turn"
+    );
+    assert!(
+        !usage_units(&r, &s).contains_key("input_tokens"),
+        "the stale turn's tokens must not reach this turn"
+    );
+}

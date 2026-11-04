@@ -38,7 +38,7 @@ for line in sys.stdin:
    send({'type':'assistant','session_id':SID,'message':{'content':[{'type':'tool_use','id':'tu-1','name':'mcp__design__echo_color','input':{'color':'red'}}]}})
    send({'type':'user','session_id':SID,'message':{'role':'user','content':[{'type':'tool_result','tool_use_id':'tu-1','content':'red'}]}})
    send({'type':'stream_event','session_id':SID,'event':{'type':'content_block_delta','delta':{'type':'text_delta','text':'color is red'}}})
-   send({'type':'result','session_id':SID,'subtype':'success','is_error':False,'usage':{'input_tokens':10,'output_tokens':3}})
+   send({'type':'result','session_id':SID,'subtype':'success','is_error':False,'usage':{'input_tokens':10,'output_tokens':3,'cache_read_input_tokens':7,'cache_creation_input_tokens':2,'output_tokens_details':{'thinking_tokens':1}}})
    continue
   if mode=='native_tool_use':
    send({'type':'system','subtype':'init','session_id':SID,'tools':['mcp__design__echo_color']})
@@ -52,7 +52,7 @@ for line in sys.stdin:
   send({'type':'system','subtype':'init','session_id':SID,'tools':[]})
   send({'type':'stream_event','session_id':SID,'event':{'type':'content_block_delta','delta':{'type':'text_delta','text':'native Claude reply'}}})
   send({'type':'assistant','session_id':SID,'message':{'content':[{'type':'text','text':'native Claude reply'}]}})
-  send({'type':'result','session_id':SID,'subtype':'success','is_error':False,'usage':{'input_tokens':10,'output_tokens':3}})
+  send({'type':'result','session_id':SID,'subtype':'success','is_error':False,'usage':{'input_tokens':10,'output_tokens':3,'cache_read_input_tokens':7,'cache_creation_input_tokens':2,'output_tokens_details':{'thinking_tokens':1}}})
  elif r.get('type')=='control_response':
   assert r['response']['response']['behavior']=='deny'
   send({'type':'result','session_id':SID,'subtype':'error_during_execution','is_error':True})

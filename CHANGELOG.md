@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- feat(detection): search per-OS fallback executable directories in addition to `PATH` (Homebrew, `/usr/local/bin`, `/snap/bin`, flatpak, Nix, npm prefixes, nvm/fnm/mise/asdf/volta shims, WinGet, scoop, Chocolatey, per-user Programs). A GUI launch with a minimal `PATH` no longer hides an installed client, and `*_EXECUTABLE_FROM_FALLBACK_LOCATION` records that a fallback supplied the hit.
+- fix(detection): resolve Unix executable links before grouping installations, so a command reached through both `PATH` and its real install directory is one installation instead of two (for example `/usr/local/bin/opencode` -> `~/.opencode/bin/opencode`).
+- feat(kiro): detect `kiro-cli` and `~/.kiro`, and probe `--version`, `whoami --format json`, and the account model catalog from `chat --list-models --format json`. A signed-out `whoami` never requests models, which would start Kiro's browser login; `KIRO_API_KEY` is passed through but never serialized. Kiro execution, plan, billing, and quota stay unsupported or unknown.
+- fix(usage): emit Claude `cache_read_tokens`, `cache_creation_tokens`, and `reasoning_tokens` separately, and turn Codex thread-wide `tokenUsage.total` counters into this turn's delta with `last` as the reset fallback. The old thread-wide `session_tokens` fallback remains for older app-servers.
+- feat(cli): `originlm scan --json --include-locations` adds private executable and profile paths for local debugging and real-install CI; the default snapshot still omits host paths.
+- chore(upstream): pin Tokscale `b26c433d` (`v4.21.0`) and T3 Code `8b44f42b` (nightly `v0.1.8-nightly.20261104.4165`, stable `v0.1.7`); parity and offline snapshot checks pass.
+- build(ci): add `macos-15` (arm64) to the verification matrix and a `Detection real install` workflow that installs npm CLIs and Kiro, then scans with both the inherited PATH and a GUI-like bare PATH.
 - fix(opencode): find the OpenCode 2 background service on Windows when `HOME` is unset (hosts started from Explorer, PowerShell or a service), by falling back to `USERPROFILE` as OpenCode does. Probes previously failed with `ProviderUnavailable` ("Client metadata is unavailable") and listed no OpenCode models unless the host ran under Git Bash.
 - fix(opencode): resolve the npm shim of OpenCode 2.x (`@opencode/cli`) as well as 1.x (`opencode-ai`), so an npm-installed OpenCode 2 on Windows lists its models instead of reporting `RuntimeMissing`.
 - build(desktop): move `originlm-desktop` from `gpui-kit` 0.8.1 (`gpui-fast` 0.1.12, `gpui-pre` 0.3.10) to `gpui-kit` 0.9.0 with the `gpui-fast` feature (`gpui-fast` 0.1.13, `gpui-pre` 0.3.11). The palette is still applied by assigning fields on the theme returned from `Theme::update`.

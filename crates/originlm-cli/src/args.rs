@@ -14,6 +14,9 @@ pub enum Action {
 pub struct Args {
     pub action: Action,
     pub json: bool,
+    /// Add the private executable/profile locations to `scan --json`. Explicit
+    /// opt-in: the public snapshot deliberately omits host paths.
+    pub include_locations: bool,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -99,6 +102,7 @@ impl Args {
         let mut args = Self {
             action,
             json: false,
+            include_locations: false,
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -147,6 +151,9 @@ impl Args {
             }
             match flag {
                 "--json" if matches!(args.action, Action::Scan | Action::Status) => json = true,
+                "--include-locations" if matches!(args.action, Action::Scan) => {
+                    args.include_locations = true
+                }
                 "--home" if matches!(args.action, Action::Scan | Action::Serve) => {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
                 }
@@ -263,7 +270,8 @@ impl Args {
                                 "grok",
                             ]
                             .contains(&v.as_str())
-                                || (flag == "--allow-metadata" && v == "cursor")
+                                || (flag == "--allow-metadata"
+                                    && matches!(v.as_str(), "cursor" | "kiro"))
                         })
                         .ok_or_else(invalid)?;
                     if flag == "--allow-metadata" {

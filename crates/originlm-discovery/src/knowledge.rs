@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 
 /// Audited Tokscale commit. Released builds do not fetch this revision.
 pub const TOKSCALE_REPOSITORY: &str = "junhoyeo/tokscale";
-pub const TOKSCALE_COMMIT: &str = "1d9a9395418efc6952944b794097935d7d6fa1e8";
+pub const TOKSCALE_COMMIT: &str = "b26c433d03f23a2255ad9f212512ce83ede83da3";
 /// Audited T3 Code commit. Released builds do not fetch this revision.
 pub const T3CODE_REPOSITORY: &str = "pingdotgg/t3code";
-pub const T3CODE_COMMIT: &str = "e9236274a3a6e0c731a7df4092db1e686f039068";
+pub const T3CODE_COMMIT: &str = "8b44f42b14c8e273156474a924ccf29680dd7857";
 
 /// Why a discovery rule is trusted. Higher ranks win when sources disagree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +96,11 @@ pub fn discovery_rules() -> Vec<DiscoveryRule> {
             summary: "sessions/ and archived_sessions/ under the Codex home",
             evidence: tokscale("codex", "clients.rs Codex plus scanner archived_sessions"),
         },
+        // CLAUDE_SECURESTORAGE_CONFIG_DIR is undocumented but present in the
+        // Claude Code binary since ~2.1.144; it moves only the credential store
+        // (on macOS, a distinct Keychain service). See anthropics/claude-code
+        // issue 79223 and the 2.1.257 reproduction recorded there. OriginLM
+        // never reads the credential file; the native client owns it.
         DiscoveryRule {
             id: "claude-config",
             provider_id: "claude_code",
@@ -256,6 +261,22 @@ pub fn discovery_rules() -> Vec<DiscoveryRule> {
             evidence: tokscale("lmstudio", "clients.rs LmStudio EnvVar LM_STUDIO_HOME"),
         },
         DiscoveryRule {
+            id: "kiro-home",
+            provider_id: "kiro",
+            role: RuleRole::ProfileHome,
+            basis: RuleBasis::UpstreamOss,
+            summary: "~/.kiro holds Kiro CLI state; sessions/cli holds session files",
+            evidence: tokscale("kiro", "clients.rs Kiro ~/.kiro/sessions/cli"),
+        },
+        DiscoveryRule {
+            id: "kiro-models",
+            provider_id: "kiro",
+            role: RuleRole::SessionStore,
+            basis: RuleBasis::UpstreamOss,
+            summary: "Account models come from kiro-cli chat --list-models --format json",
+            evidence: t3code("packages/provider-kiro/src/server/status.ts kiroModelsFromList"),
+        },
+        DiscoveryRule {
             id: "windows-home-redirect",
             provider_id: "environment",
             role: RuleRole::EnvOverride,
@@ -307,6 +328,8 @@ pub fn profile_roots(provider_id: &str, env: &ScanEnvironment) -> Vec<PathBuf> {
         // Muse keeps settings and its credential store under
         // `$XDG_CONFIG_HOME/muse`, else `~/.config/muse` (Windows too).
         "muse" => vec![join_relative(&env.config_home, "muse")],
+        // Kiro CLI keeps its account and session state under `~/.kiro`.
+        "kiro" => vec![join_relative(&env.home, ".kiro")],
         "cursor" => vec![match env.platform {
             HostPlatform::Windows => join_relative(&env.app_data, "Cursor"),
             HostPlatform::Macos => join_relative(&env.home, "Library/Application Support/Cursor"),
@@ -349,6 +372,7 @@ pub fn session_stores(provider_id: &str, profile: &Path) -> Vec<PathBuf> {
         "antigravity" => &["conversations"],
         "grok" => &["sessions", "logs/unified.jsonl"],
         "opencode" => &["storage/message"],
+        "kiro" => &["sessions/cli"],
         "github_copilot" => &["session-store.db", "otel", "data.db"],
         "pi" => &["sessions"],
         "lmstudio" => &["server-logs"],

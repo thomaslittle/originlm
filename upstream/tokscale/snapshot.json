@@ -1,6 +1,6 @@
 {
   "repository": "junhoyeo/tokscale",
-  "commit": "1d9a9395418efc6952944b794097935d7d6fa1e8",
+  "commit": "b26c433d03f23a2255ad9f212512ce83ede83da3",
   "clients": [
     {
       "enum": "OpenCode",
@@ -34,16 +34,18 @@
         "fallback": ".codex"
       },
       "relative": "sessions",
-      "pattern": "*.jsonl"
+      "pattern": "*.jsonl*"
     },
     {
       "enum": "Cursor",
       "index": 3,
       "id": "cursor",
       "root": {
-        "kind": "home"
+        "kind": "env",
+        "var": "TOKSCALE_CONFIG_DIR",
+        "fallback": ".config/tokscale"
       },
-      "relative": ".config/tokscale/cursor-cache",
+      "relative": "cursor-cache",
       "pattern": "usage*.json|usage*.csv"
     },
     {
@@ -63,9 +65,9 @@
       "index": 5,
       "id": "amp",
       "root": {
-        "kind": "xdg-data"
+        "kind": "config"
       },
-      "relative": "amp/threads",
+      "relative": "amp-cache/threads",
       "pattern": "T-*.json"
     },
     {
@@ -595,6 +597,38 @@
       },
       "relative": ".gemini/antigravity/conversations",
       "pattern": "*.db"
+    },
+    {
+      "enum": "Aside",
+      "index": 56,
+      "id": "aside",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".aside/u",
+      "pattern": "messages.jsonl"
+    },
+    {
+      "enum": "Vibe",
+      "index": 57,
+      "id": "vibe",
+      "root": {
+        "kind": "env",
+        "var": "VIBE_HOME",
+        "fallback": ".vibe"
+      },
+      "relative": "logs/session",
+      "pattern": "vibe-session"
+    },
+    {
+      "enum": "Proma",
+      "index": 58,
+      "id": "proma",
+      "root": {
+        "kind": "home"
+      },
+      "relative": ".proma",
+      "pattern": "proma-session"
     }
   ],
   "envVars": [
@@ -627,10 +661,11 @@
     "TOKSCALE_EXTRA_DIRS",
     "TOKSCALE_HEADLESS_DIR",
     "UNSLOTH_STUDIO_HOME",
-    "XDG_CONFIG_HOME",
+    "VIBE_HOME",
     "XDG_DATA_HOME"
   ],
   "pathLiterals": [
+    ".aside/u",
     ".augment/sessions",
     ".cache",
     ".chat",
@@ -650,7 +685,6 @@
     ".config/kimchi/harness",
     ".config/manicode",
     ".config/tokscale",
-    ".config/tokscale/cursor-cache",
     ".config/tokscale/headless",
     ".copilot/data.db",
     ".copilot/otel",
@@ -670,6 +704,7 @@
     ".jcode",
     ".json",
     ".json.migrated",
+    ".json.tmp",
     ".jsonl",
     ".jsonl.deleted.",
     ".jsonl.reset.",
@@ -688,19 +723,25 @@
     ".mux/sessions",
     ".ndjson",
     ".omo",
+    ".omo/agent/projects",
+    ".omo/agent/sessions",
+    ".omo/memory",
     ".omp/agent/sessions",
     ".openclaw/agents",
     ".opencodereview/sessions",
     ".pi/agent/sessions",
     ".prime/agent",
     ".prime/agent/settings.json",
+    ".proma",
+    ".proma-dev",
     ".qwen/projects",
     ".reasonix",
     ".senpi/agent",
     ".settings.json",
     ".tokscale",
     ".unsloth/studio",
-    ".vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    ".vibe",
+    ".vscode-server/data",
     ".workbuddy",
     ".workbuddy-ai",
     ".workbuddy-ai/projects",
@@ -713,25 +754,30 @@
     "AppData/Local/crush/projects.json",
     "AppData/Local/hermes",
     "AppData/Roaming",
-    "AppData/Roaming/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "AppData/Roaming/Block/goose/data/sessions/sessions.db",
+    "AppData/Roaming/Code",
+    "AppData/Roaming/Code/User/globalStorage/emptyWindowChatSessions",
     "AppData/Roaming/Code/User/workspaceStorage",
     "AppData/Roaming/Devin/User/acp-events",
     "AppData/Roaming/devin/cli",
     "AppData/Roaming/tokscale",
     "AppData/Roaming/{KIMI_WORK_SUFFIX}",
     "Asia/Seoul",
+    "Block/goose/data/sessions/sessions.db",
     "CherryStudio/.claude/projects",
-    "Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "Code/User/globalStorage/emptyWindowChatSessions",
     "Code/User/workspaceStorage",
     "Devin/User/acp-events",
     "Kiro/User/globalStorage/kiro.kiroagent",
     "Library/Application Support",
-    "Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/tasks",
+    "Library/Application Support/Code",
     "Library/Application Support/Devin/User/acp-events",
     "Library/Application Support/tokscale/headless",
     "Library/Application Support/{KIMI_WORK_SUFFIX}",
+    "User/globalStorage/{extension_id}/tasks",
     "Zed/threads/threads.db",
     "agent/sessions",
+    "amp-cache/threads",
     "amp/threads",
     "antigravity-cache/sessions",
     "antigravity-cli/conversations",
@@ -748,6 +794,7 @@
     "kilo/kilo.db",
     "kimi-desktop/daimon-share/daimon/runtime/kimi-code/home/sessions",
     "kiro/User/globalStorage/kiro.kiroagent",
+    "logs/session",
     "muse/sessions",
     "octofriend/sqlite.db",
     "opencode/storage/message",
@@ -755,16 +802,15 @@
     "zed/threads/threads.db",
     "{channel}/projects",
     "{root}/{relative}",
-    "{xdg_config_home}/tokscale",
+    "{}/.config/Code/User/globalStorage/emptyWindowChatSessions",
     "{}/.config/Code/User/workspaceStorage",
     "{}/.config/Kiro/User/globalStorage/kiro.kiroagent",
     "{}/.config/kiro/User/globalStorage/kiro.kiroagent",
     "{}/.local/share/Block/goose/sessions/sessions.db",
-    "{}/.vscode-server/data/User/globalStorage/kilocode.kilo-code/tasks",
-    "{}/.vscode-server/data/User/globalStorage/rooveterinaryinc.roo-cline/tasks",
     "{}/AppData/Roaming/Kiro/User/globalStorage/kiro.kiroagent",
     "{}/AppData/Roaming/kiro/User/globalStorage/kiro.kiroagent",
     "{}/Library/Application Support/Block/goose/sessions/sessions.db",
+    "{}/Library/Application Support/Code/User/globalStorage/emptyWindowChatSessions",
     "{}/Library/Application Support/Code/User/workspaceStorage",
     "{}/Library/Application Support/Kiro/User/globalStorage/kiro.kiroagent",
     "{}/Library/Application Support/Zed/threads/threads.db",
@@ -774,5 +820,5 @@
     "{}/Library/Application Support/orca/mimocode-hooks/shared/data",
     "~/"
   ],
-  "extractedAt": "2026-09-29T04:11:45Z"
+  "extractedAt": "2026-11-04T10:18:05Z"
 }

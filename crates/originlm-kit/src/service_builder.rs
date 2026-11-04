@@ -320,6 +320,7 @@ async fn probe_metadata(
         "cursor" => {
             originlm_adapters::cursor::probe(located, &connection, &route, cursor_usage).await
         }
+        "kiro" => originlm_adapters::kiro::probe(located, &connection, &route).await,
         _ => Err(DomainError::new(
             ErrorCode::CapabilityUnsupported,
             "No metadata adapter registered",

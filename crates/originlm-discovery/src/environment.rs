@@ -22,6 +22,8 @@ const LOCATION_KEYS: &[&str] = &[
     "XDG_DATA_HOME",
     "APPDATA",
     "LOCALAPPDATA",
+    "ProgramData",
+    "ProgramFiles",
 ];
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostPlatform {
@@ -37,6 +39,12 @@ pub struct ScanEnvironment {
     pub app_data: PathBuf,
     pub local_app_data: PathBuf,
     pub search_path: Vec<PathBuf>,
+    /// Directories that do not depend on the inherited `PATH`. A GUI launch
+    /// (Finder, Dock, a desktop file, a Windows shortcut) gets a minimal PATH,
+    /// so the scanner also looks in the well-known install locations for the
+    /// platform. Kept separate from `search_path` so tests and embedders can
+    /// opt out of the host filesystem.
+    pub fallback_search_path: Vec<PathBuf>,
     pub overrides: BTreeMap<String, PathBuf>,
     /// Host-owned exact executable per provider, used instead of directory
     /// search. This preserves a logical command/symlink and its resolved
@@ -53,6 +61,7 @@ impl ScanEnvironment {
             local_app_data: join_relative(&home, "AppData/Local"),
             home,
             search_path: vec![],
+            fallback_search_path: vec![],
             overrides: BTreeMap::new(),
             executable_overrides: BTreeMap::new(),
             platform,
@@ -104,6 +113,7 @@ impl ScanEnvironment {
                 .filter(|p| valid_root(p))
                 .collect();
         }
+        env.fallback_search_path = fallback_search_path(&env, vars);
         for key in DISCOVERY_OVERRIDE_KEYS {
             if let Some(value) = present(vars, key) {
                 env.overrides
@@ -133,6 +143,7 @@ impl ScanEnvironment {
         }
         if self.overrides.len() > 32
             || self.search_path.len() > 128
+            || self.fallback_search_path.len() > 256
             || self.executable_overrides.len() > 32
         {
             return Err(DomainError::new(
@@ -176,6 +187,107 @@ fn present<'a>(vars: &'a BTreeMap<String, String>, key: &str) -> Option<&'a str>
     vars.get(key)
         .map(String::as_str)
         .filter(|value| !value.trim().is_empty())
+}
+
+/// Well-known executable directories for a platform. The inherited `PATH` is
+/// only one source: a GUI launch usually gets a minimal PATH, and version
+/// managers keep their shims outside it. Every candidate is absolute, local
+/// and deduplicated; the scanner probes each one for the registered commands.
+fn fallback_search_path(env: &ScanEnvironment, vars: &BTreeMap<String, String>) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let mut push = |path: PathBuf| {
+        if valid_root(&path) && !paths.contains(&path) {
+            paths.push(path);
+        }
+    };
+    // User-level managers that work the same way on every platform.
+    for relative in [
+        ".local/bin",
+        "bin",
+        ".cargo/bin",
+        ".bun/bin",
+        ".volta/bin",
+        ".asdf/shims",
+        ".local/share/mise/shims",
+        ".npm-global/bin",
+        ".kiro/bin",
+    ] {
+        push(join_relative(&env.home, relative));
+    }
+    match env.platform {
+        HostPlatform::Windows => {
+            for relative in [
+                "scoop/shims",
+                ".lmstudio/bin",
+                ".local/share/pnpm",
+                ".config/yarn/global/node_modules/.bin",
+            ] {
+                push(join_relative(&env.home, relative));
+            }
+            push(env.app_data.join("npm"));
+            push(env.app_data.join("nvm"));
+            push(env.app_data.join("fnm"));
+            push(env.local_app_data.join("Microsoft/WinGet/Links"));
+            push(env.local_app_data.join("pnpm"));
+            push(env.local_app_data.join("Yarn/bin"));
+            push(env.local_app_data.join("Microsoft/WindowsApps"));
+            if let Some(program_data) = present(vars, "ProgramData") {
+                let program_data = PathBuf::from(program_data);
+                if valid_root(&program_data) {
+                    push(program_data.join("chocolatey/bin"));
+                }
+            }
+            if let Some(program_files) = present(vars, "ProgramFiles") {
+                let program_files = PathBuf::from(program_files);
+                if valid_root(&program_files) {
+                    push(program_files.join("nodejs"));
+                    push(program_files.join("Kiro-Cli"));
+                }
+            }
+        }
+        HostPlatform::Macos => {
+            for path in [
+                "/opt/homebrew/bin",
+                "/opt/homebrew/sbin",
+                "/usr/local/bin",
+                "/usr/local/sbin",
+                "/opt/local/bin",
+                "/nix/var/nix/profiles/default/bin",
+            ] {
+                push(PathBuf::from(path));
+            }
+            push(join_relative(&env.home, ".nix-profile/bin"));
+            push(join_relative(&env.home, "Library/pnpm"));
+            push(join_relative(&env.home, ".lmstudio/bin"));
+            push(join_relative(&env.home, ".claude/local"));
+            // The Ollama app carries its own CLI; a Finder launch never sees
+            // the Homebrew/npm PATH entry.
+            push(PathBuf::from("/Applications/Ollama.app/Contents/Resources"));
+            push(join_relative(
+                &env.home,
+                "Applications/Ollama.app/Contents/Resources",
+            ));
+        }
+        HostPlatform::Linux => {
+            for path in [
+                "/usr/local/bin",
+                "/usr/local/sbin",
+                "/usr/bin",
+                "/snap/bin",
+                "/var/lib/flatpak/exports/bin",
+                "/nix/var/nix/profiles/default/bin",
+                "/home/linuxbrew/.linuxbrew/bin",
+            ] {
+                push(PathBuf::from(path));
+            }
+            push(join_relative(&env.home, ".nix-profile/bin"));
+            push(join_relative(&env.home, ".local/share/flatpak/exports/bin"));
+            push(join_relative(&env.home, ".linuxbrew/bin"));
+            push(join_relative(&env.home, ".lmstudio/bin"));
+            push(join_relative(&env.home, ".claude/local"));
+        }
+    }
+    paths
 }
 /// Join a `/`-separated relative literal one component at a time.
 ///

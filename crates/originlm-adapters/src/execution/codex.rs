@@ -27,6 +27,86 @@ pub(super) struct ManagedRuntime {
     pub template: LaunchSpec,
     pub current_token: zeroize::Zeroizing<String>,
 }
+
+/// One Codex token breakdown. `input` includes cache reads and, when present,
+/// cache writes; keeping the parts separate lets a consumer price them
+/// correctly instead of treating a cache hit as fresh input.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct TokenUsage {
+    input: u64,
+    cached: u64,
+    cache_write: Option<u64>,
+    output: u64,
+    reasoning: u64,
+    /// Whether a delta has been accumulated. `cache_write` is only known when
+    /// every observed delta reported it; the first delta initializes the sum.
+    initialized: bool,
+}
+
+impl TokenUsage {
+    fn from_breakdown(value: &Value) -> Option<Self> {
+        Some(Self {
+            input: value["inputTokens"].as_u64()?,
+            cached: value["cachedInputTokens"].as_u64()?,
+            cache_write: value["cacheWriteInputTokens"].as_u64(),
+            output: value["outputTokens"].as_u64()?,
+            reasoning: value["reasoningOutputTokens"].as_u64()?,
+            initialized: true,
+        })
+    }
+
+    /// Codex reports thread-wide totals plus the newest response. A decrease
+    /// means a new thread or a reset, so the response's own `last` wins.
+    fn delta(self, previous: Self) -> Option<Self> {
+        Some(Self {
+            input: self.input.checked_sub(previous.input)?,
+            cached: self.cached.checked_sub(previous.cached)?,
+            cache_write: match (self.cache_write, previous.cache_write) {
+                (Some(current), Some(previous)) => Some(current.checked_sub(previous)?),
+                _ => None,
+            },
+            output: self.output.checked_sub(previous.output)?,
+            reasoning: self.reasoning.checked_sub(previous.reasoning)?,
+            initialized: true,
+        })
+    }
+
+    fn add(&mut self, delta: Self) {
+        if !self.initialized {
+            *self = delta;
+            return;
+        }
+        self.input = self.input.saturating_add(delta.input);
+        self.cached = self.cached.saturating_add(delta.cached);
+        self.output = self.output.saturating_add(delta.output);
+        self.reasoning = self.reasoning.saturating_add(delta.reasoning);
+        self.cache_write = match (self.cache_write, delta.cache_write) {
+            (Some(current), Some(delta)) => Some(current.saturating_add(delta)),
+            _ => None,
+        };
+    }
+}
+
+fn emit_token_usage(cx: &TurnContext, usage: TokenUsage) -> Result<()> {
+    for (unit, used) in [
+        ("input_tokens", usage.input),
+        ("output_tokens", usage.output),
+        ("cached_input_tokens", usage.cached.min(usage.input)),
+        ("reasoning_tokens", usage.reasoning.min(usage.output)),
+    ] {
+        cx.emit(EventPayload::Usage {
+            unit: unit.into(),
+            used: used.to_string(),
+        })?;
+    }
+    if let Some(cache_write) = usage.cache_write {
+        cx.emit(EventPayload::Usage {
+            unit: "cache_creation_tokens".into(),
+            used: cache_write.min(usage.input).to_string(),
+        })?;
+    }
+    Ok(())
+}
 /// Thread config. Read-only sessions are text-only: besides the always-off
 /// integrations, Codex's command, exec and generation tools are disabled so
 /// the model cannot run anything on the host (the read-only sandbox alone
@@ -317,6 +397,9 @@ impl CodexAgent {
         let mut turn: Option<String> = None;
         let mut early = VecDeque::new();
         let mut delivered = BTreeSet::new();
+        // Thread-wide token totals, accumulated into the values this turn owns.
+        let mut token_baseline: Option<TokenUsage> = None;
+        let mut turn_usage = TokenUsage::default();
         loop {
             let message = if turn.is_some() && !early.is_empty() {
                 early.pop_front().unwrap()
@@ -473,7 +556,18 @@ impl CodexAgent {
                     }
                 }
                 "thread/tokenUsage/updated" => {
-                    if let Some(total) = p["tokenUsage"]["total"]["totalTokens"].as_u64() {
+                    let total = TokenUsage::from_breakdown(&p["tokenUsage"]["total"]);
+                    let last = TokenUsage::from_breakdown(&p["tokenUsage"]["last"]);
+                    if let (Some(total), Some(last)) = (total, last) {
+                        let delta = token_baseline
+                            .and_then(|previous| total.delta(previous))
+                            .unwrap_or(last);
+                        token_baseline = Some(total);
+                        turn_usage.add(delta);
+                        emit_token_usage(&cx, turn_usage)?;
+                    } else if let Some(total) = p["tokenUsage"]["total"]["totalTokens"].as_u64() {
+                        // Older app-servers only expose a thread-wide total.
+                        // Keep it as a distinct unit: it is not this turn's input.
                         cx.emit(EventPayload::Usage {
                             unit: "session_tokens".into(),
                             used: total.to_string(),
