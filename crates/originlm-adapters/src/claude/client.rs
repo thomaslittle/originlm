@@ -153,7 +153,7 @@ async fn keychain_presence() -> bool {
         else {
             return false;
         };
-        return output.status.success();
+        output.status.success()
     }
     #[cfg(not(target_os = "macos"))]
     {
