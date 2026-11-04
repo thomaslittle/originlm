@@ -46,3 +46,33 @@ fn include_locations_is_only_accepted_for_scan() {
         .unwrap();
     assert!(!output.status.success());
 }
+
+#[cfg(unix)]
+#[test]
+fn probe_versions_is_explicit_and_returns_the_binary_output() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = tempfile::tempdir().unwrap();
+    std::fs::create_dir(home.path().join(".codex")).unwrap();
+    let bin = home.path().join(".local/bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let codex = bin.join("codex");
+    std::fs::write(&codex, "#!/bin/sh\necho 'codex 9.8.7'\n").unwrap();
+    let mut permissions = std::fs::metadata(&codex).unwrap().permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&codex, permissions).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_originlm"))
+        .args(["scan", "--json", "--home"])
+        .arg(home.path())
+        .args(["--include-locations", "--probe-versions"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let versions = value["versions"].as_object().unwrap();
+    let entry = versions.values().find(|entry| entry["ok"] == true).unwrap();
+    assert!(entry["output"].as_str().unwrap().contains("9.8.7"));
+}

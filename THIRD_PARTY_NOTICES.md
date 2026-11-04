@@ -24,8 +24,8 @@ Release packaging must preserve the complete dependency licenses.
 | --- | --- | --- |
 | T3 Code | https://github.com/pingdotgg/t3code | Native client integration, provider instances, dynamic model options, picker patterns. |
 | shadcn-ui/chatbot-template | https://github.com/shadcn-ui/chatbot-template | Chat interaction and model-selector patterns adapted for the demo Playground (see reuse ledger below). |
-| CodeNotch cross-platform | https://github.com/thomaslittle/codenotch-crossplatform | Rust/platform discovery and usage parsing. |
-| CodeNotch | https://github.com/vinzdg/codenotch | Broader provider/platform discovery. |
+| CodeNotch cross-platform | https://github.com/thomaslittle/codenotch-crossplatform | Rust/platform discovery and usage parsing. Not readable with the available credentials at the 2026-11-04 review; no new revision is claimed. |
+| CodeNotch | https://github.com/vinzdg/codenotch | Session-layout and token-accounting cross-check at `6522e9f` (`1.24.0`, MIT). See [the notice](upstream/codenotch/NOTICE.md) and [lock](upstream/codenotch/lock.json). |
 | Prmptr | https://github.com/thomaslittle/prmptr | Vertical provider rail and grouped model selection. |
 
 The reuse ledger below and `upstream/` record inspected source revisions. For future reuse, verify the license at the exact source revision and preserve required copyright and license text.

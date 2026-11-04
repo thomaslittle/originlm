@@ -190,6 +190,13 @@ async fn execute(args: Args) -> Result<()> {
         chatgpt,
         args.usage_providers.contains("cursor"),
     );
+    if let Some(home) = args.home.clone().or_else(|| {
+        originlm_discovery::ScanEnvironment::from_process()
+            .ok()
+            .map(|environment| environment.home)
+    }) {
+        service.set_usage_home(home);
+    }
     #[cfg(feature = "os-notifications")]
     if args.os_notifications {
         service.install_os_notifications();
@@ -250,6 +257,36 @@ async fn execute(args: Args) -> Result<()> {
                     .iter()
                     .map(|connection| connection.provider_id.as_str())
                     .collect();
+                let versions = if args.probe_versions {
+                    let mut versions = serde_json::Map::new();
+                    for (connection, located) in &result.locations {
+                        let Some(executable) = &located.executable else {
+                            continue;
+                        };
+                        let output = tokio::time::timeout(
+                            std::time::Duration::from_secs(4),
+                            tokio::process::Command::new(executable)
+                                .arg("--version")
+                                .kill_on_drop(true)
+                                .output(),
+                        )
+                        .await;
+                        let value = match output {
+                            Ok(Ok(output)) => {
+                                let text = String::from_utf8_lossy(&output.stdout);
+                                json!({
+                                    "ok": output.status.success(),
+                                    "output": text.lines().next().unwrap_or("").chars().take(200).collect::<String>(),
+                                })
+                            }
+                            _ => json!({"ok": false, "output": ""}),
+                        };
+                        versions.insert(connection.clone(), value);
+                    }
+                    Some(versions)
+                } else {
+                    None
+                };
                 let checked: Vec<_> = originlm_discovery::definitions()
                     .iter()
                     .map(|definition| {
@@ -267,6 +304,7 @@ async fn execute(args: Args) -> Result<()> {
                         "locations": locations,
                         "metadataProbes": result.metadata_probes,
                         "checkedProviders": checked,
+                        "versions": versions,
                     })
                 );
             } else {
@@ -276,15 +314,15 @@ async fn execute(args: Args) -> Result<()> {
         }
         Action::Usage => {
             let history = match args.home.clone() {
-                Some(home) => originlm_adapters::history::read_usage(
+                Some(home) => originlm_discovery::history::read_usage(
                     &home,
-                    originlm_adapters::history::Limits::default(),
+                    originlm_discovery::history::Limits::default(),
                 ),
                 None => {
                     let environment = originlm_discovery::ScanEnvironment::from_process()?;
-                    originlm_adapters::history::read_usage_for_environment(
+                    originlm_discovery::history::read_usage_for_environment(
                         &environment,
-                        originlm_adapters::history::Limits::default(),
+                        originlm_discovery::history::Limits::default(),
                     )
                 }
             };
@@ -309,12 +347,16 @@ async fn execute(args: Args) -> Result<()> {
             println!(
                 "{}",
                 json!({"providers": [
-                    originlm_adapters::local_models::read_ollama_models(
+                    originlm_discovery::local_models::read_ollama_models(
                         &environment.home,
                         ollama_override.as_deref(),
                         8192,
                     ),
-                    originlm_adapters::local_models::read_lmstudio_models(&environment.home, 8192),
+                    originlm_discovery::local_models::read_lmstudio_models(
+                        &environment.home,
+                        &environment.config_home,
+                        8192,
+                    ),
                 ]})
             );
             Ok(())

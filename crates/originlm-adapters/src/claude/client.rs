@@ -139,6 +139,27 @@ pub async fn probe_host_mcp_policy(
     peer.shutdown().await;
     outcome
 }
+async fn keychain_presence() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let Ok(Ok(output)) = tokio::time::timeout(
+            Duration::from_secs(2),
+            tokio::process::Command::new("/usr/bin/security")
+                .args(["find-generic-password", "-s", "Claude Code-credentials"])
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await
+        else {
+            return false;
+        };
+        return output.status.success();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
 pub async fn probe_spec(
     spec: LaunchSpec,
     connection: &str,
@@ -154,7 +175,20 @@ pub async fn probe_spec(
         .await
         .ok()
         .and_then(Result::ok);
-        parse_metadata(connection, route, &init, usage.as_ref())
+        let mut report = parse_metadata(connection, route, &init, usage.as_ref())?;
+        if !report
+            .diagnostics
+            .iter()
+            .any(|code| code == "CLAUDE_CREDENTIALS_PRESENT_IN_KEYCHAIN")
+            && keychain_presence().await
+        {
+            // Existence only: `security` is not asked for the secret (`-g`).
+            // The native client still owns the store and performs the login.
+            report
+                .diagnostics
+                .push("CLAUDE_CREDENTIALS_PRESENT_IN_KEYCHAIN".into());
+        }
+        Ok(report)
     })
     .await
     .map_err(|_| DomainError::new(ErrorCode::Timeout, "Claude metadata timed out"))?;

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- feat(usage): add `usage.history` and `costs.read.historical` plus a desktop Costs page section. History now covers Gemini CLI (`~/.gemini/tmp` JSON/JSONL), Grok (`~/.grok/sessions` `updates.jsonl` `turn_completed`), and Kiro (`~/.kiro/sessions/cli` recorded turn counts) in addition to Claude Code and Codex. Codex app-server and rollout token shapes are both accepted; cache writes stay separate from fresh input.
+- feat(models): serve on-disk Ollama and LM Studio inventories through `models.local`, honor an LM Studio `modelDirectory` from `LMStudio/config.json`, and show them on the desktop Models page.
+- feat(detection): add `detection.status` with per-provider found/configuration-only/not-found states, diagnostics, executable presence, and paths checked; render it on the desktop Diagnostics page. `scan --probe-versions` records explicit `--version` output for real-install evidence.
+- feat(ci): add a server-off Ollama real-install job that pulls `smollm2:135m` and asserts `originlm models` lists it, and probe version output in the existing detection matrix.
+- chore(upstream): pin CodeNotch `6522e9f` (`1.24.0`, MIT) as a session-layout/token-accounting cross-check; no source is copied.
 - feat(detection): search per-OS fallback executable directories in addition to `PATH` (Homebrew, `/usr/local/bin`, `/snap/bin`, flatpak, Nix, npm prefixes, nvm/fnm/mise/asdf/volta shims, WinGet, scoop, Chocolatey, per-user Programs). A GUI launch with a minimal `PATH` no longer hides an installed client, and `*_EXECUTABLE_FROM_FALLBACK_LOCATION` records that a fallback supplied the hit.
 - fix(detection): resolve Unix executable links before grouping installations, so a command reached through both `PATH` and its real install directory is one installation instead of two (for example `/usr/local/bin/opencode` -> `~/.opencode/bin/opencode`).
 - feat(models): add `originlm models --json [--home ABSOLUTE_DIRECTORY]` for on-disk Ollama manifests and LM Studio GGUF files. It reports native ids, names, byte sizes and a coarse format, explains missing or malformed roots, and never guesses quantization, context or text capability.

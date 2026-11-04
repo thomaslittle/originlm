@@ -44,13 +44,15 @@ export type ConnectionParams = { "connectionId": string; };
 
 export type CostRecord = { "amountUsd"?: DecimalString | null; "basis": string; "nativeModelId": string; "price"?: ModelPrice | null; "providerId": string; "usage": CostUsage; };
 
-export type CostReport = { "canEditPrices": boolean; "prices": Array<ModelPrice>; "pricesPersisted": boolean; "records": Array<CostRecord>; "scope": string; "storageError"?: string | null; };
+export type CostReport = { "canEditPrices": boolean; "historical"?: UsageHistory; "prices": Array<ModelPrice>; "pricesPersisted": boolean; "records": Array<CostRecord>; "scope": string; "storageError"?: string | null; };
 
 export type CostUsage = { "complete": boolean; "connectionId": string; "inputTokens"?: DecimalString | null; "modelId": string; "observedAt": Timestamp; "outputTokens"?: DecimalString | null; "reportedUsd"?: DecimalString | null; "routeId": string; "sessionId": string; "turnId": string; };
 
 export type DataMode = "live" | "synthetic";
 
 export type DecimalString = string;
+
+export type DetectionReport = { "providers": Array<ProviderDetection>; };
 
 export type DiscoveryParams = { "level"?: string | null; };
 
@@ -116,9 +118,13 @@ export type IssueUpdateParams = { "issueId": string; "until"?: Timestamp | null;
 
 export type IssueUpdateResult = { "issue": Issue; };
 
-export type MethodInputs = { "adapters.list": EmptyParams; "approvals.respond": ApprovalParams; "apps.list": EmptyParams; "apps.revoke": AppRevokeParams; "artifacts.read": ArtifactReadParams; "auth.chatgpt.cancel": ChatgptCancelParams; "auth.chatgpt.disconnect": EmptyParams; "auth.chatgpt.start": EmptyParams; "auth.chatgpt.status": EmptyParams; "capabilities.read": ModelParams; "connections.list": EmptyParams; "connections.probe": ConnectionParams; "costs.read": EmptyParams; "costs.setPrices": SetPricesParams; "diagnostics.report": EmptyParams; "discovery.refresh": DiscoveryParams; "discovery.watch": DiscoveryWatchParams; "events.read": EventsParams; "events.subscribe": EventsParams; "events.unsubscribe": SubscriptionParams; "grants.list": EmptyParams; "grants.request": GrantParams; "grants.revoke": EmptyParams; "health.get": EmptyParams; "inputs.put": InputPutParams; "issues.acknowledge": IssueUpdateParams; "issues.list": EmptyParams; "issues.snooze": IssueUpdateParams; "models.list": ModelsParams; "models.page": ModelPageParams; "notifications.ack": NotificationAckParams; "notifications.configure": NotificationPreferences; "notifications.poll": EmptyParams; "runtime.closeClient": EmptyParams; "runtime.handshake": HandshakeParams; "runtime.health": EmptyParams; "selection.resolve": Requirements; "selection.validate": SelectionParams; "sessions.close": SessionParams; "sessions.create": SessionCreateParams; "sessions.get": SessionParams; "sessions.resume": SessionResumeParams; "sessions.suspend": SessionParams; "sessions.updateOptions": SessionOptionsParams; "snapshot.get": SnapshotParams; "turns.cancel": TurnParams; "turns.start": TurnStartParams; "usage.read": EmptyParams; };
+export type LocalModel = { "format"?: string | null; "name": string; "nativeId": string; "providerId": string; "sizeBytes"?: number | null; };
 
-export type MethodOutputs = { "adapters.list": Array<AdapterDescriptor>; "approvals.respond": unknown; "apps.list": unknown; "apps.revoke": unknown; "artifacts.read": ArtifactChunk; "auth.chatgpt.cancel": unknown; "auth.chatgpt.disconnect": unknown; "auth.chatgpt.start": ChatgptAuthStart; "auth.chatgpt.status": ChatgptAuthStatus; "capabilities.read": Array<Capability>; "connections.list": Array<Connection>; "connections.probe": unknown; "costs.read": CostReport; "costs.setPrices": Array<ModelPrice>; "diagnostics.report": unknown; "discovery.refresh": DiscoveryResult; "discovery.watch": unknown; "events.read": EventPage; "events.subscribe": unknown; "events.unsubscribe": unknown; "grants.list": unknown; "grants.request": unknown; "grants.revoke": unknown; "health.get": HealthView; "inputs.put": InputPutResult; "issues.acknowledge": IssueUpdateResult; "issues.list": Array<Issue>; "issues.snooze": IssueUpdateResult; "models.list": Array<Model>; "models.page": ModelPage; "notifications.ack": unknown; "notifications.configure": NotificationPreferences; "notifications.poll": Array<NotificationDecision>; "runtime.closeClient": unknown; "runtime.handshake": HandshakeResult; "runtime.health": RuntimeHealth; "selection.resolve": Array<Candidate>; "selection.validate": ValidationResult; "sessions.close": unknown; "sessions.create": Session; "sessions.get": Session; "sessions.resume": Session; "sessions.suspend": SessionSuspendResult; "sessions.updateOptions": Session; "snapshot.get": Snapshot; "turns.cancel": unknown; "turns.start": TurnStarted; "usage.read": Array<QuotaPool>; };
+export type LocalModelInventory = { "diagnostics": Array<string>; "filesSkipped": number; "models": Array<LocalModel>; "providerId": string; "roots": Array<string>; "truncated": boolean; };
+
+export type MethodInputs = { "adapters.list": EmptyParams; "approvals.respond": ApprovalParams; "apps.list": EmptyParams; "apps.revoke": AppRevokeParams; "artifacts.read": ArtifactReadParams; "auth.chatgpt.cancel": ChatgptCancelParams; "auth.chatgpt.disconnect": EmptyParams; "auth.chatgpt.start": EmptyParams; "auth.chatgpt.status": EmptyParams; "capabilities.read": ModelParams; "connections.list": EmptyParams; "connections.probe": ConnectionParams; "costs.read": EmptyParams; "costs.setPrices": SetPricesParams; "detection.status": EmptyParams; "diagnostics.report": EmptyParams; "discovery.refresh": DiscoveryParams; "discovery.watch": DiscoveryWatchParams; "events.read": EventsParams; "events.subscribe": EventsParams; "events.unsubscribe": SubscriptionParams; "grants.list": EmptyParams; "grants.request": GrantParams; "grants.revoke": EmptyParams; "health.get": EmptyParams; "inputs.put": InputPutParams; "issues.acknowledge": IssueUpdateParams; "issues.list": EmptyParams; "issues.snooze": IssueUpdateParams; "models.list": ModelsParams; "models.local": EmptyParams; "models.page": ModelPageParams; "notifications.ack": NotificationAckParams; "notifications.configure": NotificationPreferences; "notifications.poll": EmptyParams; "runtime.closeClient": EmptyParams; "runtime.handshake": HandshakeParams; "runtime.health": EmptyParams; "selection.resolve": Requirements; "selection.validate": SelectionParams; "sessions.close": SessionParams; "sessions.create": SessionCreateParams; "sessions.get": SessionParams; "sessions.resume": SessionResumeParams; "sessions.suspend": SessionParams; "sessions.updateOptions": SessionOptionsParams; "snapshot.get": SnapshotParams; "turns.cancel": TurnParams; "turns.start": TurnStartParams; "usage.history": EmptyParams; "usage.read": EmptyParams; };
+
+export type MethodOutputs = { "adapters.list": Array<AdapterDescriptor>; "approvals.respond": unknown; "apps.list": unknown; "apps.revoke": unknown; "artifacts.read": ArtifactChunk; "auth.chatgpt.cancel": unknown; "auth.chatgpt.disconnect": unknown; "auth.chatgpt.start": ChatgptAuthStart; "auth.chatgpt.status": ChatgptAuthStatus; "capabilities.read": Array<Capability>; "connections.list": Array<Connection>; "connections.probe": unknown; "costs.read": CostReport; "costs.setPrices": Array<ModelPrice>; "detection.status": DetectionReport; "diagnostics.report": unknown; "discovery.refresh": DiscoveryResult; "discovery.watch": unknown; "events.read": EventPage; "events.subscribe": unknown; "events.unsubscribe": unknown; "grants.list": unknown; "grants.request": unknown; "grants.revoke": unknown; "health.get": HealthView; "inputs.put": InputPutResult; "issues.acknowledge": IssueUpdateResult; "issues.list": Array<Issue>; "issues.snooze": IssueUpdateResult; "models.list": Array<Model>; "models.local": Array<LocalModelInventory>; "models.page": ModelPage; "notifications.ack": unknown; "notifications.configure": NotificationPreferences; "notifications.poll": Array<NotificationDecision>; "runtime.closeClient": unknown; "runtime.handshake": HandshakeResult; "runtime.health": RuntimeHealth; "selection.resolve": Array<Candidate>; "selection.validate": ValidationResult; "sessions.close": unknown; "sessions.create": Session; "sessions.get": Session; "sessions.resume": Session; "sessions.suspend": SessionSuspendResult; "sessions.updateOptions": Session; "snapshot.get": Snapshot; "turns.cancel": unknown; "turns.start": TurnStarted; "usage.history": UsageHistory; "usage.read": Array<QuotaPool>; };
 
 export type Model = { "capabilities": Array<Capability>; "contextWindow": Observation; "id": string; "isDefault": boolean; "name": string; "nativeId": string; "options": Array<OptionDescriptor>; "revision": string; "routeId": string; };
 
@@ -129,6 +135,8 @@ export type ModelPageParams = { "cursor"?: string | null; "limit"?: number | nul
 export type ModelParams = { "modelId": string; };
 
 export type ModelPrice = { "inputUsdPerMillion": DecimalString; "nativeModelId": string; "outputUsdPerMillion": DecimalString; "providerId": string; "reviewedAt": string; "source": string; };
+
+export type ModelUsage = { "messages": number; "nativeModelId": string; "providerId": string; "sessions": number; "totals": UsageTotals; };
 
 export type ModelsParams = { "routeId"?: string | null; };
 
@@ -161,6 +169,10 @@ export type Plan = { "label": string; "nativeId": string; };
 export type Profile = { "id": string; "installationId": string; "label": string; };
 
 export type Provider = { "id": string; "kind": string; "name": string; };
+
+export type ProviderDetection = { "connectionCount": number; "diagnostics": Array<string>; "executableFound": boolean; "name": string; "pathsChecked": Array<string>; "providerId": string; "status": string; };
+
+export type ProviderUsage = { "diagnostics": Array<string>; "filesRead": number; "filesSkipped": number; "malformedLines": number; "models": Array<ModelUsage>; "providerId": string; "roots": Array<string>; "totals": UsageTotals; "truncated": boolean; };
 
 export type QuotaPool = { "accountId"?: string | null; "connectionIds": Array<string>; "id": string; "routeIds": Array<string>; "sharing": string; "windows": Array<UsageWindow>; };
 
@@ -214,7 +226,11 @@ export type TurnStartParams = { "inputs"?: Array<TurnInputRef>; "prompt": string
 
 export type TurnStarted = { "turnId": string; [key: string]: unknown; };
 
+export type UsageHistory = { "providers": Array<ProviderUsage>; };
+
 export type UsageReading = { "limit"?: DecimalString | null; "remaining"?: DecimalString | null; "unit": string; "used": DecimalString; "usedFraction"?: number | null; };
+
+export type UsageTotals = { "cacheCreationTokens": number; "cachedInputTokens": number; "inputTokens": number; "outputTokens": number; "reasoningTokens": number; };
 
 export type UsageWindow = { "durationSeconds"?: number | null; "id": string; "label": string; "reading": Observation5; "resetsAt"?: Timestamp | null; };
 

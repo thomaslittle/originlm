@@ -188,7 +188,13 @@ pub fn parse_metadata(
                     },
                 ],
                 options,
-                context_window: Observation::unknown("CONTEXT_NOT_REPORTED_AS_STRUCTURED_DATA"),
+                context_window: entry["contextWindow"]
+                    .as_u64()
+                    .or_else(|| entry["maxInputTokens"].as_u64())
+                    .map(|tokens| Observation::reported(tokens.to_string(), source.clone()))
+                    .unwrap_or_else(|| {
+                        Observation::unknown("CONTEXT_NOT_REPORTED_AS_STRUCTURED_DATA")
+                    }),
             });
         }
     } else {

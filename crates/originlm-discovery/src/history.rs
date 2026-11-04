@@ -13,7 +13,8 @@
 //! - `cached_input_tokens` and `cache_creation_tokens` are separate.
 //! - `reasoning_tokens` is a subset of `output_tokens`, never added to it.
 
-use serde::{Deserialize, Serialize};
+use originlm_contracts::{ModelUsage, ProviderUsage, UsageHistory, UsageTotals};
+use serde::Deserialize;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -25,70 +26,6 @@ const DEFAULT_MAX_FILES: usize = 4096;
 const DEFAULT_MAX_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
 const DEFAULT_MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const DEFAULT_MAX_LINE_BYTES: usize = 1024 * 1024;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageTotals {
-    pub input_tokens: u64,
-    pub cached_input_tokens: u64,
-    pub cache_creation_tokens: u64,
-    pub output_tokens: u64,
-    pub reasoning_tokens: u64,
-}
-
-impl UsageTotals {
-    fn add(&mut self, other: Self) {
-        self.input_tokens = self.input_tokens.saturating_add(other.input_tokens);
-        self.cached_input_tokens = self
-            .cached_input_tokens
-            .saturating_add(other.cached_input_tokens);
-        self.cache_creation_tokens = self
-            .cache_creation_tokens
-            .saturating_add(other.cache_creation_tokens);
-        self.output_tokens = self.output_tokens.saturating_add(other.output_tokens);
-        self.reasoning_tokens = self.reasoning_tokens.saturating_add(other.reasoning_tokens);
-    }
-
-    pub fn total_input_tokens(self) -> u64 {
-        self.input_tokens
-            .saturating_add(self.cached_input_tokens)
-            .saturating_add(self.cache_creation_tokens)
-    }
-
-    fn is_zero(self) -> bool {
-        self == Self::default()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ModelUsage {
-    pub provider_id: String,
-    pub native_model_id: String,
-    pub sessions: u32,
-    pub messages: u32,
-    pub totals: UsageTotals,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderUsage {
-    pub provider_id: String,
-    pub roots: Vec<String>,
-    pub files_read: u32,
-    pub files_skipped: u32,
-    pub malformed_lines: u32,
-    pub truncated: bool,
-    pub diagnostics: Vec<String>,
-    pub models: Vec<ModelUsage>,
-    pub totals: UsageTotals,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageHistory {
-    pub providers: Vec<ProviderUsage>,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
@@ -114,6 +51,9 @@ pub fn read_usage(home: &Path, limits: Limits) -> UsageHistory {
     read_roots(
         config_roots(&home.join(".claude"), ["projects", "transcripts"]),
         config_roots(&home.join(".codex"), ["sessions", "archived_sessions"]),
+        config_roots(&home.join(".gemini"), ["tmp"]),
+        config_roots(&home.join(".grok"), ["sessions"]),
+        config_roots(&home.join(".kiro"), ["sessions/cli"]),
         limits,
     )
 }
@@ -122,7 +62,7 @@ pub fn read_usage(home: &Path, limits: Limits) -> UsageHistory {
 /// `CODEX_HOME` and `CLAUDE_CONFIG_DIR`. `CLAUDE_SECURESTORAGE_CONFIG_DIR` is
 /// deliberately not used here: it moves the credential store, not `projects/`.
 pub fn read_usage_for_environment(
-    environment: &originlm_discovery::ScanEnvironment,
+    environment: &crate::ScanEnvironment,
     limits: Limits,
 ) -> UsageHistory {
     let claude_home = environment
@@ -130,13 +70,25 @@ pub fn read_usage_for_environment(
         .get("CLAUDE_CONFIG_DIR")
         .cloned()
         .unwrap_or_else(|| environment.home.join(".claude"));
-    let codex_home = originlm_discovery::profile_roots("codex", environment)
+    let codex_home = crate::profile_roots("codex", environment)
         .into_iter()
         .next()
         .unwrap_or_else(|| environment.home.join(".codex"));
+    let gemini_home = crate::profile_roots("gemini_cli", environment)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| environment.home.join(".gemini"));
+    let grok_home = crate::profile_roots("grok", environment)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| environment.home.join(".grok"));
+    let kiro_home = environment.home.join(".kiro");
     read_roots(
         config_roots(&claude_home, ["projects", "transcripts"]),
         config_roots(&codex_home, ["sessions", "archived_sessions"]),
+        config_roots(&gemini_home, ["tmp"]),
+        config_roots(&grok_home, ["sessions"]),
+        config_roots(&kiro_home, ["sessions/cli"]),
         limits,
     )
 }
@@ -148,6 +100,9 @@ fn config_roots<const N: usize>(root: &Path, relatives: [&str; N]) -> Vec<PathBu
 fn read_roots(
     claude_roots: Vec<PathBuf>,
     codex_roots: Vec<PathBuf>,
+    gemini_roots: Vec<PathBuf>,
+    grok_roots: Vec<PathBuf>,
+    kiro_roots: Vec<PathBuf>,
     limits: Limits,
 ) -> UsageHistory {
     let mut providers = Vec::new();
@@ -156,6 +111,15 @@ fn read_roots(
     }
     if !codex_roots.is_empty() {
         providers.push(read_codex(&codex_roots, limits));
+    }
+    if !gemini_roots.is_empty() {
+        providers.push(read_gemini(&gemini_roots, limits));
+    }
+    if !grok_roots.is_empty() {
+        providers.push(read_grok(&grok_roots, limits));
+    }
+    if !kiro_roots.is_empty() {
+        providers.push(read_kiro(&kiro_roots, limits));
     }
     UsageHistory { providers }
 }
@@ -173,7 +137,21 @@ struct Walk {
 }
 
 fn walk_jsonl(root: &Path, limits: Limits, walk: &mut Walk) {
-    fn recurse(path: &Path, depth: usize, limits: Limits, walk: &mut Walk) {
+    walk_matching(root, limits, walk, &|name| name.ends_with(".jsonl"));
+}
+
+fn walk_json(root: &Path, limits: Limits, walk: &mut Walk) {
+    walk_matching(root, limits, walk, &|name| name.ends_with(".json"));
+}
+
+fn walk_matching(root: &Path, limits: Limits, walk: &mut Walk, matches: &dyn Fn(&str) -> bool) {
+    fn recurse(
+        path: &Path,
+        depth: usize,
+        limits: Limits,
+        walk: &mut Walk,
+        matches: &dyn Fn(&str) -> bool,
+    ) {
         if depth > 8 || walk.files.len() >= limits.max_files {
             walk.truncated = true;
             return;
@@ -198,11 +176,11 @@ fn walk_jsonl(root: &Path, limits: Limits, walk: &mut Walk) {
             }
             let path = entry.path();
             if file_type.is_dir() {
-                recurse(&path, depth + 1, limits, walk);
+                recurse(&path, depth + 1, limits, walk, matches);
             } else if file_type.is_file() {
                 let name = entry.file_name();
                 let name = name.to_string_lossy();
-                if name.ends_with(".jsonl") {
+                if matches(&name) {
                     match entry.metadata() {
                         Ok(metadata) if metadata.len() > limits.max_file_bytes => {
                             walk.skipped += 1;
@@ -223,10 +201,9 @@ fn walk_jsonl(root: &Path, limits: Limits, walk: &mut Walk) {
             }
         }
     }
-    recurse(root, 0, limits, walk);
+    recurse(root, 0, limits, walk, matches);
     walk.files.sort();
 }
-
 /// Read one JSONL file. The callback returns false for a line it cannot use;
 /// those are counted, while the remaining lines still contribute.
 fn read_lines(
@@ -424,7 +401,7 @@ fn read_claude(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             walk.diagnostics.insert("SESSION_FILE_SKIPPED".into());
         }
     }
-    let mut by_model: BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)> = BTreeMap::new();
+    let mut by_model: BTreeMap<String, AggregatedModel> = BTreeMap::new();
     for record in records.into_values() {
         let entry = by_model.entry(record.model).or_default();
         entry.0.add(record.totals);
@@ -694,7 +671,7 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
     });
     let mut baselines: BTreeMap<String, Breakdown> = BTreeMap::new();
     let mut current_models: BTreeMap<String, String> = BTreeMap::new();
-    let mut by_model: BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)> = BTreeMap::new();
+    let mut by_model: BTreeMap<String, AggregatedModel> = BTreeMap::new();
     for event in ordered {
         let model = if event.model == "unknown" {
             current_models
@@ -761,6 +738,447 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
         models,
         totals,
     }
+}
+
+type AggregatedModel = (UsageTotals, BTreeSet<String>, u32);
+type GrokRecordKey = (String, String, u64, u64);
+
+fn number(value: &serde_json::Value, keys: &[&str]) -> u64 {
+    keys.iter()
+        .find_map(|key| value[*key].as_u64())
+        .unwrap_or(0)
+}
+
+fn optional_number(value: &serde_json::Value, keys: &[&str]) -> Option<u64> {
+    keys.iter().find_map(|key| value[*key].as_u64())
+}
+
+fn add_usage(
+    by_model: &mut BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)>,
+    session: &str,
+    model: &str,
+    totals: UsageTotals,
+) {
+    if totals.is_zero() {
+        return;
+    }
+    let entry = by_model.entry(model.to_owned()).or_default();
+    entry.0.add(totals);
+    entry.1.insert(session.to_owned());
+    entry.2 = entry.2.saturating_add(1);
+}
+
+fn model_rows(
+    provider_id: &str,
+    roots: &[PathBuf],
+    walk: &Walk,
+    by_model: BTreeMap<String, (UsageTotals, BTreeSet<String>, u32)>,
+    malformed_lines: u32,
+    files_read: u32,
+    files_skipped: u32,
+) -> ProviderUsage {
+    let mut models = Vec::new();
+    let mut totals = UsageTotals::default();
+    for (model, (usage, sessions, messages)) in by_model {
+        totals.add(usage);
+        models.push(ModelUsage {
+            provider_id: provider_id.into(),
+            native_model_id: model,
+            sessions: sessions.len().try_into().unwrap_or(u32::MAX),
+            messages,
+            totals: usage,
+        });
+    }
+    models.sort_by(|left, right| left.native_model_id.cmp(&right.native_model_id));
+    let mut diagnostics: Vec<String> = walk.diagnostics.iter().cloned().collect();
+    if files_read == 0 {
+        diagnostics.push("NO_SESSION_FILES_READ".into());
+    }
+    if models.is_empty() {
+        diagnostics.push("NO_USAGE_RECORDS".into());
+    }
+    diagnostics.sort();
+    diagnostics.dedup();
+    ProviderUsage {
+        provider_id: provider_id.into(),
+        roots: roots
+            .iter()
+            .map(|root| root.display().to_string())
+            .collect(),
+        files_read,
+        files_skipped,
+        malformed_lines,
+        truncated: walk.truncated,
+        diagnostics,
+        models,
+        totals,
+    }
+}
+
+fn gemini_totals(tokens: &serde_json::Value) -> UsageTotals {
+    let input = number(
+        tokens,
+        &[
+            "input",
+            "prompt",
+            "input_tokens",
+            "prompt_tokens",
+            "promptTokenCount",
+        ],
+    );
+    let output = number(
+        tokens,
+        &[
+            "output",
+            "candidates",
+            "output_tokens",
+            "completion_tokens",
+            "candidatesTokenCount",
+        ],
+    );
+    let cached = number(
+        tokens,
+        &["cached", "cached_tokens", "cachedContentTokenCount"],
+    );
+    let thoughts = number(tokens, &["thoughts", "reasoning", "thoughts_tokens"]);
+    let tool = number(tokens, &["tool", "tool_tokens"]);
+    let total = optional_number(tokens, &["total", "totalTokenCount", "total_tokens"]);
+    // Gemini sometimes reports a total where cache-read tokens are included in
+    // the prompt count and sometimes disjoint. Only subtract when the total
+    // proves the inclusive shape; otherwise preserve the provider value.
+    let inclusive = total
+        .is_some_and(|total| total == input.saturating_add(output).saturating_add(thoughts) + tool);
+    let fresh = if cached > 0 && inclusive {
+        input.saturating_sub(cached)
+    } else {
+        input
+    };
+    UsageTotals {
+        input_tokens: fresh.saturating_add(tool),
+        cached_input_tokens: cached,
+        cache_creation_tokens: 0,
+        // Gemini thought tokens are generated output; keep them whole and flag
+        // the subset so output == total generation.
+        output_tokens: output.saturating_add(thoughts),
+        reasoning_tokens: thoughts,
+    }
+}
+
+fn read_gemini(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
+    let mut walk = Walk::default();
+    for root in roots {
+        walk_json(root, limits, &mut walk);
+        walk_jsonl(root, limits, &mut walk);
+    }
+    let mut records: BTreeMap<String, (String, String, UsageTotals)> = BTreeMap::new();
+    let mut malformed_lines = 0;
+    let mut files_read = 0;
+    let mut files_skipped = walk.skipped;
+    let mut budget = limits.max_total_bytes;
+    for path in &walk.files {
+        let is_jsonl = path.extension().and_then(|extension| extension.to_str()) == Some("jsonl");
+        let stem = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "unknown".into());
+        if is_jsonl {
+            let mut session = stem.clone();
+            let mut model = "unknown".to_owned();
+            let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
+                let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                    return false;
+                };
+                if let Some(id) = value["session_id"]
+                    .as_str()
+                    .or_else(|| value["sessionId"].as_str())
+                    .filter(|id| !id.is_empty() && id.len() <= 256)
+                {
+                    session = id.to_owned();
+                }
+                if let Some(name) = value["model"]
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty() && name.len() <= 256)
+                {
+                    model = name.to_owned();
+                }
+                let Some(tokens) = value.get("tokens").filter(|tokens| tokens.is_object()) else {
+                    return true;
+                };
+                let key = value["id"]
+                    .as_str()
+                    .filter(|id| !id.is_empty())
+                    .map(|id| format!("{session}:{id}"))
+                    .unwrap_or_else(|| format!("{}:{}", path.display(), records.len()));
+                records.insert(key, (session.clone(), model.clone(), gemini_totals(tokens)));
+                true
+            });
+            if read {
+                files_read += 1;
+                malformed_lines += rejected;
+            } else {
+                files_skipped += 1;
+            }
+            continue;
+        }
+        let Ok(bytes) = fs::read(path) else {
+            files_skipped += 1;
+            continue;
+        };
+        if bytes.len() as u64 > limits.max_file_bytes || bytes.len() as u64 > budget {
+            files_skipped += 1;
+            continue;
+        }
+        budget = budget.saturating_sub(bytes.len() as u64);
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+            malformed_lines += 1;
+            continue;
+        };
+        let session = value["sessionId"]
+            .as_str()
+            .or_else(|| value["session_id"].as_str())
+            .filter(|id| !id.is_empty() && id.len() <= 256)
+            .unwrap_or(&stem)
+            .to_owned();
+        let Some(messages) = value["messages"].as_array() else {
+            malformed_lines += 1;
+            continue;
+        };
+        for (index, message) in messages.iter().enumerate() {
+            let Some(tokens) = message.get("tokens").filter(|tokens| tokens.is_object()) else {
+                continue;
+            };
+            let model = message["model"]
+                .as_str()
+                .map(str::trim)
+                .filter(|name| !name.is_empty() && name.len() <= 256)
+                .unwrap_or("unknown")
+                .to_owned();
+            let key = message["id"]
+                .as_str()
+                .filter(|id| !id.is_empty())
+                .map(|id| format!("{session}:{id}"))
+                .unwrap_or_else(|| format!("{}:{index}", path.display()));
+            records.insert(key, (session.clone(), model, gemini_totals(tokens)));
+        }
+        files_read += 1;
+    }
+    let mut by_model: BTreeMap<String, AggregatedModel> = BTreeMap::new();
+    for (session, model, totals) in records.into_values() {
+        add_usage(&mut by_model, &session, &model, totals);
+    }
+    model_rows(
+        "gemini_cli",
+        roots,
+        &walk,
+        by_model,
+        malformed_lines,
+        files_read,
+        files_skipped,
+    )
+}
+
+fn grok_totals(usage: &serde_json::Value) -> UsageTotals {
+    let input = number(usage, &["inputTokens", "input_tokens", "promptTokens"]);
+    let output = number(
+        usage,
+        &["outputTokens", "output_tokens", "completionTokens"],
+    );
+    let cached = number(
+        usage,
+        &[
+            "cachedReadTokens",
+            "cacheReadTokens",
+            "cache_read_input_tokens",
+        ],
+    );
+    let cache_write = number(
+        usage,
+        &[
+            "cachedWriteTokens",
+            "cacheWriteTokens",
+            "cacheCreationTokens",
+            "cache_creation_input_tokens",
+        ],
+    );
+    let reasoning = number(
+        usage,
+        &["reasoningTokens", "thoughtTokens", "thinkingTokens"],
+    );
+    // Grok's input includes cache reads; output includes reasoning. Keep the
+    // contract's reasoning-as-subset shape.
+    UsageTotals {
+        input_tokens: input.saturating_sub(cached),
+        cached_input_tokens: cached,
+        cache_creation_tokens: cache_write,
+        output_tokens: output,
+        reasoning_tokens: reasoning.min(output),
+    }
+}
+
+fn read_grok(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
+    let mut walk = Walk::default();
+    for root in roots {
+        walk_jsonl(root, limits, &mut walk);
+    }
+    let mut records: BTreeMap<GrokRecordKey, (String, String, UsageTotals)> = BTreeMap::new();
+    let mut malformed_lines = 0;
+    let mut files_read = 0;
+    let mut files_skipped = walk.skipped;
+    let mut budget = limits.max_total_bytes;
+    for path in &walk.files {
+        if path.file_name().and_then(|name| name.to_str()) != Some("updates.jsonl") {
+            continue;
+        }
+        let session = path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "unknown".into());
+        let (read, rejected) = read_lines(path, limits, &mut budget, |line| {
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                return false;
+            };
+            let update = &value["params"]["update"];
+            if update["sessionUpdate"].as_str() != Some("turn_completed") {
+                return true;
+            }
+            let Some(usage) = update.get("usage").filter(|usage| usage.is_object()) else {
+                return true;
+            };
+            let totals = grok_totals(usage);
+            if totals.is_zero() {
+                return true;
+            }
+            let model = update["model"]
+                .as_str()
+                .or_else(|| update["modelID"].as_str())
+                .map(str::trim)
+                .filter(|name| !name.is_empty() && name.len() <= 256)
+                .unwrap_or("unknown")
+                .to_owned();
+            let timestamp = value["timestamp"].as_str().unwrap_or("").to_owned();
+            let key = (
+                session.clone(),
+                timestamp,
+                totals.input_tokens,
+                totals.output_tokens,
+            );
+            records.insert(key, (session.clone(), model, totals));
+            true
+        });
+        if read {
+            files_read += 1;
+            malformed_lines += rejected;
+        } else {
+            files_skipped += 1;
+        }
+    }
+    let mut by_model: BTreeMap<String, AggregatedModel> = BTreeMap::new();
+    for (session, model, totals) in records.into_values() {
+        add_usage(&mut by_model, &session, &model, totals);
+    }
+    model_rows(
+        "grok",
+        roots,
+        &walk,
+        by_model,
+        malformed_lines,
+        files_read,
+        files_skipped,
+    )
+}
+
+fn kiro_totals(turn: &serde_json::Value) -> UsageTotals {
+    let input = number(turn, &["input_token_count", "uncached_input_tokens"]);
+    let output = number(turn, &["output_token_count", "output_tokens"]);
+    let cached = number(turn, &["cache_read_input_token_count", "cache_read_tokens"]);
+    let cache_write = number(
+        turn,
+        &["cache_write_input_token_count", "cache_creation_tokens"],
+    );
+    UsageTotals {
+        input_tokens: input,
+        cached_input_tokens: cached,
+        cache_creation_tokens: cache_write,
+        output_tokens: output,
+        reasoning_tokens: 0,
+    }
+}
+
+fn read_kiro(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
+    let mut walk = Walk::default();
+    for root in roots {
+        walk_json(root, limits, &mut walk);
+    }
+    let mut records: BTreeMap<String, (String, String, UsageTotals)> = BTreeMap::new();
+    let mut malformed_lines = 0;
+    let mut files_read = 0;
+    let mut files_skipped = walk.skipped;
+    let mut budget = limits.max_total_bytes;
+    for path in &walk.files {
+        let Ok(bytes) = fs::read(path) else {
+            files_skipped += 1;
+            continue;
+        };
+        if bytes.len() as u64 > limits.max_file_bytes || bytes.len() as u64 > budget {
+            files_skipped += 1;
+            continue;
+        }
+        budget = budget.saturating_sub(bytes.len() as u64);
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+            malformed_lines += 1;
+            continue;
+        };
+        let stem = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "unknown".into());
+        let session = value["session_id"]
+            .as_str()
+            .or_else(|| value["sessionId"].as_str())
+            .filter(|id| !id.is_empty() && id.len() <= 256)
+            .unwrap_or(&stem)
+            .to_owned();
+        let model = value["session_state"]["rts_model_state"]["model_info"]["model_id"]
+            .as_str()
+            .or_else(|| value["model"].as_str())
+            .map(str::trim)
+            .filter(|name| !name.is_empty() && name.len() <= 256)
+            .unwrap_or("unknown")
+            .to_owned();
+        let turns = value["session_state"]["conversation_metadata"]["user_turn_metadatas"]
+            .as_array()
+            .or_else(|| value["conversation_metadata"]["user_turn_metadatas"].as_array());
+        let Some(turns) = turns else {
+            malformed_lines += 1;
+            continue;
+        };
+        for (index, turn) in turns.iter().enumerate() {
+            let totals = kiro_totals(turn);
+            if totals.is_zero() {
+                continue;
+            }
+            records.insert(
+                format!("{session}:{index}"),
+                (session.clone(), model.clone(), totals),
+            );
+        }
+        files_read += 1;
+    }
+    let mut by_model: BTreeMap<String, AggregatedModel> = BTreeMap::new();
+    for (session, model, totals) in records.into_values() {
+        add_usage(&mut by_model, &session, &model, totals);
+    }
+    model_rows(
+        "kiro",
+        roots,
+        &walk,
+        by_model,
+        malformed_lines,
+        files_read,
+        files_skipped,
+    )
 }
 
 #[cfg(test)]
@@ -920,6 +1338,82 @@ mod tests {
     }
 
     #[test]
+    fn gemini_session_json_and_headless_jsonl_are_counted_once() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        write(
+            &home.join(".gemini/tmp/p/chats/session-1.json"),
+            &[
+                r#"{"sessionId":"g1","messages":[{"id":"m1","model":"gemini-x","tokens":{"input":10,"output":4,"cached":5,"thoughts":2,"total":21}},{"id":"m2","model":"gemini-x","tokens":{"input":3,"output":1}}]}"#,
+            ],
+        );
+        write(
+            &home.join(".gemini/tmp/p/session-2.jsonl"),
+            &[
+                r#"{"type":"init","session_id":"g2","model":"gemini-y"}"#,
+                r#"{"type":"gemini","id":"m3","tokens":{"input_tokens":7,"output_tokens":2,"cachedContentTokenCount":3}}"#,
+            ],
+        );
+        let usage = read_usage(home, Limits::default());
+        let gemini = usage
+            .providers
+            .iter()
+            .find(|provider| provider.provider_id == "gemini_cli")
+            .unwrap();
+        assert_eq!(gemini.totals.input_tokens, 10 + 3 + 7);
+        assert_eq!(gemini.totals.cached_input_tokens, 5 + 3);
+        assert_eq!(gemini.totals.output_tokens, 6 + 1 + 2);
+        assert_eq!(gemini.totals.reasoning_tokens, 2);
+    }
+
+    #[test]
+    fn grok_turn_completed_updates_keep_cache_and_reasoning_separate() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        write(
+            &home.join(".grok/sessions/ws/session-a/updates.jsonl"),
+            &[
+                r#"{"timestamp":"2026-11-01T00:00:00Z","params":{"update":{"sessionUpdate":"turn_completed","model":"grok-x","usage":{"inputTokens":100,"outputTokens":20,"cachedReadTokens":40,"cachedWriteTokens":5,"reasoningTokens":4}}}}"#,
+                r#"{"timestamp":"2026-11-01T00:00:01Z","params":{"update":{"sessionUpdate":"turn_completed","model":"grok-y","usage":{"inputTokens":50,"outputTokens":10,"cachedReadTokens":20,"reasoningTokens":2}}}}"#,
+            ],
+        );
+        let usage = read_usage(home, Limits::default());
+        let grok = usage
+            .providers
+            .iter()
+            .find(|provider| provider.provider_id == "grok")
+            .unwrap();
+        assert_eq!(grok.totals.input_tokens, 60 + 30);
+        assert_eq!(grok.totals.cached_input_tokens, 60);
+        assert_eq!(grok.totals.cache_creation_tokens, 5);
+        assert_eq!(grok.totals.output_tokens, 30);
+        assert_eq!(grok.totals.reasoning_tokens, 6);
+    }
+
+    #[test]
+    fn kiro_turn_metadata_uses_only_recorded_token_counts() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        write(
+            &home.join(".kiro/sessions/cli/session-1.json"),
+            &[
+                r#"{"session_id":"k1","session_state":{"rts_model_state":{"model_info":{"model_id":"claude-sonnet-4.5"}},"conversation_metadata":{"user_turn_metadatas":[{"input_token_count":10,"output_token_count":4,"cache_read_input_token_count":2,"cache_write_input_token_count":1},{"input_token_count":0,"output_token_count":0,"user_prompt_length":100}]}}}"#,
+            ],
+        );
+        let usage = read_usage(home, Limits::default());
+        let kiro = usage
+            .providers
+            .iter()
+            .find(|provider| provider.provider_id == "kiro")
+            .unwrap();
+        assert_eq!(kiro.totals.input_tokens, 10);
+        assert_eq!(kiro.totals.cached_input_tokens, 2);
+        assert_eq!(kiro.totals.cache_creation_tokens, 1);
+        assert_eq!(kiro.totals.output_tokens, 4);
+        assert_eq!(kiro.models[0].messages, 1);
+    }
+
+    #[test]
     fn malformed_lines_and_oversize_files_are_reported_not_silent() {
         let root = tempfile::tempdir().unwrap();
         let projects = root.path().join(".claude/projects/p");
@@ -986,11 +1480,8 @@ mod environment_tests {
             secure.to_string_lossy().into_owned(),
         );
         vars.insert("CODEX_HOME".into(), codex.to_string_lossy().into_owned());
-        let environment = originlm_discovery::ScanEnvironment::from_map(
-            originlm_discovery::HostPlatform::Linux,
-            &vars,
-        )
-        .unwrap();
+        let environment =
+            crate::ScanEnvironment::from_map(crate::HostPlatform::Linux, &vars).unwrap();
         let usage = read_usage_for_environment(&environment, Limits::default());
         let claude_usage = usage
             .providers

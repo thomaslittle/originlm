@@ -1,7 +1,9 @@
 # Session-history usage totals
 
 `originlm usage --json [--home ABSOLUTE_DIRECTORY]` reports token totals from
-the local Claude Code and Codex session stores. It is an explicit, bounded,
+the local Claude Code, Codex, Gemini CLI, Grok, and Kiro session stores. The
+authenticated broker also serves the same report as `usage.history`, and the
+desktop Costs page shows the provider totals from `costs.read.historical`. It is an explicit, bounded,
 read-only command. It does not run at import time, does not start a client, and
 never reads credentials, prompts, or tool output. The JSONL records are
 deserialized into usage-only structs, so `content`, tool results, and
@@ -13,6 +15,9 @@ attachments are not materialized.
 | --- | --- | --- |
 | Claude Code | `~/.claude/projects`, `~/.claude/transcripts` | `*.jsonl` assistant messages with `message.usage` |
 | Codex | `~/.codex/sessions`, `~/.codex/archived_sessions` | `*.jsonl` `session_meta`, `turn_context`, `token_count` |
+| Gemini CLI | `~/.gemini/tmp` (or `GEMINI_CLI_HOME`) | `session-*.json` chat recordings and headless `*.jsonl` token events |
+| Grok | `~/.grok/sessions` (or `GROK_HOME`) | `updates.jsonl` `turn_completed` usage |
+| Kiro | `~/.kiro/sessions/cli` | session JSON `user_turn_metadatas` recorded token counts |
 
 Compressed `.jsonl.zst` sessions are skipped and reported as
 `COMPRESSED_SESSION_SKIPPED` rather than silently omitted. Files over 64 MiB,
@@ -66,9 +71,25 @@ Summed totals agree: OriginLM `fresh input + cache read + cache write` equals
 Tokscale `input + cacheRead`, and OriginLM `output` equals Tokscale
 `output + reasoning`. No prompt or tool content was read by either run.
 
+## Providers without a token-history reader
+
+Cursor's local history is a dashboard/cache surface, not a transcript token
+feed, and OriginLM already treats Cursor usage as a separate opt-in dashboard
+request. Copilot and Antigravity store conversation data in databases that
+OriginLM does not open during history reads. Those are intentional boundaries,
+not silent zeroes; `usage.history` simply omits providers with no readable
+tokens.
+
+## Service surface
+
+`usage.history` and `costs.read.historical` use a broker-configured home
+(`set_usage_home`) and cache the scan for 60 seconds. The public snapshot still
+contains no host paths. The CLI prints `roots` for local debugging; the
+service keeps them inside the same private report.
+
 ## Limits
 
 This command reports only what the selected roots contain. It does not infer a
 provider when no root exists, does not estimate missing tokens, and does not
-roll totals up by day. The public service and desktop surface do not consume it
-yet; `usage.read` remains the quota-window API.
+roll totals up by day. `usage.read` remains the quota-window API; the token
+history is `usage.history` and appears on the desktop Costs page.

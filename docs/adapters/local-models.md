@@ -29,6 +29,6 @@ never starts a server, loads a model, or runs inference.
 - A custom LM Studio models directory set in the app is not discovered yet.
 - Ollama manifests do not report a model's chat/embedding role; the inventory
   does not claim one.
-- The public service and desktop surface do not consume this command yet. Use
-  `connections.probe` with an explicit endpoint for a capability-bearing
-  catalog.
+- `models.local` serves the same inventory to the authenticated broker, and the
+  desktop Models page shows it. Use `connections.probe` with an explicit
+  endpoint for a capability-bearing catalog.

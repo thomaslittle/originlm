@@ -3,11 +3,11 @@ import type { CallOptions, Handshake, Transport } from './types.ts';
 import type { MethodInputs, MethodOutputs, Snapshot, Event, InventoryChange } from './generated.ts';
 const families = {
   runtime: ['health', 'closeClient'], costs: ['read', 'setPrices'], discovery: ['refresh', 'watch', 'cancel'], snapshot: ['get'],
-  connections: ['list', 'setupInstructions', 'authenticate', 'probe'], models: ['list', 'page'], usage: ['read'], capabilities: ['read'],
+  connections: ['list', 'setupInstructions', 'authenticate', 'probe'], models: ['list', 'page', 'local'], usage: ['read', 'history'], capabilities: ['read'],
   selection: ['resolve', 'validate'], grants: ['request', 'list', 'revoke'],
   health: ['get'], issues: ['list', 'acknowledge', 'snooze'], notifications: ['poll', 'configure', 'ack'], apps: ['list', 'revoke'],
   sessions: ['create', 'get', 'suspend', 'resume', 'updateOptions', 'close'], inputs: ['put'], turns: ['start', 'cancel'], approvals: ['respond'],
-  artifacts: ['read'], diagnostics: ['report'], adapters: ['list'],
+  artifacts: ['read'], diagnostics: ['report', 'status'], adapters: ['list'],
 } as const;
 type Method = <T = unknown>(params?: unknown, options?: CallOptions) => Promise<T>;
 type Input<K extends string> = K extends keyof MethodInputs ? MethodInputs[K] : unknown;

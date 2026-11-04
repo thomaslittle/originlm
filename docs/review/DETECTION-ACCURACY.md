@@ -7,7 +7,7 @@ proven when a run on that OS recorded the result.
 
 Baseline for this change (Linux, `2026-11-04`):
 
-- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 776 passed, 0 failed after it.
+- `cargo test -j 4 --workspace --all-targets --locked --no-fail-fast` — 730 passed, 0 failed before the change; 786 passed, 0 failed after it.
 - `npm run build` — passed.
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings` — passed.
 - `cargo fmt --all --check` — passed.
@@ -78,45 +78,62 @@ Legend:
 - **Scan location evidence.** `originlm scan --json --include-locations` adds
   the private executable/profile paths for local debugging and CI. The default
   public snapshot still omits host paths.
-- **CI.** `macos-15` (arm64) joins the main verification matrix. A new
-  `Detection real install` workflow installs npm CLIs and Kiro with official
-  installers, then scans with both the inherited PATH and a GUI-like bare PATH.
+- **Usage service.** `usage.history` and `costs.read.historical` serve the same
+  bounded totals to the authenticated broker; the desktop Costs page shows
+  provider totals. Gemini CLI, Grok, and Kiro readers join Claude Code and
+  Codex.
+- **Model service.** `models.local` serves Ollama/LM Studio on-disk inventories
+  to the desktop Models page. An LM Studio `modelDirectory` in
+  `LMStudio/config.json` is honored.
+- **Detection status.** `detection.status` reports found / configuration-only /
+  not-found for every known provider with diagnostics and locations checked;
+  the desktop Diagnostics page renders it. `scan --probe-versions` records raw
+  `--version` output for real-install evidence.
+- **CI.** `macos-15` (arm64) joins the main verification matrix. `Detection
+  real install` covers npm CLIs and Kiro on all four runners, plus Ollama on
+  Linux and macOS (official installer/Homebrew) with a pulled `smollm2:135m`
+  model read from disk after the server stops.
+- **Upstream cross-check.** CodeNotch `6522e9f` (`1.24.0`, MIT) is pinned as a
+  session-layout/token-accounting oracle; no source is copied.
 
-## Known gaps
+## Token-history coverage
 
-1. Real-install CI is green on all four runners for the npm-installed CLIs and
-   Kiro. It does not yet cover Homebrew installs, Ollama, LM Studio, or every
-   alternate installer for each tool.
-2. macOS Keychain: Claude Code keeps its login in the Keychain. OriginLM
-   never reads the credential file or the Keychain; the native `claude` client
-   owns that store, so metadata and usage must go through the CLI. An
-   existence-only Keychain indicator in the UI is not implemented.
-3. `CLAUDE_SECURESTORAGE_CONFIG_DIR` is real but undocumented. It is present
-   in the Claude Code binary since roughly 2.1.144 and moves only the
-   credential store (on macOS, a distinct Keychain service); see
-   [anthropics/claude-code#79223](https://github.com/anthropics/claude-code/issues/79223).
-   The variable stays ahead of `CLAUDE_CONFIG_DIR`, and OriginLM does not read
-   either credential file.
-4. Session-history token totals are implemented for Claude Code and Codex
-   through `originlm usage --json` (`history.rs`), including streaming
-   duplicate merge, split-aware cache fields, Codex resumed-copy dedupe,
-   mixed-model totals, and bounded malformed/oversized input reporting.
-   Gemini, Cursor, Grok, Copilot, Antigravity, and Kiro history remain
-   unaggregated; day-boundary rollups, a public API/desktop surface, and a
-   shared-fixture cross-check against Tokscale/t3code are still missing.
-5. Ollama/LM Studio on-disk model discovery now exists through
-   `originlm models --json` (Ollama manifests, LM Studio GGUF files, missing and
-   malformed roots reported). A custom LM Studio models directory, the
-   `lms ls --json` inventory, capability claims, and service/desktop wiring are
-   still missing.
-6. The detection workflow records each installed CLI's `--version` output and
-   asserts provider and executable identity, but it does not yet verify
-   OriginLM's parsed version or home/config directory. Those need a metadata
-   probe with an explicit grant, which the workflow deliberately does not grant
-   to a real account.
-7. macOS execution is now recorded by CI on both arm64 and Intel runners.
-   There is still no local macOS host qualification of an interactive session.
-8. `scan --include-locations` now reports a `checkedProviders` status for every
-   known provider (`found` or `not_found`), but it does not yet distinguish
-   "not installed" from "installed but blocked" or record every path tried.
-   The desktop still has no per-tool not-installed list.
+| Provider | Source | Status |
+| --- | --- | --- |
+| Claude Code | `projects/`, `transcripts/` JSONL | Fixture; service/API/desktop; cross-checked |
+| Codex | `sessions/`, `archived_sessions/` JSONL | Fixture; service/API/desktop; cross-checked |
+| Gemini CLI | `~/.gemini/tmp` JSON/JSONL | Fixture; service/API/desktop |
+| Grok | `~/.grok/sessions/**/updates.jsonl` | Fixture; service/API/desktop |
+| Kiro | `~/.kiro/sessions/cli/*.json` | Fixture; service/API/desktop |
+| Cursor | dashboard/cache only | Separate `--allow-usage cursor` grant; no transcript totals |
+| GitHub Copilot | session database | Not opened by policy |
+| Antigravity | conversation database | Not opened by policy |
+
+## Remaining boundaries
+
+The detection work is complete for the scope below. These are deliberate
+boundaries, not silent misses:
+
+1. **Install-method coverage.** CI proves npm-installed Codex, Claude Code,
+   Gemini CLI, OpenCode, and Kiro on Ubuntu, Windows, macOS arm64, and macOS
+   Intel, plus Ollama via the official installer on Linux and Homebrew on
+   macOS. Alternate npm prefixes, Homebrew-installed Claude/Codex/Gemini,
+   LM Studio's app/CLI, Copilot, and every vendor-specific installer are not
+   individually exercised yet.
+2. **Token-history boundaries.** Cursor's usage is a dashboard/cache surface,
+   not a transcript token feed, and remains the separate `--allow-usage cursor`
+   grant. Copilot and Antigravity store conversation data in databases that
+   OriginLM does not open during history reads. `usage.history` omits providers
+   with no readable tokens rather than reporting a silent zero.
+3. **Quota-only provider work.** Grok Legacy/Privacy-mode quota and Antigravity
+   rate-limit reset extraction were not adopted: they require credential-file
+   or provider-billing endpoint access outside OriginLM's policy. Native quota
+   surfaces that are already published remain in `usage.read`.
+4. **Claude update status.** OriginLM does not report client update status, so
+   no native-release update check is performed.
+5. **macOS interactive qualification.** CI runs detection, the full verify
+   matrix, and real installs on both macOS runners, but this Linux host cannot
+   run a human interactive macOS session.
+
+Everything else in the original detection brief has a passing fixture or CI
+test. The status matrix above is the evidence ledger.

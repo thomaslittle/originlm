@@ -619,6 +619,13 @@
         "canEditPrices": {
           "type": "boolean"
         },
+        "historical": {
+          "$ref": "#/$defs/UsageHistory",
+          "default": {
+            "providers": []
+          },
+          "description": "Local session-history totals. Empty when the host has no readable\nClaude/Codex/Gemini/Grok/Kiro history."
+        },
         "prices": {
           "items": {
             "$ref": "#/$defs/ModelPrice"
@@ -729,6 +736,21 @@
     "DecimalString": {
       "description": "Nonnegative, finite decimal, represented losslessly across all SDKs.",
       "type": "string"
+    },
+    "DetectionReport": {
+      "additionalProperties": false,
+      "properties": {
+        "providers": {
+          "items": {
+            "$ref": "#/$defs/ProviderDetection"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "providers"
+      ],
+      "type": "object"
     },
     "DiscoveryParams": {
       "additionalProperties": false,
@@ -1811,6 +1833,83 @@
       ],
       "type": "object"
     },
+    "LocalModel": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "nativeId": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "providerId",
+        "nativeId",
+        "name"
+      ],
+      "type": "object"
+    },
+    "LocalModelInventory": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "filesSkipped": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/LocalModel"
+          },
+          "type": "array"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "roots": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "providerId",
+        "roots",
+        "models",
+        "filesSkipped",
+        "truncated",
+        "diagnostics"
+      ],
+      "type": "object"
+    },
     "MethodInputs": {
       "additionalProperties": false,
       "description": "This is the superset of compiled public methods, not a grant or an assertion of live provider support.",
@@ -1857,6 +1956,9 @@
         "costs.setPrices": {
           "$ref": "#/$defs/SetPricesParams"
         },
+        "detection.status": {
+          "$ref": "#/$defs/EmptyParams"
+        },
         "diagnostics.report": {
           "$ref": "#/$defs/EmptyParams"
         },
@@ -1901,6 +2003,9 @@
         },
         "models.list": {
           "$ref": "#/$defs/ModelsParams"
+        },
+        "models.local": {
+          "$ref": "#/$defs/EmptyParams"
         },
         "models.page": {
           "$ref": "#/$defs/ModelPageParams"
@@ -1956,6 +2061,9 @@
         "turns.start": {
           "$ref": "#/$defs/TurnStartParams"
         },
+        "usage.history": {
+          "$ref": "#/$defs/EmptyParams"
+        },
         "usage.read": {
           "$ref": "#/$defs/EmptyParams"
         }
@@ -1977,6 +2085,9 @@
         "models.list",
         "models.page",
         "usage.read",
+        "usage.history",
+        "models.local",
+        "detection.status",
         "costs.read",
         "costs.setPrices",
         "capabilities.read",
@@ -2057,6 +2168,9 @@
           },
           "type": "array"
         },
+        "detection.status": {
+          "$ref": "#/$defs/DetectionReport"
+        },
         "diagnostics.report": true,
         "discovery.refresh": {
           "$ref": "#/$defs/DiscoveryResult"
@@ -2091,6 +2205,12 @@
         "models.list": {
           "items": {
             "$ref": "#/$defs/Model"
+          },
+          "type": "array"
+        },
+        "models.local": {
+          "items": {
+            "$ref": "#/$defs/LocalModelInventory"
           },
           "type": "array"
         },
@@ -2146,6 +2266,9 @@
         "turns.start": {
           "$ref": "#/$defs/TurnStarted"
         },
+        "usage.history": {
+          "$ref": "#/$defs/UsageHistory"
+        },
         "usage.read": {
           "items": {
             "$ref": "#/$defs/QuotaPool"
@@ -2170,6 +2293,9 @@
         "models.list",
         "models.page",
         "usage.read",
+        "usage.history",
+        "models.local",
+        "detection.status",
         "costs.read",
         "costs.setPrices",
         "capabilities.read",
@@ -2351,6 +2477,38 @@
         "outputUsdPerMillion",
         "reviewedAt",
         "source"
+      ],
+      "type": "object"
+    },
+    "ModelUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "messages": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nativeModelId": {
+          "type": "string"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "sessions": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotals"
+        }
+      },
+      "required": [
+        "providerId",
+        "nativeModelId",
+        "sessions",
+        "messages",
+        "totals"
       ],
       "type": "object"
     },
@@ -3296,6 +3454,110 @@
       ],
       "type": "object"
     },
+    "ProviderDetection": {
+      "additionalProperties": false,
+      "properties": {
+        "connectionCount": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "diagnostics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "executableFound": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pathsChecked": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "status": {
+          "description": "`found`, `configuration_only`, or `not_found`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "providerId",
+        "name",
+        "status",
+        "connectionCount",
+        "executableFound",
+        "diagnostics",
+        "pathsChecked"
+      ],
+      "type": "object"
+    },
+    "ProviderUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "filesRead": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "filesSkipped": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "malformedLines": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/ModelUsage"
+          },
+          "type": "array"
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "roots": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotals"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "providerId",
+        "roots",
+        "filesRead",
+        "filesSkipped",
+        "malformedLines",
+        "truncated",
+        "diagnostics",
+        "models",
+        "totals"
+      ],
+      "type": "object"
+    },
     "QuotaPool": {
       "additionalProperties": false,
       "properties": {
@@ -3886,6 +4148,21 @@
       ],
       "type": "object"
     },
+    "UsageHistory": {
+      "additionalProperties": false,
+      "properties": {
+        "providers": {
+          "items": {
+            "$ref": "#/$defs/ProviderUsage"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "providers"
+      ],
+      "type": "object"
+    },
     "UsageReading": {
       "additionalProperties": false,
       "properties": {
@@ -3926,6 +4203,45 @@
       "required": [
         "unit",
         "used"
+      ],
+      "type": "object"
+    },
+    "UsageTotals": {
+      "additionalProperties": false,
+      "description": "Normalized token totals from a provider's local session history.\n\n`input_tokens` is fresh input only. Cache reads and cache writes are\nseparate fields; `reasoning_tokens` is a subset of `output_tokens`.",
+      "properties": {
+        "cacheCreationTokens": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cachedInputTokens": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "inputTokens": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "outputTokens": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reasoningTokens": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "inputTokens",
+        "cachedInputTokens",
+        "cacheCreationTokens",
+        "outputTokens",
+        "reasoningTokens"
       ],
       "type": "object"
     },

@@ -20,9 +20,11 @@ mod resume_token;
 use cache::InventoryCache;
 pub use metadata::{MetadataFuture, MetadataSource};
 use originlm_chatgpt_auth::AuthManager;
+use originlm_contracts::UsageHistory;
 use originlm_contracts::{DomainError, ErrorCode, MAX_TURN_START_PARAMS_BYTES, Result, Snapshot};
 use originlm_core::{ClientPolicy, project_snapshot};
 use originlm_discovery::ScanResult;
+use originlm_discovery::{HostPlatform, ScanEnvironment};
 use originlm_platform::watcher::DebouncedMetadataWatcher;
 use serde_json::Value;
 use std::{
@@ -35,6 +37,8 @@ pub type InventorySource = Arc<dyn Fn(&AtomicBool) -> Result<ScanResult> + Send 
 pub type AppRevoker = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 pub struct NativeService {
     cost_prices: RwLock<costs::Prices>,
+    usage_home: RwLock<Option<std::path::PathBuf>>,
+    usage_history: RwLock<Option<(std::time::Instant, UsageHistory)>>,
     clients: Arc<RwLock<BTreeMap<String, ClientPolicy>>>,
     adapters: Vec<originlm_contracts::AdapterDescriptor>,
     execution_state: execution::ExecutionState,
@@ -65,6 +69,8 @@ impl NativeService {
     pub fn new(source: InventorySource, ttl: Duration) -> Self {
         Self {
             cost_prices: RwLock::new(costs::Prices::default()),
+            usage_home: RwLock::new(None),
+            usage_history: RwLock::new(None),
             clients: Arc::new(RwLock::new(BTreeMap::new())),
             adapters: Vec::new(),
             execution_state: Default::default(),
@@ -83,6 +89,120 @@ impl NativeService {
             chatgpt_lifecycle: tokio::sync::Mutex::new(()),
             cache: Arc::new(InventoryCache::new(source, ttl)),
         }
+    }
+    /// Host-only: the home whose Claude/Codex/Gemini/Grok/Kiro session history
+    /// is read by `usage.history` and `costs.read`. Omit to use the process
+    /// home when the method is called.
+    pub fn set_usage_home(&self, home: std::path::PathBuf) {
+        if let Ok(mut current) = self.usage_home.write() {
+            *current = Some(home);
+        }
+        if let Ok(mut cached) = self.usage_history.write() {
+            *cached = None;
+        }
+    }
+    fn usage_history(&self) -> Result<UsageHistory> {
+        if let Ok(cached) = self.usage_history.read()
+            && let Some((observed, history)) = cached.as_ref()
+            && observed.elapsed() < Duration::from_secs(60)
+        {
+            return Ok(history.clone());
+        }
+        let environment = self.local_environment()?;
+        let history = originlm_discovery::history::read_usage_for_environment(
+            &environment,
+            originlm_discovery::history::Limits::default(),
+        );
+        if let Ok(mut cached) = self.usage_history.write() {
+            *cached = Some((std::time::Instant::now(), history.clone()));
+        }
+        Ok(history)
+    }
+    fn local_environment(&self) -> Result<ScanEnvironment> {
+        if let Some(home) = self.usage_home.read().map_err(|_| denied())?.clone() {
+            let platform = if cfg!(windows) {
+                HostPlatform::Windows
+            } else if cfg!(target_os = "macos") {
+                HostPlatform::Macos
+            } else {
+                HostPlatform::Linux
+            };
+            Ok(ScanEnvironment::for_home(home, platform))
+        } else {
+            ScanEnvironment::from_process()
+        }
+    }
+    fn detection_status(&self, client: &str) -> Result<originlm_contracts::DetectionReport> {
+        let snapshot = self.projected(client)?;
+        let environment = self.local_environment()?;
+        let mut providers = Vec::new();
+        for definition in originlm_discovery::definitions() {
+            let connections: Vec<_> = snapshot
+                .connections
+                .iter()
+                .filter(|connection| connection.provider_id == definition.id)
+                .collect();
+            let executable_found = connections
+                .iter()
+                .any(|connection| connection.status == "detected");
+            let status = if executable_found {
+                "found"
+            } else if connections.is_empty() {
+                "not_found"
+            } else {
+                "configuration_only"
+            };
+            let mut diagnostics: BTreeSet<String> = snapshot
+                .diagnostics
+                .iter()
+                .filter(|code| code.starts_with(definition.id))
+                .cloned()
+                .collect();
+            for connection in &connections {
+                diagnostics.extend(connection.diagnostics.iter().cloned());
+            }
+            let mut paths: BTreeSet<String> =
+                originlm_discovery::profile_roots(definition.id, &environment)
+                    .into_iter()
+                    .map(|path| path.display().to_string())
+                    .collect();
+            paths.extend(
+                environment
+                    .fallback_search_path
+                    .iter()
+                    .chain(&environment.search_path)
+                    .take(256)
+                    .map(|path| path.display().to_string()),
+            );
+            providers.push(originlm_contracts::ProviderDetection {
+                provider_id: definition.id.into(),
+                name: definition.name.into(),
+                status: status.into(),
+                connection_count: connections.len().try_into().unwrap_or(u32::MAX),
+                executable_found,
+                diagnostics: diagnostics.into_iter().collect(),
+                paths_checked: paths.into_iter().take(256).collect(),
+            });
+        }
+        Ok(originlm_contracts::DetectionReport { providers })
+    }
+    fn local_models(&self) -> Result<Vec<originlm_contracts::LocalModelInventory>> {
+        let environment = self.local_environment()?;
+        Ok(vec![
+            originlm_discovery::local_models::read_ollama_models(
+                &environment.home,
+                environment
+                    .overrides
+                    .get("OLLAMA_MODELS")
+                    .map(std::path::PathBuf::as_path),
+                8192,
+            ),
+            originlm_discovery::local_models::read_lmstudio_models(
+                &environment.home,
+                &environment.config_home,
+                8192,
+            ),
+        ])
     }
     /// Open the broker-owned SQLite state and hydrate the cached snapshot
     /// before the server starts accepting clients.
@@ -386,6 +506,9 @@ impl NativeService {
                 | "models.list"
                 | "models.page"
                 | "usage.read"
+                | "usage.history"
+                | "models.local"
+                | "detection.status"
                 | "health.get"
                 | "events.read"
                 | "connections.probe"

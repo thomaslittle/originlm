@@ -465,7 +465,56 @@ impl Desktop {
                     .border_1()
                     .border_color(theme.border)
                     .bg(theme.colors.list)
-                    .child(detail),
+                    .child(detail)
+                    .when(
+                        self.bundle.as_ref().is_some_and(|bundle| {
+                            bundle
+                                .local_models
+                                .iter()
+                                .any(|inventory| !inventory.models.is_empty())
+                        }),
+                        |this| {
+                            this.child(
+                                div()
+                                    .v_flex()
+                                    .gap_1()
+                                    .pt_2()
+                                    .border_t_1()
+                                    .border_color(theme.border)
+                                    .child(ui::section_title("On-disk models", &theme))
+                                    .children(
+                                        self.bundle
+                                            .as_ref()
+                                            .into_iter()
+                                            .flat_map(|bundle| bundle.local_models.iter())
+                                            .filter(|inventory| !inventory.models.is_empty())
+                                            .map(|inventory| {
+                                                div()
+                                                    .v_flex()
+                                                    .gap(px(1.))
+                                                    .child(ui::mono(
+                                                        format!(
+                                                            "{} · {}",
+                                                            inventory.provider_id,
+                                                            inventory.models.len()
+                                                        ),
+                                                        &theme,
+                                                    ))
+                                                    .children(inventory.models.iter().take(8).map(
+                                                        |model| {
+                                                            div()
+                                                                .text_size(px(10.5))
+                                                                .text_color(theme.muted_foreground)
+                                                                .child(model.native_id.clone())
+                                                                .into_any_element()
+                                                        },
+                                                    ))
+                                                    .into_any_element()
+                                            }),
+                                    ),
+                            )
+                        },
+                    ),
             )
             .into_any_element()
     }

@@ -73,6 +73,10 @@ def main() -> int:
         for location in locations:
             if location.get("providerId") == provider and not location.get("profileHome"):
                 failures.append(f"{provider}: profile home was not recorded")
+            if location.get("providerId") == provider:
+                version = document.get("versions", {}).get(location.get("connectionId"), {})
+                if not version.get("output"):
+                    failures.append(f"{provider}: --version output was not recorded")
 
     print("provider\texecutable")
     for provider in sorted(EXPECTED):

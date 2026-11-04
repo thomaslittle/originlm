@@ -147,3 +147,15 @@ fn claude_default_pointer_is_not_a_model() {
             .all(|model| model.native_id != "default")
     );
 }
+
+#[test]
+fn reported_context_window_is_used_without_inventing_one() {
+    let mut value = init();
+    value["models"] = json!([
+        {"value":"small","displayName":"Small","contextWindow":200000},
+        {"value":"large","displayName":"Large"}
+    ]);
+    let report = parse_metadata("connection", "route", &value, None).unwrap();
+    assert_eq!(report.models[0].context_window.value().unwrap(), "200000");
+    assert!(report.models[1].context_window.value().is_none());
+}

@@ -19,6 +19,9 @@ pub struct Args {
     /// Add the private executable/profile locations to `scan --json`. Explicit
     /// opt-in: the public snapshot deliberately omits host paths.
     pub include_locations: bool,
+    /// Explicit opt-in: run each retained executable with `--version` and add
+    /// the raw output to `scan --include-locations`. Never used by passive scans.
+    pub probe_versions: bool,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -107,6 +110,7 @@ impl Args {
             action,
             json: false,
             include_locations: false,
+            probe_versions: false,
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -164,6 +168,9 @@ impl Args {
                 }
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
+                }
+                "--probe-versions" if matches!(args.action, Action::Scan) => {
+                    args.probe_versions = true
                 }
                 "--home"
                     if matches!(

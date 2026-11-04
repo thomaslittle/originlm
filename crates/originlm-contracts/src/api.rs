@@ -437,6 +437,12 @@ pub struct MethodInputs {
     model_page: ModelPageParams,
     #[serde(rename = "usage.read")]
     usage: EmptyParams,
+    #[serde(rename = "usage.history")]
+    usage_history: EmptyParams,
+    #[serde(rename = "models.local")]
+    local_models: EmptyParams,
+    #[serde(rename = "detection.status")]
+    detection_status: EmptyParams,
     #[serde(rename = "costs.read")]
     costs: EmptyParams,
     #[serde(rename = "costs.setPrices")]
@@ -538,6 +544,12 @@ pub struct MethodOutputs {
     model_page: ModelPage,
     #[serde(rename = "usage.read")]
     usage: Vec<QuotaPool>,
+    #[serde(rename = "usage.history")]
+    usage_history: UsageHistory,
+    #[serde(rename = "models.local")]
+    local_models: Vec<LocalModelInventory>,
+    #[serde(rename = "detection.status")]
+    detection_status: DetectionReport,
     #[serde(rename = "costs.read")]
     costs: CostReport,
     #[serde(rename = "costs.setPrices")]
