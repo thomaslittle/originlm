@@ -1513,6 +1513,188 @@
         ],
         "type": "object"
       },
+      "IntelligenceCatalog": {
+        "additionalProperties": false,
+        "description": "A snapshot of the durable cache. `models` may be empty when the first sync\nhas not completed.",
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "configured": {
+            "description": "True when the cache has a configured source. RankLLMs needs no key.",
+            "type": "boolean"
+          },
+          "defaultSortForApps": {
+            "description": "User opt-in: when true, `models.list`/`models.page` default to\nIntelligence Index order for clients that do not pass `sort`.",
+            "type": "boolean"
+          },
+          "fetchedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indexVersion": {
+            "description": "RankLLMs does not publish an index version today. Present so another\nsource can report one without changing the wire shape.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceModel"
+            },
+            "type": "array"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stale": {
+            "description": "True when the cached fetch is older than the documented refresher.",
+            "type": "boolean"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "attribution",
+          "models",
+          "configured",
+          "stale",
+          "defaultSortForApps"
+        ],
+        "type": "object"
+      },
+      "IntelligenceConfigureParams": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultSortForApps": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "defaultSortForApps"
+        ],
+        "type": "object"
+      },
+      "IntelligenceModel": {
+        "additionalProperties": false,
+        "description": "One model in the RankLLMs leaderboard.",
+        "properties": {
+          "agenticIndex": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "capabilityIndexes": {
+            "additionalProperties": {
+              "format": "double",
+              "type": "number"
+            },
+            "description": "RankLLMs capability indices, when present in a future response shape.",
+            "type": "object"
+          },
+          "codingIndex": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "creator": {
+            "type": "string"
+          },
+          "id": {
+            "description": "RankLLMs' stable numeric model id.",
+            "type": "string"
+          },
+          "inputPriceUsdPerMillion": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "intelligenceIndex": {
+            "description": "Null means the model has no published Intelligence Index yet.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "medianOutputTokensPerSecond": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "medianTimeToFirstTokenSeconds": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "openrouterId": {
+            "default": null,
+            "description": "OpenRouter model id when RankLLMs has one. This is the best matching\nkey for provider-native catalogs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputPriceUsdPerMillion": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "releaseDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "description": "Stable RankLLMs slug. This is the cache key.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "creator",
+          "capabilityIndexes"
+        ],
+        "type": "object"
+      },
       "InventoryChange": {
         "additionalProperties": false,
         "properties": {
@@ -1993,6 +2175,15 @@
           "inputs.put": {
             "$ref": "#/components/schemas/InputPutParams"
           },
+          "intelligence.catalog": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "intelligence.configure": {
+            "$ref": "#/components/schemas/IntelligenceConfigureParams"
+          },
+          "intelligence.refresh": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
           "issues.acknowledge": {
             "$ref": "#/components/schemas/IssueUpdateParams"
           },
@@ -2088,6 +2279,9 @@
           "connections.probe",
           "models.list",
           "models.page",
+          "intelligence.catalog",
+          "intelligence.refresh",
+          "intelligence.configure",
           "usage.read",
           "usage.history",
           "models.local",
@@ -2195,6 +2389,15 @@
           "inputs.put": {
             "$ref": "#/components/schemas/InputPutResult"
           },
+          "intelligence.catalog": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
+          "intelligence.configure": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
+          "intelligence.refresh": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
           "issues.acknowledge": {
             "$ref": "#/components/schemas/IssueUpdateResult"
           },
@@ -2300,6 +2503,9 @@
           "connections.probe",
           "models.list",
           "models.page",
+          "intelligence.catalog",
+          "intelligence.refresh",
+          "intelligence.configure",
           "usage.read",
           "usage.history",
           "models.local",
@@ -2441,6 +2647,14 @@
               "string",
               "null"
             ]
+          },
+          "sort": {
+            "default": null,
+            "description": "`catalog` (default) or `intelligence`.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -2526,6 +2740,14 @@
         "properties": {
           "routeId": {
             "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sort": {
+            "default": null,
+            "description": "`catalog` (default) or `intelligence` (highest cached Intelligence\nIndex first, unknown scores last).",
             "type": [
               "string",
               "null"
@@ -5413,6 +5635,84 @@
                       },
                       "params": {
                         "$ref": "#/components/schemas/InputPutParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "intelligence.catalog"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "intelligence.configure"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/IntelligenceConfigureParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "intelligence.refresh"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
                       }
                     },
                     "required": [

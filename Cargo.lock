@@ -5615,6 +5615,7 @@ dependencies = [
  "originlm-platform",
  "originlm-runtime",
  "originlm-store",
+ "reqwest",
  "ring",
  "serde",
  "serde_json",

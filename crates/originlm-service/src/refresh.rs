@@ -28,6 +28,7 @@ impl NativeService {
     pub(crate) async fn run_refresh_lanes(self: Arc<Self>, generation: u64) {
         let mut probes = JoinSet::new();
         let mut scans: JoinSet<originlm_contracts::Result<()>> = JoinSet::new();
+        let mut intelligence = JoinSet::new();
         let mut in_flight = BTreeSet::new();
         let mut last_inventory: Option<Instant> = None;
         let mut metadata_after = String::new();
@@ -47,6 +48,17 @@ impl NativeService {
                 {
                     last_inventory = None;
                 }
+            }
+            while intelligence.try_join_next().is_some() {}
+            // RankLLMs is cached, never called from a UI read. The cache
+            // decides its own deadline (six hours on success, fifteen minutes
+            // after a failure), so this tick only starts a sync when one is
+            // actually due.
+            if self.intelligence.sync_due() {
+                let cache = self.intelligence.clone();
+                intelligence.spawn(async move {
+                    let _ = cache.refresh(false).await;
+                });
             }
             let _ = self.cache.expire_observations();
             let active = self.interested_clients();

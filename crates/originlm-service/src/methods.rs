@@ -10,6 +10,9 @@ const METHODS: &[&str] = &[
     "connections.list",
     "models.list",
     "models.page",
+    "intelligence.catalog",
+    "intelligence.refresh",
+    "intelligence.configure",
     "usage.read",
     "usage.history",
     "models.local",
@@ -196,6 +199,21 @@ impl NativeService {
                 params::allow(p, &[])?;
                 Ok(json!(self.adapters))
             }
+            "intelligence.catalog" => {
+                params::allow(p, &[])?;
+                Ok(json!(self.intelligence.catalog()))
+            }
+            "intelligence.configure" => {
+                if !self.policy(client)?.admin {
+                    return Err(denied());
+                }
+                let input: originlm_contracts::IntelligenceConfigureParams =
+                    params::decode(p.clone())?;
+                Ok(json!(
+                    self.intelligence
+                        .set_default_sort_for_apps(input.default_sort_for_apps)
+                ))
+            }
             _ => self.read_data(client, method, p),
         }
     }
@@ -227,17 +245,24 @@ impl NativeService {
                 params::allow(p, &[])?;
                 Ok(json!(snapshot.connections))
             }
-            "models.page" => crate::catalog::page(snapshot, client, p),
+            "models.page" => {
+                crate::catalog::page(snapshot, client, &self.intelligence.catalog(), p)
+            }
             "models.list" => {
-                params::allow(p, &["routeId"])?;
+                params::allow(p, &["routeId", "sort"])?;
                 let route = params::text(p, "routeId")?;
-                Ok(json!(
-                    snapshot
-                        .models
-                        .into_iter()
-                        .filter(|m| route.is_none_or(|id| id == m.route_id))
-                        .collect::<Vec<_>>()
-                ))
+                let intelligence = self.intelligence.catalog();
+                let sort = crate::catalog::SortMode::parse(
+                    params::text(p, "sort")?,
+                    intelligence.default_sort_for_apps,
+                )?;
+                let mut models = snapshot
+                    .models
+                    .into_iter()
+                    .filter(|m| route.is_none_or(|id| id == m.route_id))
+                    .collect::<Vec<_>>();
+                sort.apply(&mut models, &intelligence);
+                Ok(json!(models))
             }
             "usage.read" => {
                 params::allow(p, &[])?;
