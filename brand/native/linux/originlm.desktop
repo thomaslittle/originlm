@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OriginLM
+Comment=Native manager for the OriginLM local AI runtime
+Exec=originlm-desktop
+Icon=originlm
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=originlm-desktop

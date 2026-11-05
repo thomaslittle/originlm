@@ -96,6 +96,7 @@ pub fn run() {
                 size: size(px(width), px(height)),
             })),
             window_min_size: Some(size(px(1000.), px(660.))),
+            app_id: Some("originlm-desktop".into()),
             ..TitleBar::window_options()
         };
         if let Some(titlebar) = options.titlebar.as_mut() {

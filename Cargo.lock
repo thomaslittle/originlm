@@ -5547,6 +5547,7 @@ version = "0.1.0-alpha.25"
 dependencies = [
  "base64 0.23.1",
  "chrono",
+ "embed-resource",
  "gpui-kit",
  "image",
  "originlm-contracts",
