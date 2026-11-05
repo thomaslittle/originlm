@@ -462,11 +462,13 @@ fn test_executor(service: Arc<NativeService>) -> ExecHandle {
         let mut session: Option<String> = None;
         while let Ok(command) = commands_rx.recv() {
             match command {
-                ExecCommand::Run {
-                    prompt,
-                    choice,
-                    allow_paid,
-                } => {
+                ExecCommand::Run(request) => {
+                    let crate::broker::RunRequest {
+                        prompt,
+                        choice,
+                        allow_paid,
+                        ..
+                    } = *request;
                     let selection = serde_json::json!({
                         "routeId": choice.route_id,
                         "modelId": choice.model_id,

@@ -8,7 +8,7 @@ use crate::ds::{self, sp, ty};
 use crate::ui::Tone;
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
-    ActiveTheme, IconName,
+    ActiveTheme, Icon, IconName, Sizable, Size,
     button::{Button, ButtonVariants},
     input::Textarea,
     switch::Switch,
@@ -17,6 +17,12 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use std::f32::consts::PI;
 use std::time::Duration;
+
+fn asset_icon(name: gpui_kit::assets::IconName, size: f32, color: gpui::Hsla) -> impl IntoElement {
+    Icon::new(name)
+        .with_size(Size::Size(px(size)))
+        .text_color(color)
+}
 
 impl Desktop {
     fn playground_status(&self) -> (&'static str, bool) {
@@ -70,10 +76,6 @@ impl Desktop {
             .as_ref()
             .map(|choice| choice.label.clone())
             .unwrap_or_else(|| "Choose a model".into());
-        let selected_provider = selected
-            .as_ref()
-            .map(|choice| choice.provider.clone())
-            .unwrap_or_else(|| "No route selected".into());
         let selected_icon = selected
             .as_ref()
             .map(|choice| choice.provider_id.clone())
@@ -145,6 +147,7 @@ impl Desktop {
                         .on_click(move |_, _, cx| {
                             entity.update(cx, |this, cx| {
                                 this.selected_model = Some(id.clone());
+                                this.model_picker_open = false;
                                 cx.notify();
                             });
                         })
@@ -409,6 +412,171 @@ impl Desktop {
                 .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.run_prompt(cx)))
                 .into_any_element()
         };
+        let attachment_tray = if self.attachments.is_empty() {
+            None
+        } else {
+            Some(div().h_flex().flex_wrap().gap(px(6.)).children(
+                self.attachments.iter().enumerate().map(|(index, path)| {
+                    let entity = entity.clone();
+                    let path = path.clone();
+                    div()
+                        .h_flex()
+                        .items_center()
+                        .gap(px(5.))
+                        .rounded(px(7.))
+                        .bg(theme.muted)
+                        .pl(px(7.))
+                        .pr(px(4.))
+                        .py(px(3.))
+                        .text_size(px(10.5))
+                        .text_color(theme.muted_foreground)
+                        .child(asset_icon(
+                            gpui_kit::assets::IconName::Paperclip,
+                            11.,
+                            theme.primary,
+                        ))
+                        .child(
+                            div().max_w(px(150.)).truncate().child(
+                                path.file_name()
+                                    .and_then(|name| name.to_str())
+                                    .unwrap_or("image")
+                                    .to_owned(),
+                            ),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("remove-attachment-{index}")))
+                                .w(px(16.))
+                                .h(px(16.))
+                                .rounded_full()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .cursor_pointer()
+                                .hover(|style| style.bg(theme.popover))
+                                .child(asset_icon(
+                                    gpui_kit::assets::IconName::X,
+                                    10.,
+                                    theme.muted_foreground,
+                                ))
+                                .on_click(move |_, _, cx| {
+                                    entity.update(cx, |this, cx| {
+                                        this.attachments.retain(|current| current != &path);
+                                        cx.notify();
+                                    });
+                                }),
+                        )
+                }),
+            ))
+        };
+
+        let attach_entity = entity.clone();
+        let attach = div()
+            .id("attach-images")
+            .w(px(30.))
+            .h(px(30.))
+            .rounded(px(9.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .cursor_pointer()
+            .hover(|style| style.bg(theme.muted))
+            .child(asset_icon(
+                gpui_kit::assets::IconName::Paperclip,
+                15.,
+                theme.muted_foreground,
+            ))
+            .on_click(move |_, _, cx| {
+                attach_entity.update(cx, |this, cx| this.pick_attachments(cx))
+            });
+
+        let model_entity = entity.clone();
+        let model_chip = div()
+            .id("model-chip")
+            .h_flex()
+            .items_center()
+            .gap(px(6.))
+            .h(px(30.))
+            .pl(px(6.))
+            .pr(px(7.))
+            .rounded(px(9.))
+            .border_1()
+            .border_color(if self.model_picker_open {
+                theme.border
+            } else {
+                gpui::transparent_black()
+            })
+            .when(self.model_picker_open, |this| this.bg(theme.muted))
+            .cursor_pointer()
+            .hover(|style| style.bg(theme.muted))
+            .children(crate::icons::provider_mark(
+                if selected_icon.is_empty() {
+                    "local"
+                } else {
+                    selected_icon.as_str()
+                },
+                14.,
+                theme.primary,
+            ))
+            .child(
+                div()
+                    .max_w(px(170.))
+                    .truncate()
+                    .text_size(px(11.5))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(if self.model_picker_open {
+                        theme.foreground
+                    } else {
+                        theme.muted_foreground
+                    })
+                    .child(selected_label),
+            )
+            .child(asset_icon(
+                gpui_kit::assets::IconName::ChevronDown,
+                12.,
+                theme.muted_foreground,
+            ))
+            .on_click(move |_, _, cx| {
+                model_entity.update(cx, |this, cx| {
+                    this.model_picker_open = !this.model_picker_open;
+                    cx.notify();
+                });
+            });
+
+        let effort = self.effort_label().map(|label| {
+            let entity = entity.clone();
+            div()
+                .id("effort-chip")
+                .h_flex()
+                .items_center()
+                .gap(px(5.))
+                .h(px(30.))
+                .px(px(8.))
+                .rounded(px(9.))
+                .cursor_pointer()
+                .hover(|style| style.bg(theme.muted))
+                .child(asset_icon(
+                    gpui_kit::assets::IconName::Gauge,
+                    14.,
+                    theme.muted_foreground,
+                ))
+                .child(
+                    div()
+                        .max_w(px(120.))
+                        .truncate()
+                        .text_size(px(11.5))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(theme.muted_foreground)
+                        .child(label),
+                )
+                .on_click(move |_, _, cx| {
+                    entity.update(cx, |this, cx| {
+                        this.cycle_effort();
+                        cx.notify();
+                    });
+                })
+        });
+
         let composer = div()
             .id("playground-composer")
             .m(px(sp::MD))
@@ -420,6 +588,7 @@ impl Desktop {
             .shadow_lg()
             .v_flex()
             .gap(px(sp::SM))
+            .when_some(attachment_tray, |this, tray| this.child(tray))
             .child(Textarea::new(&self.prompt).h(px(64.)))
             .child(
                 div()
@@ -432,33 +601,13 @@ impl Desktop {
                             .h_flex()
                             .items_center()
                             .gap(px(sp::XS))
-                            .rounded(px(9.))
-                            .bg(theme.muted)
-                            .pl(px(6.))
-                            .pr(px(8.))
-                            .h(px(30.))
-                            .children(crate::icons::provider_mark(
-                                if selected_icon.is_empty() {
-                                    "local"
-                                } else {
-                                    selected_icon.as_str()
-                                },
-                                14.,
-                                theme.primary,
-                            ))
-                            .child(
-                                div()
-                                    .max_w(px(190.))
-                                    .truncate()
-                                    .text_size(px(11.5))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(theme.muted_foreground)
-                                    .child(selected_label),
-                            )
-                            .child(ds::caption(selected_provider, &theme).truncate()),
+                            .child(attach)
+                            .child(model_chip)
+                            .when_some(effort, |this, effort| this.child(effort)),
                     )
                     .child(send),
-            );
+            )
+            .when(self.model_picker_open, |this| this.child(picker));
 
         let transcript = ds::panel(&theme)
             .flex_1()
@@ -496,7 +645,6 @@ impl Desktop {
             })
             .child(composer);
 
-        let wide = self.content_width() >= 1000.;
         let mut page = ds::page();
         if self.example {
             page = page.child(ds::banner(
@@ -509,22 +657,6 @@ impl Desktop {
                 &theme,
             ));
         }
-        page.child(if wide {
-            div()
-                .h_flex()
-                .items_start()
-                .gap(px(sp::MD))
-                .child(div().w(px(340.)).flex_shrink_0().child(picker))
-                .child(transcript)
-                .into_any_element()
-        } else {
-            div()
-                .v_flex()
-                .gap(px(sp::MD))
-                .child(picker)
-                .child(transcript)
-                .into_any_element()
-        })
-        .into_any_element()
+        page.child(transcript).into_any_element()
     }
 }

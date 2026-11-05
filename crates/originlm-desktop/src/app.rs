@@ -16,7 +16,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::PathBuf,
     sync::mpsc::TryRecvError,
     time::{Duration, Instant},
@@ -242,6 +242,12 @@ pub struct Desktop {
     pub palette_query: String,
     pub search: Entity<InputState>,
     pub prompt: Entity<TextareaState>,
+    /// Images staged for the next Playground turn, in selection order.
+    pub attachments: Vec<PathBuf>,
+    /// Model option value chosen for the next Playground turn (usually effort).
+    pub selected_effort: Option<String>,
+    /// The model chip's picker is open below the composer.
+    pub model_picker_open: bool,
     pub price_fields: [Entity<InputState>; 6],
     pub price_edit_original: Option<originlm_contracts::ModelPrice>,
     pub query: String,
@@ -397,6 +403,9 @@ impl Desktop {
             palette_query: String::new(),
             search,
             prompt,
+            attachments: Vec::new(),
+            selected_effort: None,
+            model_picker_open: false,
             price_fields,
             price_edit_original: None,
             query: String::new(),
@@ -883,7 +892,6 @@ impl Desktop {
                             &connection.display_name,
                             &self.provider_name(&route.provider_id),
                         ),
-                        provider: self.provider_name(&route.provider_id),
                         provider_id: route.provider_id.clone(),
                         billing: crate::ui::billing_label(route).to_string(),
                     },
@@ -897,6 +905,120 @@ impl Desktop {
     pub fn selected_choice(&self) -> Option<ModelChoice> {
         let id = self.selected_model.as_ref()?;
         self.model_choices().into_iter().find(|c| &c.model_id == id)
+    }
+
+    /// The model's reasoning-effort descriptor, when it advertises one.
+    fn effort_descriptor(&self) -> Option<&originlm_contracts::OptionDescriptor> {
+        let snapshot = self.snapshot()?;
+        let model = snapshot
+            .models
+            .iter()
+            .find(|model| Some(&model.id) == self.selected_model.as_ref())?;
+        model.options.iter().find(|option| {
+            option.id.eq_ignore_ascii_case("effort")
+                || option.id.eq_ignore_ascii_case("reasoningEffort")
+                || option.label.to_ascii_lowercase().contains("effort")
+        })
+    }
+
+    pub fn effort_choices(&self) -> Vec<(String, String)> {
+        let Some(descriptor) = self.effort_descriptor() else {
+            return Vec::new();
+        };
+        match &descriptor.control {
+            originlm_contracts::OptionControl::Select { choices, .. } => choices
+                .iter()
+                .filter(|choice| choice.disabled_reason.is_none())
+                .map(|choice| (choice.value.clone(), choice.label.clone()))
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn effort_value(&self) -> Option<String> {
+        let descriptor = self.effort_descriptor()?;
+        let choices = self.effort_choices();
+        if let Some(selected) = self
+            .selected_effort
+            .as_ref()
+            .filter(|selected| choices.iter().any(|(value, _)| value == *selected))
+        {
+            return Some(selected.clone());
+        }
+        if let Some(current) = descriptor
+            .current_value
+            .as_ref()
+            .and_then(|value| value.as_str())
+            && choices.iter().any(|(value, _)| value == current)
+        {
+            return Some(current.to_owned());
+        }
+        match &descriptor.control {
+            originlm_contracts::OptionControl::Select { default_value, .. } => default_value
+                .clone()
+                .filter(|default| choices.iter().any(|(value, _)| value == default)),
+            _ => None,
+        }
+        .or_else(|| choices.first().map(|(value, _)| value.clone()))
+    }
+
+    pub fn effort_label(&self) -> Option<String> {
+        let value = self.effort_value()?;
+        self.effort_choices()
+            .into_iter()
+            .find(|(choice, _)| choice == &value)
+            .map(|(_, label)| label)
+            .or(Some(value))
+    }
+
+    pub fn cycle_effort(&mut self) {
+        let choices = self.effort_choices();
+        if choices.is_empty() {
+            return;
+        }
+        let current = self.effort_value();
+        let next = current
+            .as_ref()
+            .and_then(|current| choices.iter().position(|(value, _)| value == current))
+            .map(|index| (index + 1) % choices.len())
+            .unwrap_or(0);
+        self.selected_effort = Some(choices[next].0.clone());
+    }
+
+    pub fn attach_images(&mut self, paths: Vec<PathBuf>) {
+        for path in paths {
+            let image = path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    matches!(
+                        extension.to_ascii_lowercase().as_str(),
+                        "jpg" | "jpeg" | "png"
+                    )
+                });
+            if image && !self.attachments.contains(&path) && self.attachments.len() < 4 {
+                self.attachments.push(path);
+            }
+        }
+    }
+
+    pub fn pick_attachments(&mut self, cx: &mut Context<Self>) {
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some("Attach images".into()),
+        });
+        cx.spawn(async move |this, cx| {
+            if let Ok(Ok(Some(paths))) = receiver.await {
+                this.update(cx, |this, cx| {
+                    this.attach_images(paths);
+                    cx.notify();
+                })
+                .ok();
+            }
+        })
+        .detach();
     }
 
     pub fn run_prompt(&mut self, cx: &mut Context<Self>) {
@@ -922,6 +1044,12 @@ impl Desktop {
         self.usage_note = None;
         self.transcript.clear();
         self.running = true;
+        self.model_picker_open = false;
+        let mut options = BTreeMap::new();
+        if let (Some(descriptor), Some(value)) = (self.effort_descriptor(), self.effort_value()) {
+            options.insert(descriptor.id.clone(), serde_json::Value::String(value));
+        }
+        let images = std::mem::take(&mut self.attachments);
         self.transcript.push(TranscriptLine {
             role: TranscriptRole::You,
             text: prompt.clone(),
@@ -931,11 +1059,16 @@ impl Desktop {
             .selected_model
             .as_deref()
             .is_some_and(|model| self.paid_consent.take_for_run(model));
-        let _ = self.executor.commands.send(broker::ExecCommand::Run {
-            prompt,
-            choice,
-            allow_paid,
-        });
+        let _ = self
+            .executor
+            .commands
+            .send(broker::ExecCommand::Run(Box::new(broker::RunRequest {
+                prompt,
+                choice,
+                allow_paid,
+                images,
+                options,
+            })));
         cx.notify();
     }
 

@@ -453,17 +453,20 @@ pub struct ModelChoice {
     pub revision: String,
     pub label: String,
     pub connection: String,
-    pub provider: String,
     pub provider_id: String,
     pub billing: String,
 }
 
+pub struct RunRequest {
+    pub prompt: String,
+    pub choice: ModelChoice,
+    pub allow_paid: bool,
+    pub images: Vec<std::path::PathBuf>,
+    pub options: std::collections::BTreeMap<String, Value>,
+}
+
 pub enum ExecCommand {
-    Run {
-        prompt: String,
-        choice: ModelChoice,
-        allow_paid: bool,
-    },
+    Run(Box<RunRequest>),
     Cancel,
     Close(String),
 }
@@ -525,13 +528,16 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
     #[allow(unused_assignments)]
     let mut current_turn: Option<String> = None;
 
-    while let Ok(command) = commands.recv() {
+    'commands: while let Ok(command) = commands.recv() {
         match command {
-            ExecCommand::Run {
-                prompt,
-                choice,
-                allow_paid,
-            } => {
+            ExecCommand::Run(request) => {
+                let RunRequest {
+                    prompt,
+                    choice,
+                    allow_paid,
+                    images,
+                    options,
+                } = *request;
                 if current_session.is_some() {
                     let _ = events.send(ExecEvent::Failed {
                         error: "A turn is already running.".into(),
@@ -554,7 +560,7 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                     "routeId": choice.route_id,
                     "modelId": choice.model_id,
                     "revision": choice.revision,
-                    "options": {},
+                    "options": options,
                 });
                 let created = active.call(
                     "sessions.create",
@@ -579,14 +585,67 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                         continue;
                     }
                 };
-                let started = active.call(
-                    "turns.start",
-                    json!({
-                        "sessionId": session_id,
-                        "prompt": prompt,
-                        "requestId": format!("desktop-{}", chrono::Utc::now().timestamp_millis()),
-                    }),
-                );
+                let mut staged = Vec::new();
+                for path in images {
+                    let bytes = match std::fs::read(&path) {
+                        Ok(bytes) => bytes,
+                        Err(error) => {
+                            let _ = active.call("sessions.close", json!({"sessionId": session_id}));
+                            let _ = events.send(ExecEvent::Failed {
+                                error: format!("Could not read {}: {error}", path.display()),
+                            });
+                            continue 'commands;
+                        }
+                    };
+                    let Some(media) = path
+                        .extension()
+                        .and_then(|extension| extension.to_str())
+                        .map(str::to_ascii_lowercase)
+                        .and_then(|extension| match extension.as_str() {
+                            "jpg" | "jpeg" => Some("image/jpeg"),
+                            "png" => Some("image/png"),
+                            _ => None,
+                        })
+                    else {
+                        let _ = active.call("sessions.close", json!({"sessionId": session_id}));
+                        let _ = events.send(ExecEvent::Failed {
+                            error: format!(
+                                "Only JPEG and PNG images can be attached: {}",
+                                path.display()
+                            ),
+                        });
+                        continue 'commands;
+                    };
+                    use base64::Engine as _;
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+                    match active.call(
+                        "inputs.put",
+                        json!({
+                            "sessionId": session_id,
+                            "mediaType": media,
+                            "dataBase64": encoded,
+                            "displayName": path.file_name().and_then(|name| name.to_str()),
+                        }),
+                    ) {
+                        Ok(input) => staged.push(json!({"inputId": input["inputId"]})),
+                        Err(error) => {
+                            let _ = active.call("sessions.close", json!({"sessionId": session_id}));
+                            let _ = events.send(ExecEvent::Failed {
+                                error: format!("Could not attach {}: {error}", path.display()),
+                            });
+                            continue 'commands;
+                        }
+                    }
+                }
+                let mut start = json!({
+                    "sessionId": session_id,
+                    "prompt": prompt,
+                    "requestId": format!("desktop-{}", chrono::Utc::now().timestamp_millis()),
+                });
+                if !staged.is_empty() {
+                    start["inputs"] = json!(staged);
+                }
+                let started = active.call("turns.start", start);
                 let turn_id = match started {
                     Ok(value) => value
                         .get("turnId")

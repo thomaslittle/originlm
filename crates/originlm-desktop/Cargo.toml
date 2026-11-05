@@ -23,6 +23,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.23"
 
 [lints.rust]
 unsafe_code = "forbid"
