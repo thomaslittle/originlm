@@ -250,6 +250,8 @@ pub struct Desktop {
     pub model_picker_open: bool,
     /// Provider tab selected in the model popover; `None` means all providers.
     pub model_provider_filter: Option<String>,
+    /// The effort chip's small option menu is open.
+    pub effort_picker_open: bool,
     pub price_fields: [Entity<InputState>; 6],
     pub price_edit_original: Option<originlm_contracts::ModelPrice>,
     pub query: String,
@@ -409,6 +411,7 @@ impl Desktop {
             selected_effort: None,
             model_picker_open: false,
             model_provider_filter: None,
+            effort_picker_open: false,
             price_fields,
             price_edit_original: None,
             query: String::new(),
@@ -972,20 +975,6 @@ impl Desktop {
             .find(|(choice, _)| choice == &value)
             .map(|(_, label)| label)
             .or(Some(value))
-    }
-
-    pub fn cycle_effort(&mut self) {
-        let choices = self.effort_choices();
-        if choices.is_empty() {
-            return;
-        }
-        let current = self.effort_value();
-        let next = current
-            .as_ref()
-            .and_then(|current| choices.iter().position(|(value, _)| value == current))
-            .map(|index| (index + 1) % choices.len())
-            .unwrap_or(0);
-        self.selected_effort = Some(choices[next].0.clone());
     }
 
     pub fn attach_images(&mut self, paths: Vec<PathBuf>) {

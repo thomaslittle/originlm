@@ -209,6 +209,7 @@ impl Desktop {
                             this.selected_effort = None;
                             this.model_provider_filter = Some(provider_id.clone());
                             this.model_picker_open = false;
+                            this.effort_picker_open = false;
                             cx.notify();
                         });
                     })
@@ -219,6 +220,8 @@ impl Desktop {
         let picker = div()
             .id("model-picker")
             .w_full()
+            .flex_1()
+            .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
             .border_1()
@@ -270,7 +273,8 @@ impl Desktop {
             .child(
                 div()
                     .id("model-picker-list")
-                    .max_h(px(320.))
+                    .flex_1()
+                    .min_h(px(0.))
                     .overflow_y_scroll()
                     .child(model_rows),
             )
@@ -327,6 +331,101 @@ impl Desktop {
                         &theme,
                     )),
             );
+
+        let effort_choices = self.effort_choices();
+        let effort_picker = div()
+            .id("effort-picker")
+            .w_full()
+            .flex_1()
+            .min_h(px(0.))
+            .rounded(px(14.))
+            .bg(theme.popover)
+            .border_1()
+            .border_color(theme.border)
+            .shadow_lg()
+            .v_flex()
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .justify_between()
+                    .px(px(12.))
+                    .pt(px(10.))
+                    .pb(px(6.))
+                    .child(
+                        div()
+                            .text_size(px(ty::SMALL))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Reasoning effort"),
+                    )
+                    .child({
+                        let entity = entity.clone();
+                        div()
+                            .id("close-effort-picker")
+                            .role(gpui::Role::Button)
+                            .aria_label("Close effort picker")
+                            .w(px(22.))
+                            .h(px(22.))
+                            .rounded(px(6.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(theme.muted))
+                            .child(asset_icon(
+                                gpui_kit::assets::IconName::X,
+                                12.,
+                                theme.muted_foreground,
+                            ))
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |this, cx| {
+                                    this.effort_picker_open = false;
+                                    cx.notify();
+                                });
+                            })
+                    }),
+            )
+            .child(if effort_choices.is_empty() {
+                div()
+                    .px(px(12.))
+                    .pb(px(12.))
+                    .child(ds::caption(
+                        "This model exposes only its default effort. Pick a model that advertises effort levels to change it.",
+                        &theme,
+                    ))
+                    .into_any_element()
+            } else {
+                let current = self.effort_value();
+                div()
+                    .v_flex()
+                    .py(px(4.))
+                    .children(effort_choices.into_iter().map(|(value, label)| {
+                        let selected = current.as_deref() == Some(value.as_str());
+                        let entity = entity.clone();
+                        ds::select_row(
+                            SharedString::from(format!("effort-option-{value}")),
+                            selected,
+                            &theme,
+                        )
+                        .aria_label(label.clone())
+                        .child(div().flex_1().child(label))
+                        .when(selected, |this| {
+                            this.child(asset_icon(
+                                gpui_kit::assets::IconName::Check,
+                                14.,
+                                theme.primary,
+                            ))
+                        })
+                        .on_click(move |_, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                this.selected_effort = Some(value.clone());
+                                this.effort_picker_open = false;
+                                cx.notify();
+                            });
+                        })
+                    }))
+                    .into_any_element()
+            });
 
         // Chat header: the selected model and the live run state are always
         // visible, even when the transcript is empty.
@@ -685,6 +784,7 @@ impl Desktop {
             .on_click(move |_, _, cx| {
                 model_entity.update(cx, |this, cx| {
                     this.model_picker_open = !this.model_picker_open;
+                    this.effort_picker_open = false;
                     cx.notify();
                 });
             });
@@ -722,7 +822,8 @@ impl Desktop {
                 )
                 .on_click(move |_, _, cx| {
                     entity.update(cx, |this, cx| {
-                        this.cycle_effort();
+                        this.effort_picker_open = !this.effort_picker_open;
+                        this.model_picker_open = false;
                         cx.notify();
                     });
                 })
@@ -730,7 +831,6 @@ impl Desktop {
 
         let composer = div()
             .id("playground-composer")
-            .relative()
             .m(px(sp::MD))
             .p(px(10.))
             .rounded(px(14.))
@@ -758,30 +858,26 @@ impl Desktop {
                             .child(effort),
                     )
                     .child(send),
-            )
-            .when(self.model_picker_open, |this| {
-                this.child(
-                    div()
-                        .absolute()
-                        .left(px(0.))
-                        .right(px(0.))
-                        .bottom(relative(1.0))
-                        .pb(px(sp::SM))
-                        .child(picker),
-                )
-            });
+            );
 
+        let body = if self.model_picker_open {
+            picker.into_any_element()
+        } else if self.effort_picker_open {
+            effort_picker.into_any_element()
+        } else {
+            div()
+                .id("playground-transcript")
+                .flex_1()
+                .min_h(px(0.))
+                .overflow_y_scroll()
+                .child(lines)
+                .into_any_element()
+        };
         let transcript = ds::panel(&theme)
             .flex_1()
             .min_w(px(0.))
             .child(header)
-            .child(
-                div()
-                    .id("playground-transcript")
-                    .flex_1()
-                    .overflow_y_scroll()
-                    .child(lines),
-            )
+            .child(body)
             .when_some(self.playground_error.clone(), |this, error| {
                 this.child(div().p(px(sp::MD)).child(ds::banner(
                     Tone::Red,
