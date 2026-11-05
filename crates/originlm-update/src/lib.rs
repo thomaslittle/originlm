@@ -373,7 +373,7 @@ impl SessionGuard {
             .truncate(false)
             .open(root.join("sessions.lock"))
             .map_err(|_| fail(ErrorCode::StorageUnavailable, "Update lease is unavailable"))?;
-        fs4::fs_std::FileExt::lock_shared(&file).map_err(|_| {
+        fs4::FileExt::lock_shared(&file).map_err(|_| {
             fail(
                 ErrorCode::LocalAccessDenied,
                 "Another update holds the session lease",
@@ -522,7 +522,7 @@ pub fn activate(
         .truncate(false)
         .open(state_root.join("activation.lock"))
         .map_err(|_| fail(ErrorCode::StorageUnavailable, "Update lock is unavailable"))?;
-    fs4::fs_std::FileExt::try_lock_exclusive(&lock).map_err(|_| {
+    fs4::FileExt::try_lock(&lock).map_err(|_| {
         fail(
             ErrorCode::Conflict,
             "Another update activation is already in progress",
@@ -535,7 +535,7 @@ pub fn activate(
         .truncate(false)
         .open(state_root.join("sessions.lock"))
         .map_err(|_| fail(ErrorCode::StorageUnavailable, "Update lease is unavailable"))?;
-    fs4::fs_std::FileExt::try_lock_exclusive(&sessions).map_err(|_| {
+    fs4::FileExt::try_lock(&sessions).map_err(|_| {
         fail(
             ErrorCode::Conflict,
             "An active consumer/runtime session prevents activation",
