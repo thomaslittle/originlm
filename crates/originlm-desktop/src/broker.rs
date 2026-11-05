@@ -5,7 +5,7 @@ use crate::{
     bootstrap::Credential,
     history::{History, Sample},
 };
-use originlm_contracts::{CostReport, ModelPrice, Snapshot, estimate_cost};
+use originlm_contracts::{CostReport, IntelligenceCatalog, ModelPrice, Snapshot, estimate_cost};
 use originlm_control::BrokerClient;
 use serde_json::{Value, json};
 use std::{
@@ -25,6 +25,9 @@ pub struct Bundle {
     pub history: Vec<Sample>,
     pub costs: Option<CostReport>,
     pub cost_error: Option<String>,
+    /// Cached Artificial Analysis scores. Never fetched from this worker on a
+    /// timer; the runtime owns the durable cache and its sync lane.
+    pub intelligence: IntelligenceCatalog,
     pub fetched_at: i64,
     pub error: Option<String>,
 }
@@ -34,6 +37,8 @@ pub enum Command {
     Probe(String),
     RevokeApp(String),
     SetPrices(Vec<ModelPrice>),
+    SetIntelligenceDefault(bool),
+    RefreshIntelligence,
 }
 
 pub struct BrokerHandle {
@@ -95,6 +100,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                             history: Vec::new(),
                             costs: None,
                             cost_error: None,
+                            intelligence: IntelligenceCatalog::default(),
                             fetched_at: chrono::Utc::now().timestamp(),
                             error: None,
                         });
@@ -118,6 +124,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                                     history: Vec::new(),
                                     costs: Some(costs.clone()),
                                     cost_error: None,
+                                    intelligence: IntelligenceCatalog::default(),
                                     // Pretend the last good read was 7 minutes ago.
                                     fetched_at: chrono::Utc::now().timestamp() - 420,
                                     error: None,
@@ -153,6 +160,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                             history: Vec::new(),
                             costs: Some(costs.clone()),
                             cost_error: None,
+                            intelligence: IntelligenceCatalog::default(),
                             fetched_at: chrono::Utc::now().timestamp(),
                             error: None,
                         })
@@ -214,6 +222,7 @@ fn offline_bundle(error: &str) -> Bundle {
         detection: None,
         costs: None,
         cost_error: Some("Runtime is offline".into()),
+        intelligence: IntelligenceCatalog::default(),
         history: Vec::new(),
         fetched_at: chrono::Utc::now().timestamp(),
         error: Some(error.to_string()),
@@ -290,6 +299,11 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
             Some("Cost evidence unavailable. Connect to a runtime with costs.read support.".into()),
         ),
     };
+    let intelligence = client
+        .call("intelligence.catalog", json!({}))
+        .ok()
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
     let now = chrono::Utc::now().timestamp();
     history.observe(&snapshot, now);
     Ok(Bundle {
@@ -302,6 +316,7 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
         detection,
         costs,
         cost_error,
+        intelligence,
         history: history.samples.clone(),
         fetched_at: now,
         error: None,
@@ -357,6 +372,7 @@ fn worker(
                             detection: None,
                             costs: None,
                             cost_error: Some("Runtime is offline".into()),
+                            intelligence: IntelligenceCatalog::default(),
                             history: history.samples.clone(),
                             fetched_at: chrono::Utc::now().timestamp(),
                             error: Some(error.clone()),
@@ -395,6 +411,7 @@ fn worker(
                                 detection: None,
                                 costs: None,
                                 cost_error: Some("Runtime is offline".into()),
+                                intelligence: IntelligenceCatalog::default(),
                                 history: history.samples.clone(),
                                 fetched_at: chrono::Utc::now().timestamp(),
                                 error: Some(error),
@@ -422,6 +439,25 @@ fn worker(
                         if error.is_some() {
                             bundle.cost_error = Some("Prices were not saved. Check administrator access and price values.".into());
                         }
+                        let _ = updates.send(bundle);
+                    }
+                }
+            }
+            Ok(Command::SetIntelligenceDefault(enabled)) => {
+                if let Some(active) = client.as_mut() {
+                    let _ = active.call(
+                        "intelligence.configure",
+                        json!({"defaultSortForApps": enabled}),
+                    );
+                    if let Ok(bundle) = fetch(active, &mut history) {
+                        let _ = updates.send(bundle);
+                    }
+                }
+            }
+            Ok(Command::RefreshIntelligence) => {
+                if let Some(active) = client.as_mut() {
+                    let _ = active.call("intelligence.refresh", json!({}));
+                    if let Ok(bundle) = fetch(active, &mut history) {
                         let _ = updates.send(bundle);
                     }
                 }

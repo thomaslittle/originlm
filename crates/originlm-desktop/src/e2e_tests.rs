@@ -211,6 +211,7 @@ fn bundle() -> Bundle {
         history: vec![],
         costs: None,
         cost_error: None,
+        intelligence: originlm_contracts::IntelligenceCatalog::default(),
         fetched_at: 0,
         error: None,
     }

@@ -197,6 +197,12 @@ struct Prefs {
     models_inspector: f32,
     #[serde(default = "default_inspector_width")]
     providers_inspector: f32,
+    /// OriginLM's own model list. Index-first is the discovery default.
+    #[serde(default = "default_true")]
+    models_sort_by_intelligence: bool,
+    /// Third-party/default catalog opt-in. Off unless the user chooses it.
+    #[serde(default)]
+    apps_default_intelligence_order: bool,
 }
 
 impl Default for Prefs {
@@ -210,8 +216,14 @@ impl Default for Prefs {
             models_inspector: default_inspector_width(),
             providers_inspector: default_inspector_width(),
             sidebar_collapsed: false,
+            models_sort_by_intelligence: true,
+            apps_default_intelligence_order: false,
         }
     }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn prefs_path() -> Option<PathBuf> {
@@ -253,6 +265,10 @@ pub struct Desktop {
     pub favorites: BTreeSet<String>,
     /// Models page shows favorites only.
     pub favorites_only: bool,
+    /// Models page orders by Artificial Analysis Intelligence Index.
+    pub models_sort_by_intelligence: bool,
+    /// The local runtime defaults user-facing catalogs to Index order.
+    pub apps_default_intelligence_order: bool,
     pub sessions: Vec<UiSession>,
     pub transcript: Vec<TranscriptLine>,
     pub running: bool,
@@ -407,6 +423,8 @@ impl Desktop {
             usage_table: false,
             favorites: prefs.favorites.into_iter().collect(),
             favorites_only: false,
+            models_sort_by_intelligence: prefs.models_sort_by_intelligence,
+            apps_default_intelligence_order: prefs.apps_default_intelligence_order,
             sessions: Vec::new(),
             transcript: Vec::new(),
             running: false,
@@ -439,6 +457,12 @@ impl Desktop {
             _subscriptions: subscriptions,
         };
         window.focus(&this.focus, cx);
+        let _ = this
+            .broker
+            .commands
+            .send(broker::Command::SetIntelligenceDefault(
+                this.apps_default_intelligence_order,
+            ));
         this.poll_task = Some(cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -751,6 +775,8 @@ impl Desktop {
             sidebar_collapsed: self.sidebar_collapsed,
             models_inspector: self.models_inspector,
             providers_inspector: self.providers_inspector,
+            models_sort_by_intelligence: self.models_sort_by_intelligence,
+            apps_default_intelligence_order: self.apps_default_intelligence_order,
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&prefs) {
             let Some(path) = prefs_path() else {
@@ -765,6 +791,35 @@ impl Desktop {
 
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
         let _ = self.broker.commands.send(broker::Command::Refresh);
+        cx.notify();
+    }
+
+    /// Persist OriginLM's own list order. Third-party catalogs keep their
+    /// explicit `sort` choice; this setting is only the app's default.
+    pub fn set_models_sort_by_intelligence(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.models_sort_by_intelligence = enabled;
+        self.save_prefs();
+        cx.notify();
+    }
+
+    /// Persist the user's opt-in and tell the local service to default
+    /// catalogs served to other applications to Intelligence Index order.
+    pub fn set_apps_default_intelligence_order(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.apps_default_intelligence_order = enabled;
+        self.save_prefs();
+        let _ = self
+            .broker
+            .commands
+            .send(broker::Command::SetIntelligenceDefault(enabled));
+        cx.notify();
+    }
+
+    pub fn refresh_intelligence(&mut self, cx: &mut Context<Self>) {
+        let _ = self
+            .broker
+            .commands
+            .send(broker::Command::RefreshIntelligence);
+        self.toast("Refreshing Artificial Analysis scores");
         cx.notify();
     }
 
