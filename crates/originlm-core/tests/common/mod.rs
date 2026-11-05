@@ -76,6 +76,7 @@ pub fn fixture() -> Snapshot {
     });
     s
 }
+#[allow(dead_code)] // shared by several test binaries; not every one uses every helper
 pub fn selection() -> Selection {
     Selection {
         route_id: "route-personal".into(),

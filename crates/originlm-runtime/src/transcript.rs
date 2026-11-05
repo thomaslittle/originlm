@@ -236,7 +236,7 @@ pub fn build_prior(
         trimmed: omitted_turns > 0,
     };
     let bytes = prior.seeded_bytes();
-    prior.estimated_tokens = ((bytes as u64) + 3) / 4;
+    prior.estimated_tokens = (bytes as u64).div_ceil(4);
     Some(prior)
 }
 
