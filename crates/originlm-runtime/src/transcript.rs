@@ -93,15 +93,22 @@ pub struct PriorHistory {
     /// Application instructions. Kept separate from the transcript so trimming
     /// never removes the system/app layer.
     pub instructions: Option<String>,
+    /// The old model's compact summary of the earlier conversation. Present
+    /// only after a fold-before-switch.
+    pub folded_summary: Option<String>,
     /// Newest turns kept verbatim, oldest first.
     pub turns: Vec<PriorTurn>,
     /// Older turns omitted from the stored transcript or by target budgeting.
     pub omitted_turns: u32,
     /// Conservative byte-based token estimate of the rendered seed.
     pub estimated_tokens: u64,
-    /// True when any turn was omitted. Always reported to the host.
+    /// True when any turn was omitted or the folded summary was truncated.
+    /// Always reported to the host.
     pub trimmed: bool,
 }
+
+/// A folded summary larger than this is truncated deterministically.
+pub const MAX_FOLD_SUMMARY_BYTES: usize = 32 * 1024;
 
 fn omission_note(turns: u32) -> String {
     format!(
@@ -109,15 +116,33 @@ fn omission_note(turns: u32) -> String {
     )
 }
 
+fn truncate_utf8(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_owned();
+    }
+    let mut end = max;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text[..end].to_owned()
+}
+
 impl PriorHistory {
     pub fn is_empty(&self) -> bool {
-        self.instructions.is_none() && self.turns.is_empty()
+        self.instructions.is_none() && self.folded_summary.is_none() && self.turns.is_empty()
     }
 
     /// Role-tagged messages for providers that accept a message array.
     pub fn http_messages(&self) -> Vec<SeedMessage> {
         let mut messages = Vec::new();
         let mut system = self.instructions.clone().unwrap_or_default();
+        if let Some(summary) = &self.folded_summary {
+            if !system.is_empty() {
+                system.push_str("\n\n");
+            }
+            system.push_str("[Conversation summary]\n");
+            system.push_str(summary);
+        }
         if self.omitted_turns > 0 {
             if !system.is_empty() {
                 system.push_str("\n\n");
@@ -160,6 +185,11 @@ impl PriorHistory {
             output.push_str(instructions);
             output.push('\n');
         }
+        if let Some(summary) = &self.folded_summary {
+            output.push_str("\n[Conversation summary]\n");
+            output.push_str(summary);
+            output.push('\n');
+        }
         if self.omitted_turns > 0 {
             output.push('\n');
             output.push_str(&omission_note(self.omitted_turns));
@@ -179,12 +209,13 @@ impl PriorHistory {
 
     pub fn seeded_bytes(&self) -> usize {
         let instructions = self.instructions.as_ref().map(String::len).unwrap_or(0);
+        let summary = self.folded_summary.as_ref().map(String::len).unwrap_or(0);
         let turns: usize = self
             .turns
             .iter()
             .map(|turn| turn.user.len() + turn.assistant.len() + 64)
             .sum();
-        instructions + turns + if self.omitted_turns > 0 { 160 } else { 0 }
+        instructions + summary + turns + if self.omitted_turns > 0 { 160 } else { 0 }
     }
 }
 
@@ -196,11 +227,27 @@ pub fn build_prior(
     instructions: Option<&str>,
     context_window: Option<u64>,
 ) -> Option<PriorHistory> {
+    build_prior_with_summary(transcript, instructions, context_window, None)
+}
+
+/// Like [`build_prior`], but also includes an old model's folded summary of
+/// the conversation. The summary is budgeted first; the newest turns are then
+/// kept verbatim with the usual deterministic trimming as fallback.
+pub fn build_prior_with_summary(
+    transcript: &Transcript,
+    instructions: Option<&str>,
+    context_window: Option<u64>,
+    summary: Option<&str>,
+) -> Option<PriorHistory> {
     let instructions = instructions
         .map(redact_conversation_text)
         .map(|text| text.trim().to_owned())
         .filter(|text| !text.is_empty());
-    if transcript.is_empty() && instructions.is_none() {
+    let mut summary = summary
+        .map(redact_conversation_text)
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty());
+    if transcript.is_empty() && instructions.is_none() && summary.is_none() {
         return None;
     }
     let target = context_window
@@ -209,7 +256,21 @@ pub fn build_prior(
         .clamp(1_024, 2_000_000);
     let reserve = (target / 8).clamp(512, 8_192);
     let budget_bytes = ((target.saturating_sub(reserve)) * 4).min(MAX_SEED_BYTES as u64) as usize;
-    let mut used = instructions.as_ref().map(String::len).unwrap_or(0) + 128;
+    let mut trimmed = false;
+    if let Some(text) = summary.as_mut() {
+        // Leave at least half the seed for verbatim recent turns; a summary
+        // that does not fit is cut at a character boundary and reported.
+        let max = (budget_bytes / 2).max(1_024).min(MAX_FOLD_SUMMARY_BYTES);
+        if text.len() > max {
+            let mut cut = truncate_utf8(text, max);
+            cut.push_str("\n[summary truncated]");
+            *text = cut;
+            trimmed = true;
+        }
+    }
+    let mut used = instructions.as_ref().map(String::len).unwrap_or(0)
+        + summary.as_ref().map(String::len).unwrap_or(0)
+        + 160;
     let mut kept: Vec<PriorTurn> = Vec::new();
     for turn in transcript.turns.iter().rev() {
         if kept.len() >= MAX_SEED_TURNS {
@@ -230,13 +291,14 @@ pub fn build_prior(
     let omitted_turns = transcript.omitted_turns.saturating_add(newly_omitted);
     let mut prior = PriorHistory {
         instructions,
+        folded_summary: summary,
         turns: kept,
         omitted_turns,
         estimated_tokens: 0,
-        trimmed: omitted_turns > 0,
+        trimmed: trimmed || omitted_turns > 0,
     };
     let bytes = prior.seeded_bytes();
-    prior.estimated_tokens = (bytes as u64).div_ceil(4);
+    prior.estimated_tokens = bytes.div_ceil(4) as u64;
     Some(prior)
 }
 
@@ -347,6 +409,54 @@ mod tests {
             "newest turn stays verbatim"
         );
         assert!(prior.estimated_tokens > 0);
+    }
+
+    #[test]
+    fn a_folded_summary_is_seeded_before_the_newest_turns() {
+        let turns: Vec<(String, String)> = (0..20)
+            .map(|index| {
+                (
+                    format!("question {index} {}", "u".repeat(400)),
+                    format!("answer {index} {}", "a".repeat(400)),
+                )
+            })
+            .collect();
+        let transcript = transcript(
+            &turns
+                .iter()
+                .map(|(user, assistant)| (user.as_str(), assistant.as_str()))
+                .collect::<Vec<_>>(),
+        );
+        let prior = build_prior_with_summary(
+            &transcript,
+            Some("home summary"),
+            Some(4_096),
+            Some("FOLDED: user wants a red circle"),
+        )
+        .unwrap();
+        assert_eq!(
+            prior.folded_summary.as_deref(),
+            Some("FOLDED: user wants a red circle")
+        );
+        assert!(prior.trimmed, "turns still do not all fit verbatim");
+        assert_eq!(prior.turns.last().unwrap().user, turns.last().unwrap().0);
+        assert!(prior.prelude().contains("[Conversation summary]"));
+        assert!(prior.http_messages().iter().any(|message| {
+            message.role == SeedRole::System
+                && message.text.contains("FOLDED: user wants a red circle")
+        }));
+    }
+
+    #[test]
+    fn an_oversized_folded_summary_is_truncated_and_reported() {
+        let transcript = transcript(&[("question", "answer")]);
+        let prior =
+            build_prior_with_summary(&transcript, None, Some(1_024), Some(&"s".repeat(100_000)))
+                .unwrap();
+        let summary = prior.folded_summary.unwrap();
+        assert!(summary.len() < 100_000);
+        assert!(summary.ends_with("[summary truncated]"));
+        assert!(prior.trimmed);
     }
 
     #[test]

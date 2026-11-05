@@ -75,6 +75,7 @@ async fn seeded_http_history_is_role_tagged_not_one_prompt_block() {
     };
     let prior = originlm_runtime::PriorHistory {
         instructions: Some("app instructions".into()),
+        folded_summary: None,
         turns: vec![
             originlm_runtime::PriorTurn {
                 user: "first question".into(),

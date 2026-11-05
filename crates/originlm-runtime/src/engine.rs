@@ -247,6 +247,98 @@ impl Runtime {
             })
             .unwrap_or_default()
     }
+
+    /// Ask the current session's model for a compact handoff summary before a
+    /// model switch. This is an internal fold turn: it emits events and usage
+    /// but is never appended to the canonical transcript.
+    pub async fn summarize(&self, owner: &str, session: &str, prompt: String) -> Result<String> {
+        if prompt.is_empty() || prompt.len() > MAX_TURN_PROMPT_BYTES || prompt.contains('\0') {
+            return Err(err(ErrorCode::InvalidRequest));
+        }
+        let cell = self.cell(owner, session)?;
+        (cell.guard)()?;
+        let options = {
+            let mut state = cell
+                .state
+                .lock()
+                .map_err(|_| err(ErrorCode::ProviderUnavailable))?;
+            if !state.usable
+                || !matches!(
+                    state.view.state,
+                    SessionState::Ready | SessionState::Completed
+                )
+                || state.turn.is_some()
+            {
+                return Err(err(ErrorCode::Conflict));
+            }
+            state.view.state = SessionState::Running;
+            state.view.selection.options.clone()
+        };
+        cell.output
+            .lock()
+            .map_err(|_| err(ErrorCode::ProviderUnavailable))?
+            .clear();
+        if let Ok(mut notes) = cell.turn_notes.lock() {
+            notes.clear();
+        }
+        let turn = id("turn");
+        let (_cancel, cancel) = watch::channel(false);
+        let cx = TurnContext {
+            cell: cell.clone(),
+            turn,
+            cancel,
+            images: Vec::new(),
+        };
+        let mut agent = cell.agent.lock().await;
+        let result = match agent.as_mut() {
+            Some(driver) => {
+                tokio::time::timeout(Duration::from_secs(120), driver.turn(prompt, options, cx))
+                    .await
+                    .map_err(|_| err(ErrorCode::Timeout))?
+            }
+            None => Err(err(ErrorCode::ProviderUnavailable)),
+        };
+        let text = if result.is_ok() {
+            let bytes = std::mem::take(
+                &mut *cell
+                    .output
+                    .lock()
+                    .map_err(|_| err(ErrorCode::ProviderUnavailable))?,
+            );
+            String::from_utf8_lossy(&bytes).into_owned()
+        } else {
+            cell.output
+                .lock()
+                .map_err(|_| err(ErrorCode::ProviderUnavailable))?
+                .clear();
+            String::new()
+        };
+        {
+            let mut state = cell
+                .state
+                .lock()
+                .map_err(|_| err(ErrorCode::ProviderUnavailable))?;
+            state.view.state = if result.is_ok() {
+                SessionState::Completed
+            } else {
+                SessionState::Error
+            };
+            state.usable = result.is_ok();
+        }
+        if result.is_err() {
+            cell.cleanup_pending
+                .store(agent.is_some(), Ordering::Release);
+            if close_driver(&mut agent).await.is_ok() {
+                cell.cleanup_pending.store(false, Ordering::Release);
+            }
+        }
+        if let Ok(mut notes) = cell.turn_notes.lock() {
+            notes.clear();
+        }
+        result?;
+        Ok(originlm_contracts::redact_conversation_text(&text))
+    }
+
     pub fn insert(
         &self,
         owner: &str,

@@ -38,6 +38,7 @@ struct Recorder {
 struct NativeAgent {
     model: String,
     persistent: bool,
+    fail_fold: bool,
     recorder: Recorder,
 }
 
@@ -49,14 +50,24 @@ impl Agent for NativeAgent {
         cx: TurnContext,
     ) -> BoxFuture<'a, ()> {
         Box::pin(async move {
+            let folding = prompt.contains("Summarize the conversation so far");
             self.recorder.turns.lock().unwrap().push(Turn {
                 model: self.model.clone(),
                 prompt,
                 messages: Vec::new(),
             });
-            cx.emit(EventPayload::TextDelta {
-                text: format!("native reply from {}", self.model),
-            })?;
+            if folding && self.fail_fold {
+                return Err(DomainError::new(
+                    ErrorCode::ProviderUnavailable,
+                    "fixture cannot summarize",
+                ));
+            }
+            let text = if folding {
+                format!("FOLDED SUMMARY from {}", self.model)
+            } else {
+                format!("native reply from {}", self.model)
+            };
+            cx.emit(EventPayload::TextDelta { text })?;
             Ok(())
         })
     }
@@ -139,6 +150,7 @@ fn snapshot() -> Snapshot {
         ("native-a", None),
         ("native-b", None),
         ("native-persistent", None),
+        ("native-fail-fold", None),
         ("http-a", None),
         ("http-b", None),
         ("http-small", Some("2048")),
@@ -202,9 +214,11 @@ fn setup(state: Option<std::path::PathBuf>) -> (Arc<NativeService>, Recorder) {
                         recorder,
                     })
                 } else {
+                    let fail_fold = model == "native-fail-fold";
                     let native: Box<dyn Agent> = Box::new(NativeAgent {
                         model,
                         persistent: input.persistent,
+                        fail_fold,
                         recorder,
                     });
                     match input.prior_history {
@@ -484,6 +498,71 @@ async fn credentials_are_redacted_before_the_handoff_is_stored() {
     assert!(!prompt.contains("supersecretsupersecret"));
     assert!(!prompt.contains("abcdefghijklmnop"));
     assert!(prompt.contains("[REDACTED]"));
+}
+
+#[tokio::test]
+async fn fold_before_switch_asks_the_old_model_and_seeds_its_summary() {
+    let (service, recorder) = setup(None);
+    let first = create(&service, "native-a", "conv-fold", Some("home summary")).await;
+    for index in 0..8 {
+        turn(
+            &service,
+            &first,
+            &format!("turn {index} {}", "x".repeat(900)),
+            &format!("fold-{index}"),
+        )
+        .await;
+    }
+    let second = switch(&service, &first, "http-small", None).await;
+    assert_eq!(second["history"]["folded"], true);
+    assert_eq!(second["history"]["trimmed"], true);
+    assert!(
+        recorder
+            .turns
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|turn| turn.model == "native-a"
+                && turn.prompt.contains("Summarize the conversation so far")),
+        "the old model was asked to fold the conversation"
+    );
+
+    turn(&service, &second, "after fold", "after-fold").await;
+    let messages = last_turn(&recorder, "http-small").messages;
+    let system = messages[0].text.as_str();
+    assert!(system.contains("FOLDED SUMMARY from native-a"));
+    assert!(system.contains("home summary"));
+    assert_eq!(messages.last().unwrap().text, "after fold");
+}
+
+#[tokio::test]
+async fn fold_falls_back_to_deterministic_trimming_when_the_old_model_cannot_summarize() {
+    let (service, recorder) = setup(None);
+    let first = create(&service, "native-fail-fold", "conv-fold-fallback", None).await;
+    for index in 0..8 {
+        turn(
+            &service,
+            &first,
+            &format!("fallback turn {index} {}", "y".repeat(900)),
+            &format!("fallback-{index}"),
+        )
+        .await;
+    }
+    let second = switch(&service, &first, "http-small", None).await;
+    assert_eq!(second["history"]["folded"], false);
+    assert_eq!(second["history"]["trimmed"], true);
+
+    turn(&service, &second, "after fallback", "after-fallback").await;
+    let messages = last_turn(&recorder, "http-small").messages;
+    let joined = messages
+        .iter()
+        .map(|message| message.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(!joined.contains("FOLDED SUMMARY"));
+    assert!(joined.contains("omitted to fit the target model"));
+    assert!(joined.contains("fallback turn 7 "));
+    assert!(!joined.contains("fallback turn 0 "));
 }
 
 #[tokio::test]

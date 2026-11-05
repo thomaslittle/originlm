@@ -181,6 +181,12 @@ pub struct SessionSwitchModelParams {
     /// Accept a paid target route. Omitted inherits the previous session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allow_paid: Option<bool>,
+    /// When the prior transcript exceeds the target model's budget, ask the
+    /// previous model for a compact summary before seeding the new session.
+    /// Defaults to true. If the old model cannot summarize, OriginLM falls
+    /// back to deterministic oldest-turn trimming.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<bool>,
 }
 /// Most host MCP servers a single session may attach.
 pub const MAX_HOST_MCP_SERVERS: usize = 2;
