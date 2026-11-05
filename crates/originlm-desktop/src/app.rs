@@ -600,11 +600,10 @@ impl Desktop {
         if changed {
             cx.notify();
         }
-        // One bounded metadata probe per connection that still needs evidence.
-        // The private runtime starts from a passive scan, where every auth state
-        // is "not checked"; probing once turns that into verified, cached or
-        // sign-in-required. A shared broker is only asked for authenticated
-        // connections that are missing a quota pool. Neither path starts
+        // A shared broker gets one bounded metadata probe per authenticated
+        // connection that is missing a quota pool. The private runtime starts
+        // from a passive scan and lets its background lanes turn "not checked"
+        // into verified, cached or sign-in-required. Neither path starts
         // inference or repeats a failed probe within this session.
         let local = self.credential.is_local();
         let mut missing = Vec::new();
