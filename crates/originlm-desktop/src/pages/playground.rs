@@ -73,7 +73,6 @@ impl Desktop {
             .paid_consent
             .is_armed_for(self.selected_model.as_deref());
         let (status, live) = self.playground_status();
-        let popover_h = (self.viewport_h * 0.48).clamp(220., 420.);
         let selected_label = selected
             .as_ref()
             .map(|choice| choice.label.clone())
@@ -243,7 +242,7 @@ impl Desktop {
         let picker = div()
             .id("model-picker")
             .w_full()
-            .h(px(popover_h))
+            .h_full()
             .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
@@ -365,7 +364,7 @@ impl Desktop {
         let effort_picker = div()
             .id("effort-picker")
             .w_full()
-            .h(px(popover_h))
+            .h_full()
             .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
@@ -864,7 +863,6 @@ impl Desktop {
 
         let composer = div()
             .id("playground-composer")
-            .relative()
             .m(px(sp::MD))
             .p(px(10.))
             .rounded(px(14.))
@@ -892,29 +890,7 @@ impl Desktop {
                             .child(effort),
                     )
                     .child(send),
-            )
-            .when(self.model_picker_open, |this| {
-                this.child(
-                    div()
-                        .absolute()
-                        .left(px(sp::MD))
-                        .right(px(sp::MD))
-                        .bottom(relative(1.0))
-                        .pb(px(sp::SM))
-                        .child(picker),
-                )
-            })
-            .when(self.effort_picker_open, |this| {
-                this.child(
-                    div()
-                        .absolute()
-                        .left(px(sp::MD))
-                        .right(px(sp::MD))
-                        .bottom(relative(1.0))
-                        .pb(px(sp::SM))
-                        .child(effort_picker),
-                )
-            });
+            );
 
         let transcript = ds::panel(&theme)
             .flex_1()
@@ -923,10 +899,30 @@ impl Desktop {
             .child(
                 div()
                     .id("playground-transcript")
+                    .relative()
                     .flex_1()
                     .min_h(px(0.))
-                    .overflow_y_scroll()
-                    .child(lines),
+                    .overflow_hidden()
+                    .child(
+                        div()
+                            .id("playground-transcript-scroll")
+                            .absolute()
+                            .inset_0()
+                            .overflow_y_scroll()
+                            .child(lines),
+                    )
+                    .when(self.model_picker_open, |this| {
+                        this.child(div().absolute().inset_0().p(px(sp::MD)).child(picker))
+                    })
+                    .when(self.effort_picker_open, |this| {
+                        this.child(
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .p(px(sp::MD))
+                                .child(effort_picker),
+                        )
+                    }),
             )
             .when_some(self.playground_error.clone(), |this, error| {
                 this.child(div().p(px(sp::MD)).child(ds::banner(

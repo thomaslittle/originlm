@@ -1054,7 +1054,6 @@ impl Desktop {
         };
         self.playground_error = None;
         self.usage_note = None;
-        self.transcript.clear();
         self.running = true;
         self.model_picker_open = false;
         let mut options = BTreeMap::new();
@@ -1066,11 +1065,15 @@ impl Desktop {
             role: TranscriptRole::You,
             text: prompt.clone(),
         });
-        // Consent covers this submitted run only; dispatching clears the switch.
-        let allow_paid = self
-            .selected_model
-            .as_deref()
-            .is_some_and(|model| self.paid_consent.take_for_run(model));
+        // A model the provider labels "free" can run without the paid-route
+        // switch even when its route does not report a billing class. Other
+        // unknown/paid routes still require the one-run consent.
+        let allow_paid = choice.label.to_ascii_lowercase().contains("free")
+            || choice.billing.to_ascii_lowercase().contains("free")
+            || self
+                .selected_model
+                .as_deref()
+                .is_some_and(|model| self.paid_consent.take_for_run(model));
         let _ = self
             .executor
             .commands

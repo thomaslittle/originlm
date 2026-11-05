@@ -712,6 +712,35 @@ async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut Test
         "second turn failed"
     );
 
+    let transcript = cx.update(|cx| {
+        desktop
+            .read(cx)
+            .transcript
+            .iter()
+            .map(|line| line.text.clone())
+            .collect::<Vec<_>>()
+    });
+    assert!(
+        transcript.iter().any(|text| text == "first e2e question"),
+        "the first user turn disappeared: {transcript:?}"
+    );
+    assert!(
+        transcript
+            .iter()
+            .any(|text| text.contains("e2e reply from model-local")),
+        "the first assistant reply disappeared: {transcript:?}"
+    );
+    assert!(
+        transcript.iter().any(|text| text == "second e2e question"),
+        "the second user turn is missing: {transcript:?}"
+    );
+    assert!(
+        transcript
+            .iter()
+            .any(|text| text.contains("e2e reply from model-go")),
+        "the second assistant reply is missing: {transcript:?}"
+    );
+
     let opened = opened.lock().unwrap().clone();
     assert_eq!(
         opened.len(),
