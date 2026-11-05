@@ -113,9 +113,9 @@ pub use originlm_contracts::{
 };
 use originlm_control::{BrokerClient, DEFAULT_CALL_TIMEOUT};
 pub use originlm_kit::{
-    AccountScope, ClientPolicy, ExecutableIdentity, ExecutionGrant, InventorySource, LocatedClient,
-    NativeClientRegistry, NativeProfile, NativeProvider, ScanResult, ScopedInventory,
-    ScopedProvider, scoped_inventory_source,
+    AccountScope, ClientPolicy, EndpointRegistry, ExecutableIdentity, ExecutionGrant,
+    InventorySource, LocatedClient, NativeClientRegistry, NativeProfile, NativeProvider,
+    ScanResult, ScopedInventory, ScopedProvider, scoped_inventory_source,
 };
 use originlm_kit::{EmbeddedClient, Kit};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -203,6 +203,9 @@ pub struct StartOptions {
     pub inventory: Option<InventorySource>,
     /// Host-owned native client registry applied by the in-process runtime.
     pub native_clients: NativeClientRegistry,
+    /// Explicit local/API endpoints for the in-process runtime. Empty by
+    /// default; inert for every mode except in-process.
+    pub endpoints: EndpointRegistry,
     /// Application label recorded for the in-process client. Defaults to
     /// `originlm-dependency`.
     pub app_label: Option<String>,
@@ -231,6 +234,7 @@ impl Default for StartOptions {
             home: None,
             inventory: None,
             native_clients: NativeClientRegistry::default(),
+            endpoints: EndpointRegistry::default(),
             app_label: None,
             allow_in_process: true,
             execution: false,
@@ -254,6 +258,7 @@ impl fmt::Debug for StartOptions {
             .field("home", &self.home)
             .field("inventory", &self.inventory.as_ref().map(|_| "custom"))
             .field("native_clients", &self.native_clients)
+            .field("endpoints", &self.endpoints.entries.len())
             .field("app_label", &self.app_label)
             .field("allow_in_process", &self.allow_in_process)
             .field("execution", &self.execution)
@@ -276,6 +281,7 @@ impl Clone for StartOptions {
             home: self.home.clone(),
             inventory: self.inventory.clone(),
             native_clients: self.native_clients.clone(),
+            endpoints: self.endpoints.clone(),
             app_label: self.app_label.clone(),
             allow_in_process: self.allow_in_process,
             execution: self.execution,
@@ -678,6 +684,8 @@ fn embedded_only_option(options: &StartOptions) -> Option<&'static str> {
         || options.native_clients.browser_blocker.is_some()
     {
         Some("native_clients")
+    } else if !options.endpoints.entries.is_empty() {
+        Some("endpoints")
     } else {
         None
     }
@@ -971,7 +979,9 @@ impl LocalAi {
         if let Some(inventory) = options.inventory.clone() {
             builder = builder.inventory(inventory);
         }
-        builder = builder.native_clients(options.native_clients.clone());
+        builder = builder
+            .native_clients(options.native_clients.clone())
+            .endpoints(options.endpoints.clone());
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
             .enable_all()
