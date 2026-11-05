@@ -35,7 +35,7 @@ that remains an independent OriginLM feature and is not part of this cache.
 
 The durable cache is `intelligence-cache.json` in the runtime state folder
 (`<state dir>/intelligence-cache.json`). It stores `fetchedAt`, the source, the
-current appended preference, and one record per RankLLMs slug. A cache written
+current app-default preference, and one record per RankLLMs slug. A cache written
 by an older source or a future format is ignored rather than guessed at.
 
 ## Ordering in the desktop app
