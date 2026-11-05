@@ -8,6 +8,8 @@ use crate::ui::{self, Tone};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{ActiveTheme, IconName, Theme};
 use gpui_kit::prelude::FluentBuilder as _;
+#[cfg(test)]
+use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
 use originlm_contracts::{BillingMode, Freshness, Observation, Snapshot};
 
@@ -332,8 +334,25 @@ fn provider_row(
             .child(status)
             .child(allowance_cell(view, tokens, theme))
     };
+    let window_summary = view
+        .windows
+        .iter()
+        .map(|window| match &window.reading {
+            Reading::Fraction(value) => format!("{} {:.0}%", window.label, value * 100.0),
+            Reading::Count(text) => format!("{} {}", window.label, text),
+            Reading::Unknown => format!("{} unknown", window.label),
+            Reading::Unavailable => format!("{} unavailable", window.label),
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
     let row_id = SharedString::from(format!("provider-row-{}", view.connection_id));
-    body.id(row_id)
+    let row = body
+        .id(row_id)
+        .aria_label(if window_summary.is_empty() {
+            format!("{}, {}", view.provider, view.account)
+        } else {
+            format!("{}, {}, {}", view.provider, view.account, window_summary)
+        })
         .cursor_pointer()
         .hover(|style| style.bg(theme.foreground.opacity(0.03)))
         .on_click(move |_, _, cx| {
@@ -342,8 +361,10 @@ fn provider_row(
                 this.selected_connection = Some(connection_id);
                 this.set_page(Page::Providers, cx);
             });
-        })
-        .into_any_element()
+        });
+    #[cfg(test)]
+    let row = row.test_support();
+    row.into_any_element()
 }
 
 impl Desktop {

@@ -188,6 +188,47 @@ pub fn auth_view(connection: &Connection) -> AuthView {
     }
 }
 
+/// The OpenCode plan a model comes from. OpenCode serves three catalogs on
+/// one connection: the free models in Zen, the paid Zen catalog, and Go.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelPlan {
+    Free,
+    Zen,
+    Go,
+    Local,
+}
+
+impl ModelPlan {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Free => "Free",
+            Self::Zen => "Zen",
+            Self::Go => "Go",
+            Self::Local => "Local",
+        }
+    }
+}
+
+pub fn model_plan(snapshot: &Snapshot, model: &Model) -> Option<ModelPlan> {
+    let route = route_for_model(snapshot, model)?;
+    Some(match route.provider_id.as_str() {
+        "opencode-go" => ModelPlan::Go,
+        "opencode" => {
+            // OpenCode's free models are named as such and carry a `-free`
+            // native id. Everything else on the Zen route is pay-as-you-go.
+            let name = model.name.to_ascii_lowercase();
+            let native = model.native_id.to_ascii_lowercase();
+            if native.ends_with("-free") || name.contains("free") {
+                ModelPlan::Free
+            } else {
+                ModelPlan::Zen
+            }
+        }
+        "ollama" => ModelPlan::Local,
+        _ => return None,
+    })
+}
+
 pub fn route_for_model<'a>(snapshot: &'a Snapshot, model: &Model) -> Option<&'a AccessRoute> {
     snapshot.routes.iter().find(|r| r.id == model.route_id)
 }
@@ -312,6 +353,59 @@ pub fn chart_variation(points: &[ChartPoint]) -> f64 {
     }
 }
 
+/// Passive discovery disambiguates duplicate executables and profile roots
+/// with indices. Those indices are useful in diagnostics, not in a row a
+/// person reads. Drop only the internal segments and keep meaningful ones.
+fn clean_display_name(name: &str, provider: &str) -> String {
+    let kept: Vec<&str> = name
+        .split(" · ")
+        .filter(|part| {
+            let lower = part.trim().to_ascii_lowercase();
+            !(lower == "default profile"
+                || lower.starts_with("additional profile")
+                || lower.starts_with("installation "))
+        })
+        .collect();
+    let joined = kept.join(" · ");
+    if joined.trim().is_empty() {
+        provider.to_string()
+    } else {
+        joined
+    }
+}
+
+fn clean_profile_label(label: &str) -> String {
+    let kept: Vec<&str> = label
+        .split(" · ")
+        .filter(|part| {
+            !part
+                .trim()
+                .to_ascii_lowercase()
+                .starts_with("installation ")
+        })
+        .collect();
+    let joined = kept.join(" · ");
+    let lower = joined.to_ascii_lowercase();
+    if lower == "default profile" {
+        "Default".into()
+    } else if lower.starts_with("additional profile") || joined.trim().is_empty() {
+        "Profile".into()
+    } else {
+        joined
+    }
+}
+
+fn short_account(id: &str) -> String {
+    let tail: String = id
+        .rsplit('_')
+        .next()
+        .unwrap_or(id)
+        .chars()
+        .take(6)
+        .collect();
+    format!("Account {tail}")
+}
+
 /// Collapse passive-discovery duplicates for the desktop view. Multiple
 /// command shims, profile roots and bundled copies of one client are one
 /// user-facing account unless the service reports distinct account ids.
@@ -401,6 +495,52 @@ pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
         .map(|connection| connection.id.clone())
         .collect();
     snapshot.connections = kept;
+    let provider_names: BTreeMap<String, String> = snapshot
+        .providers
+        .iter()
+        .map(|provider| (provider.id.clone(), provider.name.clone()))
+        .collect();
+    let account_labels: BTreeMap<String, String> = snapshot
+        .accounts
+        .iter()
+        .filter_map(|account| {
+            account
+                .display_label
+                .value()
+                .map(|label| (account.id.clone(), label.clone()))
+        })
+        .collect();
+    let mut provider_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for connection in &snapshot.connections {
+        *provider_counts
+            .entry(connection.provider_id.clone())
+            .or_default() += 1;
+    }
+    for connection in &mut snapshot.connections {
+        let provider = provider_names
+            .get(&connection.provider_id)
+            .cloned()
+            .unwrap_or_else(|| connection.provider_id.clone());
+        let mut label = clean_display_name(&connection.display_name, &provider);
+        if provider_counts
+            .get(&connection.provider_id)
+            .copied()
+            .unwrap_or(0)
+            > 1
+        {
+            let suffix = connection
+                .account_id
+                .as_ref()
+                .and_then(|id| account_labels.get(id).cloned())
+                .or_else(|| connection.account_id.as_deref().map(short_account))
+                .unwrap_or_else(|| "Account".into());
+            label = format!("{label} · {suffix}");
+        }
+        connection.display_name = label;
+    }
+    for profile in &mut snapshot.profiles {
+        profile.label = clean_profile_label(&profile.label);
+    }
     let kept_profiles: BTreeSet<String> = snapshot
         .connections
         .iter()
@@ -426,6 +566,13 @@ pub fn canonical_snapshot(mut snapshot: Snapshot) -> Snapshot {
     snapshot
         .routes
         .retain(|route| kept_routes.contains(&route.id));
+    for route in &mut snapshot.routes {
+        let provider = provider_names
+            .get(&route.provider_id)
+            .cloned()
+            .unwrap_or_else(|| route.provider_id.clone());
+        route.display_name = clean_display_name(&route.display_name, &provider);
+    }
     snapshot
         .models
         .retain(|model| kept_routes.contains(&model.route_id));
@@ -486,7 +633,7 @@ mod tests {
     use super::*;
     use originlm_contracts::{
         AccessRoute, AuthState, Connection, DataMode, EvidenceKind, EvidenceSource, Installation,
-        Model, Plan, Profile, QuotaPool, Snapshot, UsageWindow,
+        Model, Plan, Profile, Provider, QuotaPool, Snapshot, UsageWindow,
     };
 
     fn source() -> EvidenceSource {
@@ -700,6 +847,91 @@ mod tests {
         // The duplicate's route is gone; the window still belongs to the kept
         // connection and remains visible.
         assert!(canonical.quota_pools[0].route_ids.is_empty());
+    }
+
+    #[test]
+    fn canonical_snapshot_removes_installation_indices_from_user_facing_names() {
+        let mut snapshot = snapshot_with(vec![connection(
+            "opencode-main",
+            "opencode",
+            None,
+            AuthState::Authenticated,
+            "metadata_ready",
+        )]);
+        snapshot.providers.push(Provider {
+            id: "opencode".into(),
+            name: "OpenCode".into(),
+            kind: "gateway".into(),
+        });
+        snapshot.connections[0].display_name = "OpenCode · Default profile · Installation 2".into();
+        snapshot.profiles[0].label = "Default profile · Installation 2".into();
+        snapshot.routes[0].display_name = "OpenCode · Default profile · Installation 2".into();
+
+        let canonical = canonical_snapshot(snapshot);
+
+        assert_eq!(canonical.connections[0].display_name, "OpenCode");
+        assert_eq!(canonical.profiles[0].label, "Default");
+        assert_eq!(canonical.routes[0].display_name, "OpenCode");
+    }
+
+    #[test]
+    fn opencode_models_are_labeled_by_the_plan_route() {
+        let mut snapshot = Snapshot::empty(DataMode::Live);
+        for (id, provider) in [
+            ("zen-route", "opencode"),
+            ("go-route", "opencode-go"),
+            ("local-route", "ollama"),
+        ] {
+            snapshot.routes.push(AccessRoute {
+                id: id.into(),
+                connection_id: "connection".into(),
+                provider_id: provider.into(),
+                display_name: id.into(),
+                billing: Observation::reported(BillingMode::Subscription, source()),
+                capabilities: Vec::new(),
+                catalog_revision: "1".into(),
+            });
+        }
+        for (id, route, name, native) in [
+            (
+                "free",
+                "zen-route",
+                "Crouton Alpha Free",
+                "crouton-alpha-free",
+            ),
+            ("zen", "zen-route", "Claude Haiku 5.5", "claude-haiku-5-5"),
+            ("go", "go-route", "Kimi K3.1 Pro", "kimi-k3.1-pro"),
+            ("local", "local-route", "KAT-Coder", "kat-coder"),
+            ("go-free", "go-route", "Beam Free", "beam-free"),
+        ] {
+            snapshot.models.push(Model {
+                id: id.into(),
+                route_id: route.into(),
+                native_id: native.into(),
+                name: name.into(),
+                revision: "1".into(),
+                is_default: false,
+                capabilities: Vec::new(),
+                options: Vec::new(),
+                context_window: Observation::unknown("not reported"),
+            });
+        }
+
+        let plans: Vec<Option<ModelPlan>> = snapshot
+            .models
+            .iter()
+            .map(|model| model_plan(&snapshot, model))
+            .collect();
+        assert_eq!(
+            plans,
+            vec![
+                Some(ModelPlan::Free),
+                Some(ModelPlan::Zen),
+                Some(ModelPlan::Go),
+                Some(ModelPlan::Local),
+                Some(ModelPlan::Go),
+            ]
+        );
     }
 
     #[test]

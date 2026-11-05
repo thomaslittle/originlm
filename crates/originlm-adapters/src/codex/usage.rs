@@ -66,7 +66,7 @@ pub(super) fn parse_usage(
                 .and_then(|secs| u32::try_from(secs).ok());
             windows.push(UsageWindow {
                 id: stable_id("window", &[&pool_id, key]),
-                label: format!("{} · {key}", text(&bucket["limitName"]).unwrap_or("Codex")),
+                label: window_label(key, duration_seconds),
                 reading: Observation::reported(reading, source.clone()),
                 resets_at,
                 duration_seconds,
@@ -110,6 +110,34 @@ pub(super) fn parse_usage(
     Ok(pools)
 }
 
+/// Codex reports anonymous `primary` and `secondary` buckets. Name them by
+/// the duration the provider actually sent: a 300-minute window is the 5-hour
+/// limit and a 10,080-minute window is the weekly limit.
+fn window_label(key: &str, duration_seconds: Option<u32>) -> String {
+    match duration_seconds {
+        Some(seconds) if seconds < 3_600 => format!("{} min", (seconds + 30) / 60),
+        Some(seconds) if seconds < 86_400 => {
+            let hours = seconds / 3_600;
+            let minutes = (seconds % 3_600) / 60;
+            if minutes == 0 {
+                format!("{hours} hr")
+            } else {
+                format!("{hours} hr {minutes} min")
+            }
+        }
+        Some(86_400) => "Daily".into(),
+        Some(604_800) => "Weekly".into(),
+        Some(2_592_000) => "Monthly".into(),
+        Some(seconds) if seconds % 86_400 == 0 => format!("{} days", seconds / 86_400),
+        Some(seconds) => format!("{} hr", seconds / 3_600),
+        None => match key {
+            "primary" => "Primary".into(),
+            "secondary" => "Secondary".into(),
+            other => other.to_owned(),
+        },
+    }
+}
+
 /// `remainingPercent` is what is left of the monthly credit allowance.
 /// A missing or non-finite value is not a zero balance.
 fn individual_credit_used_percent(limit: Option<&Value>) -> Option<String> {
@@ -127,5 +155,26 @@ fn percent_decimal(value: f64) -> String {
         "0".into()
     } else {
         trimmed.to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::window_label;
+
+    #[test]
+    fn codex_windows_are_named_by_the_duration_the_provider_sent() {
+        assert_eq!(window_label("primary", Some(300 * 60)), "5 hr");
+        assert_eq!(window_label("secondary", Some(10_080 * 60)), "Weekly");
+        assert_eq!(window_label("primary", Some(1_440 * 60)), "Daily");
+        assert_eq!(window_label("window", Some(30 * 1_440 * 60)), "Monthly");
+        assert_eq!(window_label("primary", Some(90 * 60)), "1 hr 30 min");
+        assert_eq!(window_label("primary", Some(30 * 60)), "30 min");
+    }
+
+    #[test]
+    fn missing_duration_falls_back_to_the_native_bucket_name() {
+        assert_eq!(window_label("primary", None), "Primary");
+        assert_eq!(window_label("secondary", None), "Secondary");
     }
 }
