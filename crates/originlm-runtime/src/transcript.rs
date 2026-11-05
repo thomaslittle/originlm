@@ -260,7 +260,7 @@ pub fn build_prior_with_summary(
     if let Some(text) = summary.as_mut() {
         // Leave at least half the seed for verbatim recent turns; a summary
         // that does not fit is cut at a character boundary and reported.
-        let max = (budget_bytes / 2).max(1_024).min(MAX_FOLD_SUMMARY_BYTES);
+        let max = (budget_bytes / 2).clamp(1_024, MAX_FOLD_SUMMARY_BYTES);
         if text.len() > max {
             let mut cut = truncate_utf8(text, max);
             cut.push_str("\n[summary truncated]");
