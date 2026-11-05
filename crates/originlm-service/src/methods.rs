@@ -253,7 +253,7 @@ impl NativeService {
                 let route = params::text(p, "routeId")?;
                 let intelligence = self.intelligence.catalog();
                 let sort = crate::catalog::SortMode::parse(
-                    params::text(p, "sort")?.as_deref(),
+                    params::text(p, "sort")?,
                     intelligence.default_sort_for_apps,
                 )?;
                 let mut models = snapshot

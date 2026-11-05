@@ -106,10 +106,7 @@ pub fn intelligence_key(value: &str) -> String {
 /// mistaken for `claude-sonnet-4-5`.
 fn strip_catalog_suffixes(key: &str) -> String {
     let mut parts: Vec<&str> = key.split('-').collect();
-    loop {
-        let Some(last) = parts.last().copied() else {
-            break;
-        };
+    while let Some(last) = parts.last().copied() {
         let dated =
             (last.len() == 8 || last.len() == 4) && last.bytes().all(|byte| byte.is_ascii_digit());
         if dated && parts.len() > 1 {
