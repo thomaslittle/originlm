@@ -241,6 +241,9 @@ pub struct Desktop {
     pub palette_input: Entity<InputState>,
     pub palette_query: String,
     pub search: Entity<InputState>,
+    /// Search field inside the Playground model popover.
+    pub model_search: Entity<InputState>,
+    pub model_query: String,
     pub prompt: Entity<TextareaState>,
     /// Images staged for the next Playground turn, in selection order.
     pub attachments: Vec<PathBuf>,
@@ -321,6 +324,8 @@ impl Desktop {
         let palette_input = cx
             .new(|cx| InputState::new(window, cx).placeholder("Jump to a page, model or action…"));
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search models…"));
+        let model_search =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Search models and providers…"));
         let price_fields = std::array::from_fn(|index| {
             cx.new(|cx| {
                 InputState::new(window, cx).placeholder(
@@ -387,6 +392,16 @@ impl Desktop {
             }
         }));
 
+        subscriptions.push(cx.subscribe_in(&model_search, window, {
+            let input = model_search.clone();
+            move |this: &mut Desktop, _, event: &InputEvent, _, cx| {
+                if matches!(event, InputEvent::Change) {
+                    this.model_query = input.read(cx).value().to_string();
+                    cx.notify();
+                }
+            }
+        }));
+
         let mut this = Self {
             example,
             page: std::env::var("LAI_DESKTOP_PAGE")
@@ -406,6 +421,8 @@ impl Desktop {
             palette_input,
             palette_query: String::new(),
             search,
+            model_search,
+            model_query: String::new(),
             prompt,
             attachments: Vec::new(),
             selected_effort: None,

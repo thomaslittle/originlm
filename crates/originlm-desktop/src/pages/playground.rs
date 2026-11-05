@@ -10,7 +10,7 @@ use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
     ActiveTheme, Icon, IconName, Sizable, Size,
     button::{Button, ButtonVariants},
-    input::Textarea,
+    input::{Input, Textarea},
     switch::Switch,
 };
 use gpui_kit::prelude::FluentBuilder as _;
@@ -99,12 +99,19 @@ impl Desktop {
         }
         providers.sort_by(|a, b| a.1.cmp(&b.1));
         let active_provider = self.model_provider_filter.clone();
+        let query = self.model_query.trim().to_ascii_lowercase();
         let visible_choices: Vec<_> = choices
             .iter()
             .filter(|choice| {
                 active_provider
                     .as_ref()
                     .is_none_or(|provider| provider == &choice.provider_id)
+            })
+            .filter(|choice| {
+                query.is_empty()
+                    || choice.label.to_ascii_lowercase().contains(&query)
+                    || choice.model_id.to_ascii_lowercase().contains(&query)
+                    || choice.connection.to_ascii_lowercase().contains(&query)
             })
             .collect();
 
@@ -149,6 +156,17 @@ impl Desktop {
                         this.text_color(theme.muted_foreground)
                             .hover(|style| style.bg(theme.muted).text_color(theme.foreground))
                     })
+                    .children(provider.as_deref().and_then(|provider| {
+                        crate::icons::provider_mark(
+                            provider,
+                            12.,
+                            if selected {
+                                theme.primary
+                            } else {
+                                theme.muted_foreground
+                            },
+                        )
+                    }))
                     .child(label)
                     .on_click(move |_, _, cx| {
                         entity.update(cx, |this, cx| {
@@ -162,8 +180,12 @@ impl Desktop {
         let model_rows = if visible_choices.is_empty() {
             ds::state(
                 ds::StateKind::Empty,
-                "No models for this app",
-                "Choose another provider tab or refresh the model catalog.",
+                "No models match",
+                if query.is_empty() {
+                    "Choose another provider tab or refresh the model catalog."
+                } else {
+                    "Search matches model names, ids, providers and connections."
+                },
                 &theme,
             )
             .into_any_element()
@@ -268,6 +290,12 @@ impl Desktop {
                                 });
                             })
                     }),
+            )
+            .child(
+                div()
+                    .px(px(10.))
+                    .pb(px(8.))
+                    .child(Input::new(&self.model_search)),
             )
             .child(provider_tabs)
             .child(
