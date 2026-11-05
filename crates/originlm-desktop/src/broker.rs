@@ -521,6 +521,58 @@ pub fn spawn_executor(credential: Credential, example: bool) -> ExecHandle {
     }
 }
 
+/// Decode, downscale and recompress an attachment so the JSON-RPC frame and
+/// the runtime input limits are respected. Photos go to JPEG; PNG stays PNG
+/// when it still fits, otherwise it falls back to JPEG.
+fn prepare_attachment(
+    bytes: Vec<u8>,
+    original_media: &str,
+) -> std::result::Result<(&'static str, Vec<u8>), String> {
+    let image = image::load_from_memory(&bytes).map_err(|error| error.to_string())?;
+    let edge = originlm_contracts::MAX_INPUT_IMAGE_EDGE;
+    let image = if image.width() > edge || image.height() > edge {
+        image.resize(edge, edge, image::imageops::FilterType::Lanczos3)
+    } else {
+        image
+    };
+    let max_bytes = originlm_contracts::MAX_INPUT_IMAGE_BYTES;
+    let mut output = Vec::new();
+    if original_media == "image/png" {
+        image
+            .write_to(
+                &mut std::io::Cursor::new(&mut output),
+                image::ImageFormat::Png,
+            )
+            .map_err(|error| error.to_string())?;
+        if output.len() <= max_bytes {
+            return Ok(("image/png", output));
+        }
+        output.clear();
+    }
+    for quality in [82u8, 72, 62] {
+        output.clear();
+        let rgb = image.to_rgb8();
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, quality);
+        encoder
+            .encode_image(&rgb)
+            .map_err(|error| error.to_string())?;
+        if output.len() <= max_bytes {
+            return Ok(("image/jpeg", output));
+        }
+    }
+    let smaller = image.resize(1_600, 1_600, image::imageops::FilterType::Lanczos3);
+    output.clear();
+    let rgb = smaller.to_rgb8();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut output, 70);
+    encoder
+        .encode_image(&rgb)
+        .map_err(|error| error.to_string())?;
+    if output.len() > max_bytes {
+        return Err("image is still too large after compression".into());
+    }
+    Ok(("image/jpeg", output))
+}
+
 fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sender<ExecEvent>) {
     let mut client: Option<BrokerClient> = None;
     #[allow(unused_assignments)]
@@ -615,6 +667,16 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                             ),
                         });
                         continue 'commands;
+                    };
+                    let (media, bytes) = match prepare_attachment(bytes, media) {
+                        Ok(prepared) => prepared,
+                        Err(error) => {
+                            let _ = active.call("sessions.close", json!({"sessionId": session_id}));
+                            let _ = events.send(ExecEvent::Failed {
+                                error: format!("Could not prepare {}: {error}", path.display()),
+                            });
+                            continue 'commands;
+                        }
                     };
                     use base64::Engine as _;
                     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
@@ -788,4 +850,29 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
         client.close();
     }
     let _ = TryRecvError::Empty;
+}
+
+#[cfg(test)]
+mod attachment_tests {
+    use super::prepare_attachment;
+
+    #[test]
+    fn large_images_are_downscaled_and_fit_the_input_budget() {
+        let image = image::RgbaImage::from_fn(2_200, 1_600, |x, y| {
+            image::Rgba([(x % 256) as u8, (y % 256) as u8, 90, 255])
+        });
+        let mut source = Vec::new();
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut source),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        let (media, prepared) = prepare_attachment(source, "image/png").unwrap();
+        assert!(prepared.len() <= originlm_contracts::MAX_INPUT_IMAGE_BYTES);
+        assert!(matches!(media, "image/png" | "image/jpeg"));
+        let decoded = image::load_from_memory(&prepared).unwrap();
+        assert!(decoded.width() <= originlm_contracts::MAX_INPUT_IMAGE_EDGE);
+        assert!(decoded.height() <= originlm_contracts::MAX_INPUT_IMAGE_EDGE);
+    }
 }
