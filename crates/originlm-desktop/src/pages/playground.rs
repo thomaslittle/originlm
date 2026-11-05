@@ -12,6 +12,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants},
     input::{Input, Textarea},
     switch::Switch,
+    tooltip::Tooltip,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
@@ -72,6 +73,7 @@ impl Desktop {
             .paid_consent
             .is_armed_for(self.selected_model.as_deref());
         let (status, live) = self.playground_status();
+        let popover_h = (self.viewport_h * 0.48).clamp(220., 420.);
         let selected_label = selected
             .as_ref()
             .map(|choice| choice.label.clone())
@@ -130,44 +132,43 @@ impl Desktop {
             .children(tabs.into_iter().map(|(provider, label)| {
                 let selected = active_provider == provider;
                 let entity = entity.clone();
+                let tip = label.clone();
                 let id = provider
                     .as_deref()
                     .map(|provider| format!("model-provider-{provider}"))
                     .unwrap_or_else(|| "model-provider-all".into());
+                let icon_color = if selected {
+                    theme.primary
+                } else {
+                    theme.muted_foreground
+                };
                 div()
                     .id(SharedString::from(id))
                     .role(gpui::Role::Tab)
-                    .aria_label(label.clone())
+                    .aria_label(label)
                     .h_flex()
                     .items_center()
-                    .h(px(28.))
-                    .px(px(9.))
+                    .justify_center()
+                    .h(px(36.))
+                    .min_w(px(36.))
+                    .px(px(6.))
                     .rounded(px(8.))
-                    .text_size(px(11.))
-                    .font_weight(FontWeight::MEDIUM)
                     .cursor_pointer()
                     .when(selected, |this| {
-                        this.bg(theme.muted)
-                            .border_1()
-                            .border_color(theme.border)
-                            .text_color(theme.foreground)
+                        this.bg(theme.muted).border_1().border_color(theme.border)
                     })
-                    .when(!selected, |this| {
-                        this.text_color(theme.muted_foreground)
-                            .hover(|style| style.bg(theme.muted).text_color(theme.foreground))
-                    })
+                    .when(!selected, |this| this.hover(|style| style.bg(theme.muted)))
+                    .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
                     .children(provider.as_deref().and_then(|provider| {
-                        crate::icons::provider_mark(
-                            provider,
-                            12.,
-                            if selected {
-                                theme.primary
-                            } else {
-                                theme.muted_foreground
-                            },
-                        )
+                        crate::icons::provider_mark(provider, 20., icon_color)
                     }))
-                    .child(label)
+                    .when(provider.is_none(), |this| {
+                        this.child(asset_icon(
+                            gpui_kit::assets::IconName::LayoutDashboard,
+                            20.,
+                            icon_color,
+                        ))
+                    })
                     .on_click(move |_, _, cx| {
                         entity.update(cx, |this, cx| {
                             this.model_provider_filter = provider.clone();
@@ -242,7 +243,7 @@ impl Desktop {
         let picker = div()
             .id("model-picker")
             .w_full()
-            .flex_1()
+            .h(px(popover_h))
             .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
@@ -364,7 +365,7 @@ impl Desktop {
         let effort_picker = div()
             .id("effort-picker")
             .w_full()
-            .flex_1()
+            .h(px(popover_h))
             .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
@@ -425,7 +426,11 @@ impl Desktop {
             } else {
                 let current = self.effort_value();
                 div()
+                    .id("effort-picker-list")
                     .v_flex()
+                    .flex_1()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
                     .py(px(4.))
                     .children(effort_choices.into_iter().map(|(value, label)| {
                         let selected = current.as_deref() == Some(value.as_str());
@@ -744,8 +749,8 @@ impl Desktop {
             .id("attach-images")
             .role(gpui::Role::Button)
             .aria_label("Attach images")
-            .w(px(30.))
-            .h(px(30.))
+            .w(px(34.))
+            .h(px(34.))
             .rounded(px(9.))
             .flex()
             .items_center()
@@ -754,7 +759,7 @@ impl Desktop {
             .hover(|style| style.bg(theme.muted))
             .child(asset_icon(
                 gpui_kit::assets::IconName::Paperclip,
-                15.,
+                18.,
                 theme.muted_foreground,
             ))
             .on_click(move |_, _, cx| {
@@ -769,7 +774,7 @@ impl Desktop {
             .h_flex()
             .items_center()
             .gap(px(6.))
-            .h(px(30.))
+            .h(px(34.))
             .pl(px(6.))
             .pr(px(7.))
             .rounded(px(9.))
@@ -788,7 +793,7 @@ impl Desktop {
                 } else {
                     selected_icon.as_str()
                 },
-                14.,
+                18.,
                 theme.primary,
             ))
             .child(
@@ -829,14 +834,14 @@ impl Desktop {
                 .h_flex()
                 .items_center()
                 .gap(px(5.))
-                .h(px(30.))
+                .h(px(34.))
                 .px(px(8.))
                 .rounded(px(9.))
                 .cursor_pointer()
                 .hover(|style| style.bg(theme.muted))
                 .child(asset_icon(
                     gpui_kit::assets::IconName::Gauge,
-                    14.,
+                    18.,
                     theme.muted_foreground,
                 ))
                 .child(
@@ -859,6 +864,7 @@ impl Desktop {
 
         let composer = div()
             .id("playground-composer")
+            .relative()
             .m(px(sp::MD))
             .p(px(10.))
             .rounded(px(14.))
@@ -886,26 +892,42 @@ impl Desktop {
                             .child(effort),
                     )
                     .child(send),
-            );
+            )
+            .when(self.model_picker_open, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .left(px(sp::MD))
+                        .right(px(sp::MD))
+                        .bottom(relative(1.0))
+                        .pb(px(sp::SM))
+                        .child(picker),
+                )
+            })
+            .when(self.effort_picker_open, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .left(px(sp::MD))
+                        .right(px(sp::MD))
+                        .bottom(relative(1.0))
+                        .pb(px(sp::SM))
+                        .child(effort_picker),
+                )
+            });
 
-        let body = if self.model_picker_open {
-            picker.into_any_element()
-        } else if self.effort_picker_open {
-            effort_picker.into_any_element()
-        } else {
-            div()
-                .id("playground-transcript")
-                .flex_1()
-                .min_h(px(0.))
-                .overflow_y_scroll()
-                .child(lines)
-                .into_any_element()
-        };
         let transcript = ds::panel(&theme)
             .flex_1()
             .min_w(px(0.))
             .child(header)
-            .child(body)
+            .child(
+                div()
+                    .id("playground-transcript")
+                    .flex_1()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
+                    .child(lines),
+            )
             .when_some(self.playground_error.clone(), |this, error| {
                 this.child(div().p(px(sp::MD)).child(ds::banner(
                     Tone::Red,
