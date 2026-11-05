@@ -22,6 +22,30 @@ pub struct Session {
     pub state: SessionState,
     pub created_at: Timestamp,
     pub native_resumption: bool,
+    /// Stable host-facing conversation identity. Sessions created with the
+    /// same id share OriginLM's canonical transcript, so a different model can
+    /// continue the conversation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
+    /// What prior conversation was seeded into this session, including any
+    /// deterministic trimming. Absent when nothing was carried forward.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history: Option<SessionHistory>,
+}
+
+/// How much prior conversation OriginLM seeded into a newly opened session.
+/// Trimming is reported, never silent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionHistory {
+    /// Turns carried forward verbatim.
+    pub turns: u32,
+    /// Older turns dropped to fit the target model's context budget.
+    pub omitted_turns: u32,
+    /// Conservative byte-based estimate of the seeded conversation.
+    pub estimated_tokens: u64,
+    /// True when any turn, stored or target-budget trimming, was omitted.
+    pub trimmed: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(

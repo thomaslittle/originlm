@@ -41,6 +41,12 @@ pub(crate) struct DurableResume {
     pub billing: Option<BillingMode>,
     pub native_session_id: String,
     pub issued_at: u64,
+    /// Canonical conversation carried across a later model switch. Optional so
+    /// tokens sealed before conversation handoff existed still open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
 }
 
 /// Lazily loads (or creates) the per-install resume key.
@@ -195,6 +201,8 @@ mod tests {
             billing: Some(BillingMode::Subscription),
             native_session_id: "native-secret-session".into(),
             issued_at: 1,
+            conversation_id: Some("conv-test".into()),
+            instructions: Some("test instructions".into()),
         }
     }
     #[test]

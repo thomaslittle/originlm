@@ -2050,6 +2050,9 @@
           "sessions.suspend": {
             "$ref": "#/components/schemas/SessionParams"
           },
+          "sessions.switchModel": {
+            "$ref": "#/components/schemas/SessionSwitchModelParams"
+          },
           "sessions.updateOptions": {
             "$ref": "#/components/schemas/SessionOptionsParams"
           },
@@ -2098,6 +2101,7 @@
           "grants.list",
           "grants.revoke",
           "sessions.create",
+          "sessions.switchModel",
           "sessions.get",
           "sessions.suspend",
           "sessions.resume",
@@ -2257,6 +2261,9 @@
           "sessions.suspend": {
             "$ref": "#/components/schemas/SessionSuspendResult"
           },
+          "sessions.switchModel": {
+            "$ref": "#/components/schemas/Session"
+          },
           "sessions.updateOptions": {
             "$ref": "#/components/schemas/Session"
           },
@@ -2306,6 +2313,7 @@
           "grants.list",
           "grants.revoke",
           "sessions.create",
+          "sessions.switchModel",
           "sessions.get",
           "sessions.suspend",
           "sessions.resume",
@@ -3783,8 +3791,26 @@
           "connectionId": {
             "type": "string"
           },
+          "conversationId": {
+            "description": "Stable host-facing conversation identity. Sessions created with the\nsame id share OriginLM's canonical transcript, so a different model can\ncontinue the conversation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "createdAt": {
             "$ref": "#/components/schemas/Timestamp"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionHistory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What prior conversation was seeded into this session, including any\ndeterministic trimming. Absent when nothing was carried forward."
           },
           "id": {
             "type": "string"
@@ -3816,12 +3842,26 @@
             "default": false,
             "type": "boolean"
           },
+          "conversationId": {
+            "description": "Host-owned conversation identity. Sessions created with the same id\nshare OriginLM's canonical transcript, so a new model can continue the\nconversation. Omit for a new conversation; the returned session carries\nthe generated id. Never put credentials in this value.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "hostMcpServers": {
             "description": "Host-owned loopback MCP servers attached to a native-client session.\nIn the default read-only mode, only these listed tools may be called.\nThe separately granted `native_policy` mode also enables the native\nclient's own tools and policy.",
             "items": {
               "$ref": "#/components/schemas/HostMcpServer"
             },
             "type": "array"
+          },
+          "instructions": {
+            "description": "Application instructions for this conversation (for example a compact\nhome or workspace summary). This is kept out of the trimmed transcript\nand is sent once, when the new provider session starts.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "permissionMode": {
             "default": null,
@@ -3848,6 +3888,41 @@
         "required": [
           "selection",
           "workspaceId"
+        ],
+        "type": "object"
+      },
+      "SessionHistory": {
+        "additionalProperties": false,
+        "description": "How much prior conversation OriginLM seeded into a newly opened session.\nTrimming is reported, never silent.",
+        "properties": {
+          "estimatedTokens": {
+            "description": "Conservative byte-based estimate of the seeded conversation.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "omittedTurns": {
+            "description": "Older turns dropped to fit the target model's context budget.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trimmed": {
+            "description": "True when any turn, stored or target-budget trimming, was omitted.",
+            "type": "boolean"
+          },
+          "turns": {
+            "description": "Turns carried forward verbatim.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "turns",
+          "omittedTurns",
+          "estimatedTokens",
+          "trimmed"
         ],
         "type": "object"
       },
@@ -3921,6 +3996,45 @@
         },
         "required": [
           "resumeToken"
+        ],
+        "type": "object"
+      },
+      "SessionSwitchModelParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaid": {
+            "description": "Accept a paid target route. Omitted inherits the previous session.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "instructions": {
+            "description": "Replace the application instructions. Omitted keeps the current ones.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "persistent": {
+            "description": "Keep the new provider conversation resumable after a helper restart.\nOmitted inherits the previous session when the target route supports it.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection",
+            "description": "Target route, model, revision and provider options."
+          },
+          "sessionId": {
+            "description": "The session whose canonical transcript is carried forward. It must be\nidle or completed; it is closed after the replacement session opens.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "selection"
         ],
         "type": "object"
       },
@@ -5781,6 +5895,32 @@
                       },
                       "params": {
                         "$ref": "#/components/schemas/SessionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.switchModel"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionSwitchModelParams"
                       }
                     },
                     "required": [

@@ -36,4 +36,4 @@ pub use catalog::parse_catalog;
 mod probe;
 pub use probe::probe;
 mod chat;
-pub use chat::executor;
+pub use chat::{executor, executor_with_history};

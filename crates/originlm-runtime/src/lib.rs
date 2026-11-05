@@ -3,11 +3,16 @@ mod artifact;
 mod costs;
 mod engine;
 mod journal;
+pub mod transcript;
 mod turn;
 pub use engine::Runtime;
 use originlm_contracts::*;
 use serde_json::Value;
 use std::{collections::BTreeMap, future::Future, pin::Pin, sync::Arc};
+pub use transcript::{
+    PriorHistory, PriorTurn, SeedMessage, SeedRole, Transcript, TranscriptTurn, build_prior,
+    prelude_agent,
+};
 pub use turn::{ImageInput, TurnContext};
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
 pub type Guard = Arc<dyn Fn() -> Result<()> + Send + Sync>;

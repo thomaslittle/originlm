@@ -1550,6 +1550,8 @@ mod tests {
             allow_paid: false,
             host_mcp_servers: vec![],
             persistent: false,
+            conversation_id: None,
+            instructions: None,
         }
     }
 
