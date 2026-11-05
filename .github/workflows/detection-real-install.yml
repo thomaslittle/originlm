@@ -1,6 +1,19 @@
 name: Detection real install
+# This is an OS-level real-install soak: it downloads CLIs, Homebrew casks and
+# an Ollama model. It is not a default PR gate. Run it nightly, on demand, and
+# on PRs that actually change detection/installation behavior.
 on:
+  schedule:
+    - cron: '0 6 * * *'
   pull_request:
+    paths:
+      - 'crates/originlm-discovery/**'
+      - 'crates/originlm-adapters/**'
+      - 'crates/originlm-cli/**'
+      - 'crates/originlm-platform/**'
+      - 'scripts/test_detection_real_install.py'
+      - 'scripts/test_local_models_real_install.py'
+      - '.github/workflows/detection-real-install.yml'
   push:
     branches: [main]
   workflow_dispatch:

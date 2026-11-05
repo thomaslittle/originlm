@@ -43,6 +43,10 @@ cargo build --locked -p originlm-cli
 | React Doctor (must report zero warnings or errors) | `npm run doctor` |
 | Everything CI runs | `python scripts/verify.py --profile all` |
 
+See [TESTING.md](TESTING.md) for the test pyramid, desktop in-process view
+tests, nextest settings, and which OS-level checks are deliberately not PR
+gates.
+
 Contract changes start in `crates/originlm-contracts`; `protocol/` and both SDKs' `generated.*` files are generated from it and must be committed together with the change.
 
 ## Making a change

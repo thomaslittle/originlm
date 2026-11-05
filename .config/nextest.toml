@@ -1,0 +1,17 @@
+# Nextest is optional locally (`cargo nextest run`); CI uses plain cargo test.
+# A test that hangs for two full periods is terminated so a deadlock cannot
+# consume the job timeout. Slow builds are not affected: this is per test.
+[profile.default]
+fail-fast = false
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+# Desktop view tests render a real GPUI tree; keep their budget tighter than
+# the workspace default so a stuck render fails quickly.
+[[profile.default.overrides]]
+filter = "package(originlm-desktop)"
+slow-timeout = { period = "30s", terminate-after = 3 }
+
+[profile.ci]
+fail-fast = false
+retries = 0
+slow-timeout = { period = "60s", terminate-after = 2 }
