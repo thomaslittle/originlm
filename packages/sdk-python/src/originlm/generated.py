@@ -269,7 +269,7 @@ Session = TypedDict('Session', {'connectionId': Required[str], 'conversationId':
 
 SessionCreateParams = TypedDict('SessionCreateParams', {'allowPaid': NotRequired[bool], 'conversationId': NotRequired[Union[str, None]], 'hostMcpServers': NotRequired[List['HostMcpServer']], 'instructions': NotRequired[Union[str, None]], 'permissionMode': NotRequired[Union[str, None]], 'persistent': NotRequired[bool], 'reviewRequests': NotRequired[bool], 'selection': Required['Selection'], 'workspaceId': Required[str]}, total=False)
 
-SessionHistory = TypedDict('SessionHistory', {'estimatedTokens': Required[int], 'omittedTurns': Required[int], 'trimmed': Required[bool], 'turns': Required[int]}, total=False)
+SessionHistory = TypedDict('SessionHistory', {'estimatedTokens': Required[int], 'folded': NotRequired[bool], 'omittedTurns': Required[int], 'trimmed': Required[bool], 'turns': Required[int]}, total=False)
 
 SessionOptionsParams = TypedDict('SessionOptionsParams', {'options': Required[Dict[str, Any]], 'sessionId': Required[str]}, total=False)
 
@@ -281,7 +281,7 @@ SessionState: TypeAlias = Literal['ready', 'running', 'awaiting_approval', 'comp
 
 SessionSuspendResult = TypedDict('SessionSuspendResult', {'resumeToken': Required[str]}, total=False)
 
-SessionSwitchModelParams = TypedDict('SessionSwitchModelParams', {'allowPaid': NotRequired[Union[bool, None]], 'instructions': NotRequired[Union[str, None]], 'persistent': NotRequired[Union[bool, None]], 'selection': Required['Selection'], 'sessionId': Required[str]}, total=False)
+SessionSwitchModelParams = TypedDict('SessionSwitchModelParams', {'allowPaid': NotRequired[Union[bool, None]], 'fold': NotRequired[Union[bool, None]], 'instructions': NotRequired[Union[str, None]], 'persistent': NotRequired[Union[bool, None]], 'selection': Required['Selection'], 'sessionId': Required[str]}, total=False)
 
 SetPricesParams = TypedDict('SetPricesParams', {'prices': Required[List['ModelPrice']]}, total=False)
 

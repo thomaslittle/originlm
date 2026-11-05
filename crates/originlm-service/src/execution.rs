@@ -5,7 +5,7 @@ use originlm_core::{project_snapshot, validate_selection};
 use originlm_discovery::LocatedClient;
 use originlm_runtime::{
     Agent, BoxFuture, Runtime,
-    transcript::{PriorHistory, build_prior},
+    transcript::{PriorHistory, build_prior, build_prior_with_summary},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -258,6 +258,11 @@ fn now_seconds() -> u64 {
         .unwrap_or(0)
 }
 
+/// Fold-before-switch asks the previous model for this compact handoff note.
+const FOLD_PROMPT: &str = "Summarize the conversation so far in a compact handoff note for another AI model. \
+Preserve the user's goals, decisions, constraints, important facts, tool results, and open \
+questions. Do not include credentials, tokens, or secrets. Reply with the summary only.";
+
 fn valid_conversation_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= MAX_CONVERSATION_ID_BYTES
@@ -461,6 +466,7 @@ impl NativeService {
         request: Create,
         native_resume: Option<String>,
         expected_lifetime: Option<Arc<()>>,
+        fold_from: Option<String>,
     ) -> Result<Session> {
         let lifetime = self
             .execution_state
@@ -556,12 +562,40 @@ impl NativeService {
             .context_window
             .value()
             .and_then(|value| value.parse::<u64>().ok());
+        let mut folded = false;
         let prior_history = if native_resume.is_none() {
             let transcript = self
                 .execution_state
                 .runtime
                 .transcript(client, &conversation_id);
-            build_prior(&transcript, instructions.as_deref(), context_window)
+            let mut prior = build_prior(&transcript, instructions.as_deref(), context_window);
+            // Fold before switch: only when the normal seed would already have
+            // to drop turns. The old model sees its own history, so the prompt
+            // is just the summarization instruction.
+            if let Some(old_session) = fold_from.as_deref()
+                && prior.as_ref().is_some_and(|prior| prior.trimmed)
+            {
+                match self
+                    .execution_state
+                    .runtime
+                    .summarize(client, old_session, FOLD_PROMPT.to_owned())
+                    .await
+                {
+                    Ok(summary) if !summary.trim().is_empty() => {
+                        if let Some(next) = build_prior_with_summary(
+                            &transcript,
+                            instructions.as_deref(),
+                            context_window,
+                            Some(&summary),
+                        ) {
+                            prior = Some(next);
+                            folded = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            prior
         } else {
             None
         };
@@ -570,6 +604,7 @@ impl NativeService {
             omitted_turns: prior.omitted_turns,
             estimated_tokens: prior.estimated_tokens,
             trimmed: prior.trimmed,
+            folded,
         });
         let input = ExecutionInput {
             located,
@@ -781,7 +816,7 @@ impl NativeService {
             }
             "sessions.create" => {
                 let request: Create = decode(p)?;
-                serde_json::to_value(self.open_session(client, request, None, None).await?)
+                serde_json::to_value(self.open_session(client, request, None, None, None).await?)
                     .map_err(|_| params::invalid())
             }
             "sessions.switchModel" => {
@@ -832,8 +867,18 @@ impl NativeService {
                     conversation_id: Some(context.conversation_id.clone()),
                     instructions,
                 };
+                let fold_from = request
+                    .fold
+                    .unwrap_or(true)
+                    .then(|| request.session_id.clone());
                 let session = self
-                    .open_session(client, create, None, Some(context.lifetime.clone()))
+                    .open_session(
+                        client,
+                        create,
+                        None,
+                        Some(context.lifetime.clone()),
+                        fold_from,
+                    )
                     .await?;
                 // The replacement owns the canonical transcript now. The old
                 // provider session is closed only after the new one opens.
@@ -1047,6 +1092,7 @@ impl NativeService {
                         create,
                         Some(record.native_session_id),
                         Some(record.context.lifetime),
+                        None,
                     )
                     .await?;
                 if session.connection_id != record.connection_id || !session.native_resumption {
@@ -1286,7 +1332,13 @@ impl NativeService {
             instructions: token.instructions.clone(),
         };
         let session = self
-            .open_session(client, create, Some(token.native_session_id.clone()), None)
+            .open_session(
+                client,
+                create,
+                Some(token.native_session_id.clone()),
+                None,
+                None,
+            )
             .await
             .map_err(|error| match error.code {
                 ErrorCode::NotFound

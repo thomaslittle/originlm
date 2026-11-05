@@ -5553,9 +5553,12 @@ dependencies = [
  "originlm-discovery",
  "originlm-kit",
  "originlm-platform",
+ "originlm-runtime",
+ "originlm-service",
  "originlm-transports",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 

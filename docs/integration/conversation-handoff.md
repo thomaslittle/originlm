@@ -55,7 +55,8 @@ Switch model or provider with:
   "method": "sessions.switchModel",
   "params": {
     "sessionId": "session-1",
-    "selection": { "routeId": "route-2", "modelId": "model-b", "revision": "1" }
+    "selection": { "routeId": "route-2", "modelId": "model-b", "revision": "1" },
+    "fold": true
   }
 }
 ```
@@ -64,10 +65,18 @@ Switch model or provider with:
 
 1. requires the previous session to be idle or completed;
 2. validates the target selection against the current catalog and grant;
-3. opens a fresh provider session for the target;
-4. seeds it with the canonical transcript, budgeted for the target model;
-5. closes the previous provider session;
-6. returns the replacement `Session` with a `history` summary.
+3. when the target budget would drop turns, asks the previous model for a
+   compact fold summary (`fold: true` by default);
+4. opens a fresh provider session for the target;
+5. seeds it with the fold summary (when available) plus the canonical
+   transcript, budgeted for the target model;
+6. closes the previous provider session;
+7. returns the replacement `Session` with a `history` summary.
+
+Set `fold: false` to skip the extra summarization turn and always use
+deterministic trimming. If the old model cannot summarize (error, timeout,
+empty answer), OriginLM falls back to the same trimming path automatically.
+The fold turn is not added to the canonical transcript.
 
 `instructions` and `allowPaid` are inherited when omitted. `persistent` is
 inherited only when the target route can persist a native conversation; it can
@@ -82,16 +91,18 @@ already has the history.
 
 ```json
 {
-  "turns": 8,
+  "turns": 6,
   "omittedTurns": 3,
   "estimatedTokens": 5120,
-  "trimmed": true
+  "trimmed": true,
+  "folded": true
 }
 ```
 
-`trimmed` is true whenever any turn was dropped, either by the target budget or
-by the stored-transcript cap. Trimming is deterministic and is also stated in
-the seeded system/prelude text.
+`folded` means the previous model produced the summary included in the seed.
+`trimmed` is true whenever any turn was dropped or the folded summary was
+truncated, by the target budget or the stored-transcript cap. Trimming is
+deterministic and is also stated in the seeded system/prelude text.
 
 ## Seeding rules
 
@@ -105,13 +116,20 @@ the seeded system/prelude text.
 This removes the double-send failure mode where an app re-sends its own
 transcript to a session that already has the same history.
 
-## Budgeting
+## Budgeting and fold before switch
 
 The target model's reported `contextWindow` is used when available; otherwise
 OriginLM assumes 32,000 tokens. OriginLM reserves room for output and app
 instructions, keeps the newest whole turns verbatim, and drops the oldest whole
 turns. Seeds are also bounded to 20 turns and 512 KiB so a fresh HTTP session
 fits the adapter's message and frame limits. App instructions are never trimmed.
+
+When a switch would trim, OriginLM first asks the **old** model for a compact
+handoff summary and places it in the seed ahead of the newest verbatim turns.
+The summary is capped at 32 KiB and at half of the target seed budget; an
+oversized summary is cut at a character boundary and reported. If the old
+model cannot summarize, the normal newest-turns/oldest-dropped path is used.
+A host can disable the extra model call with `fold: false`.
 
 ## Attachments
 
@@ -146,3 +164,18 @@ on `sessions.create`, the `sessions.switchModel` method, and `conversationId` /
 `history` on `Session`. Existing hosts that omit them get exactly the previous
 behavior. The runtime advertises `session.conversation.handoff` in
 `runtime.handshake`.
+
+## GPUI end-to-end proof
+
+OriginLM Desktop has a deterministic GPUI test window for the real Playground
+page (`crates/originlm-desktop/src/e2e_tests.rs`). It opens two in-process
+sessions through the real service, sends a prompt on model A, switches to model
+B mid-conversation, and asserts the second provider session received the prior
+user and assistant turns. No OS keyboard, mouse or focus is used, and no real
+provider is contacted.
+
+```sh
+cargo test -p originlm-desktop native_playground_model_switch_hands_off_the_conversation
+```
+
+The full desktop suite remains `cargo test -p originlm-desktop`.

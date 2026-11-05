@@ -3901,6 +3901,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "folded": {
+            "default": false,
+            "description": "True when the old model summarized the prior conversation before this\nsession was opened. The summary is part of the seed, not the transcript.",
+            "type": "boolean"
+          },
           "omittedTurns": {
             "description": "Older turns dropped to fit the target model's context budget.",
             "format": "uint32",
@@ -4004,6 +4009,13 @@
         "properties": {
           "allowPaid": {
             "description": "Accept a paid target route. Omitted inherits the previous session.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "fold": {
+            "description": "When the prior transcript exceeds the target model's budget, ask the\nprevious model for a compact summary before seeding the new session.\nDefaults to true. If the old model cannot summarize, OriginLM falls\nback to deterministic oldest-turn trimming.",
             "type": [
               "boolean",
               "null"

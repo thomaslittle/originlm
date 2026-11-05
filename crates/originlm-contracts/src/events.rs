@@ -46,6 +46,10 @@ pub struct SessionHistory {
     pub estimated_tokens: u64,
     /// True when any turn, stored or target-budget trimming, was omitted.
     pub trimmed: bool,
+    /// True when the old model summarized the prior conversation before this
+    /// session was opened. The summary is part of the seed, not the transcript.
+    #[serde(default)]
+    pub folded: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(

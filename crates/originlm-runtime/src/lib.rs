@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::{collections::BTreeMap, future::Future, pin::Pin, sync::Arc};
 pub use transcript::{
     PriorHistory, PriorTurn, SeedMessage, SeedRole, Transcript, TranscriptTurn, build_prior,
-    prelude_agent,
+    build_prior_with_summary, prelude_agent,
 };
 pub use turn::{ImageInput, TurnContext};
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;

@@ -196,7 +196,7 @@ export type Session = { "connectionId": string; "conversationId"?: string | null
 
 export type SessionCreateParams = { "allowPaid"?: boolean; "conversationId"?: string | null; "hostMcpServers"?: Array<HostMcpServer>; "instructions"?: string | null; "permissionMode"?: string | null; "persistent"?: boolean; "reviewRequests"?: boolean; "selection": Selection; "workspaceId": string; };
 
-export type SessionHistory = { "estimatedTokens": number; "omittedTurns": number; "trimmed": boolean; "turns": number; };
+export type SessionHistory = { "estimatedTokens": number; "folded"?: boolean; "omittedTurns": number; "trimmed": boolean; "turns": number; };
 
 export type SessionOptionsParams = { "options": { [key: string]: unknown; }; "sessionId": string; };
 
@@ -208,7 +208,7 @@ export type SessionState = "ready" | "running" | "awaiting_approval" | "complete
 
 export type SessionSuspendResult = { "resumeToken": string; };
 
-export type SessionSwitchModelParams = { "allowPaid"?: boolean | null; "instructions"?: string | null; "persistent"?: boolean | null; "selection": Selection; "sessionId": string; };
+export type SessionSwitchModelParams = { "allowPaid"?: boolean | null; "fold"?: boolean | null; "instructions"?: string | null; "persistent"?: boolean | null; "selection": Selection; "sessionId": string; };
 
 export type SetPricesParams = { "prices": Array<ModelPrice>; };
 
