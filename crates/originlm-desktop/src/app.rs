@@ -265,7 +265,7 @@ pub struct Desktop {
     pub favorites: BTreeSet<String>,
     /// Models page shows favorites only.
     pub favorites_only: bool,
-    /// Models page orders by Artificial Analysis Intelligence Index.
+    /// Models page orders by the cached Intelligence Index.
     pub models_sort_by_intelligence: bool,
     /// The local runtime defaults user-facing catalogs to Index order.
     pub apps_default_intelligence_order: bool,
@@ -819,7 +819,7 @@ impl Desktop {
             .broker
             .commands
             .send(broker::Command::RefreshIntelligence);
-        self.toast("Refreshing Artificial Analysis scores");
+        self.toast("Refreshing RankLLMs Intelligence Index scores");
         cx.notify();
     }
 

@@ -1,4 +1,4 @@
-//! Cached Artificial Analysis Intelligence Index data.
+//! Cached Intelligence Index data from RankLLMs.
 //!
 //! The cache is deliberately a separate read surface: it is not provider
 //! evidence and it never changes a model's capability or billing state. Scores
@@ -12,29 +12,30 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 
-pub const INTELLIGENCE_SOURCE: &str = "artificial_analysis";
-pub const INTELLIGENCE_ATTRIBUTION: &str = "Artificial Analysis (https://artificialanalysis.ai/)";
-pub const INTELLIGENCE_SOURCE_URL: &str = "https://artificialanalysis.ai/";
+pub const INTELLIGENCE_SOURCE: &str = "rankllms";
+pub const INTELLIGENCE_ATTRIBUTION: &str = "RankLLMs (https://rankllms.com/); scores originate from Artificial Analysis (https://artificialanalysis.ai/) where applicable.";
+pub const INTELLIGENCE_SOURCE_URL: &str = "https://rankllms.com/";
 
-/// One model in the free Artificial Analysis language-model list.
+/// One model in the RankLLMs leaderboard.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IntelligenceModel {
-    /// Artificial Analysis' stable UUID for the model.
+    /// RankLLMs' stable numeric model id.
     pub id: String,
-    /// Artificial Analysis' stable slug. This is the cache key.
+    /// Stable RankLLMs slug. This is the cache key.
     pub slug: String,
+    /// OpenRouter model id when RankLLMs has one. This is the best matching
+    /// key for provider-native catalogs.
+    #[serde(default)]
+    pub openrouter_id: Option<String>,
     pub name: String,
     pub creator: String,
     pub release_date: Option<String>,
     /// Null means the model has no published Intelligence Index yet.
     pub intelligence_index: Option<f64>,
-    /// Artificial Analysis no longer publishes these two indices; they stay
-    /// null unless the free response starts returning them again.
     pub coding_index: Option<f64>,
     pub agentic_index: Option<f64>,
-    /// The six capability indices, keyed without the common
-    /// `artificial_analysis_` prefix and trailing `_index`.
+    /// RankLLMs capability indices, when present in a future response shape.
     pub capability_indexes: BTreeMap<String, f64>,
     pub input_price_usd_per_million: Option<f64>,
     pub output_price_usd_per_million: Option<f64>,
@@ -42,19 +43,20 @@ pub struct IntelligenceModel {
     pub median_time_to_first_token_seconds: Option<f64>,
 }
 
-/// A snapshot of the durable cache. `models` may be empty when the API key is
-/// missing or the first sync has not completed.
+/// A snapshot of the durable cache. `models` may be empty when the first sync
+/// has not completed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IntelligenceCatalog {
     pub source: String,
     pub attribution: String,
     pub fetched_at: Option<crate::Timestamp>,
+    /// RankLLMs does not publish an index version today. Present so another
+    /// source can report one without changing the wire shape.
     pub index_version: Option<u32>,
     pub tier: Option<String>,
     pub models: Vec<IntelligenceModel>,
-    /// False when `ARTIFICIAL_ANALYSIS_API_KEY` was not present in the runtime
-    /// environment. Callers must not treat this as an error.
+    /// True when the cache has a configured source. RankLLMs needs no key.
     pub configured: bool,
     /// True when the cached fetch is older than the documented refresher.
     pub stale: bool,
@@ -157,13 +159,20 @@ fn add_keys(keys: &mut BTreeSet<String>, value: &str) {
     }
 }
 
+fn add_openrouter_keys(keys: &mut BTreeSet<String>, value: &str) {
+    add_keys(keys, value);
+    if let Some(rest) = value.strip_prefix("aa/") {
+        add_keys(keys, rest);
+    }
+}
+
 fn model_keys(native_id: &str, name: &str) -> BTreeSet<String> {
     let mut keys = BTreeSet::new();
     add_keys(&mut keys, native_id);
     if let Some(last) = native_id.rsplit(['/', ':']).next()
         && last != native_id
     {
-        add_keys(&mut keys, last);
+        add_openrouter_keys(&mut keys, last);
     }
     add_keys(&mut keys, name);
     keys
@@ -173,6 +182,14 @@ fn catalog_keys(model: &IntelligenceModel) -> BTreeSet<String> {
     let mut keys = BTreeSet::new();
     add_keys(&mut keys, &model.slug);
     add_keys(&mut keys, &model.name);
+    if let Some(openrouter_id) = &model.openrouter_id {
+        add_openrouter_keys(&mut keys, openrouter_id);
+        if let Some(last) = openrouter_id.rsplit('/').next()
+            && last != openrouter_id
+        {
+            add_keys(&mut keys, last);
+        }
+    }
     // Some provider-native ids are prefixed with the creator, e.g.
     // `openai/gpt-5`.
     let creator = intelligence_key(&model.creator);
@@ -250,6 +267,7 @@ mod tests {
         IntelligenceModel {
             id: slug.into(),
             slug: slug.into(),
+            openrouter_id: None,
             name: name.into(),
             creator: "Example".into(),
             release_date: None,
@@ -266,11 +284,14 @@ mod tests {
 
     #[test]
     fn catalog_keys_match_native_ids_without_guessing_across_versions() {
+        let mut with_openrouter = model("claude-opus-4-5", "Claude Opus 4.5", Some(65.0));
+        with_openrouter.openrouter_id = Some("aa/anthropic/claude-opus-4-5".into());
         let catalog = IntelligenceCatalog {
             models: vec![
                 model("claude-sonnet-4-5", "Claude Sonnet 4.5", Some(55.0)),
                 model("claude-sonnet-4", "Claude Sonnet 4", Some(40.0)),
                 model("gpt-5-1", "GPT-5.1", Some(70.0)),
+                with_openrouter,
             ],
             ..IntelligenceCatalog::default()
         };
@@ -284,6 +305,10 @@ mod tests {
             Some(40.0)
         );
         assert_eq!(scores.score("openai/gpt-5.1", "GPT-5.1"), Some(70.0));
+        assert_eq!(
+            scores.score("anthropic/claude-opus-4-5", "Claude Opus 4.5"),
+            Some(65.0)
+        );
         assert_eq!(scores.score("claude-sonnet-4-6", "Claude Sonnet 4.6"), None);
     }
 

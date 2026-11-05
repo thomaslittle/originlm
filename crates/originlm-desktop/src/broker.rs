@@ -25,8 +25,8 @@ pub struct Bundle {
     pub history: Vec<Sample>,
     pub costs: Option<CostReport>,
     pub cost_error: Option<String>,
-    /// Cached Artificial Analysis scores. Never fetched from this worker on a
-    /// timer; the runtime owns the durable cache and its sync lane.
+    /// Cached RankLLMs Intelligence Index scores. Never fetched from this
+    /// worker on a timer; the runtime owns the durable cache and its sync lane.
     pub intelligence: IntelligenceCatalog,
     pub fetched_at: i64,
     pub error: Option<String>,

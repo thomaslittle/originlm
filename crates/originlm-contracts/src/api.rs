@@ -63,8 +63,8 @@ pub struct SnapshotParams {
 pub struct ModelsParams {
     #[serde(default)]
     pub route_id: Option<String>,
-    /// `catalog` (default) or `intelligence` (highest Artificial Analysis
-    /// Intelligence Index first, unknown scores last).
+    /// `catalog` (default) or `intelligence` (highest cached Intelligence
+    /// Index first, unknown scores last).
     #[serde(default)]
     pub sort: Option<String>,
 }

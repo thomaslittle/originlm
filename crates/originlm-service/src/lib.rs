@@ -100,9 +100,9 @@ impl NativeService {
             intelligence: Arc::new(intelligence::IntelligenceCache::default()),
         }
     }
-    /// Host-only: persist the Artificial Analysis cache beside the runtime's
-    /// other local state. The key is read from `ARTIFICIAL_ANALYSIS_API_KEY`;
-    /// without it the cache still serves the last successful fetch.
+    /// Host-only: persist the RankLLMs Intelligence Index cache beside the
+    /// runtime's other local state. No API key is required; without a state
+    /// directory the cache stays disabled.
     pub fn with_intelligence_cache(mut self, directory: std::path::PathBuf) -> Self {
         self.intelligence = Arc::new(intelligence::IntelligenceCache::load(directory));
         self

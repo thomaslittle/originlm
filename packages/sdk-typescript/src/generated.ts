@@ -106,7 +106,7 @@ export type IntelligenceCatalog = { "attribution": string; "configured": boolean
 
 export type IntelligenceConfigureParams = { "defaultSortForApps": boolean; };
 
-export type IntelligenceModel = { "agenticIndex"?: number | null; "capabilityIndexes": { [key: string]: number; }; "codingIndex"?: number | null; "creator": string; "id": string; "inputPriceUsdPerMillion"?: number | null; "intelligenceIndex"?: number | null; "medianOutputTokensPerSecond"?: number | null; "medianTimeToFirstTokenSeconds"?: number | null; "name": string; "outputPriceUsdPerMillion"?: number | null; "releaseDate"?: string | null; "slug": string; };
+export type IntelligenceModel = { "agenticIndex"?: number | null; "capabilityIndexes": { [key: string]: number; }; "codingIndex"?: number | null; "creator": string; "id": string; "inputPriceUsdPerMillion"?: number | null; "intelligenceIndex"?: number | null; "medianOutputTokensPerSecond"?: number | null; "medianTimeToFirstTokenSeconds"?: number | null; "name": string; "openrouterId"?: string | null; "outputPriceUsdPerMillion"?: number | null; "releaseDate"?: string | null; "slug": string; };
 
 export type InventoryChange = { "changes": Array<ResourceChange>; "cursor": string; "issuesChanged": boolean; "observedAt": Timestamp; "previousRevision": string; "reason": string; "revision": string; "sequence": string; };
 

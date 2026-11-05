@@ -1514,13 +1514,13 @@
     },
     "IntelligenceCatalog": {
       "additionalProperties": false,
-      "description": "A snapshot of the durable cache. `models` may be empty when the API key is\nmissing or the first sync has not completed.",
+      "description": "A snapshot of the durable cache. `models` may be empty when the first sync\nhas not completed.",
       "properties": {
         "attribution": {
           "type": "string"
         },
         "configured": {
-          "description": "False when `ARTIFICIAL_ANALYSIS_API_KEY` was not present in the runtime\nenvironment. Callers must not treat this as an error.",
+          "description": "True when the cache has a configured source. RankLLMs needs no key.",
           "type": "boolean"
         },
         "defaultSortForApps": {
@@ -1538,6 +1538,7 @@
           ]
         },
         "indexVersion": {
+          "description": "RankLLMs does not publish an index version today. Present so another\nsource can report one without changing the wire shape.",
           "format": "uint32",
           "minimum": 0,
           "type": [
@@ -1595,7 +1596,7 @@
     },
     "IntelligenceModel": {
       "additionalProperties": false,
-      "description": "One model in the free Artificial Analysis language-model list.",
+      "description": "One model in the RankLLMs leaderboard.",
       "properties": {
         "agenticIndex": {
           "format": "double",
@@ -1609,11 +1610,10 @@
             "format": "double",
             "type": "number"
           },
-          "description": "The six capability indices, keyed without the common\n`artificial_analysis_` prefix and trailing `_index`.",
+          "description": "RankLLMs capability indices, when present in a future response shape.",
           "type": "object"
         },
         "codingIndex": {
-          "description": "Artificial Analysis no longer publishes these two indices; they stay\nnull unless the free response starts returning them again.",
           "format": "double",
           "type": [
             "number",
@@ -1624,7 +1624,7 @@
           "type": "string"
         },
         "id": {
-          "description": "Artificial Analysis' stable UUID for the model.",
+          "description": "RankLLMs' stable numeric model id.",
           "type": "string"
         },
         "inputPriceUsdPerMillion": {
@@ -1659,6 +1659,14 @@
         "name": {
           "type": "string"
         },
+        "openrouterId": {
+          "default": null,
+          "description": "OpenRouter model id when RankLLMs has one. This is the best matching\nkey for provider-native catalogs.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "outputPriceUsdPerMillion": {
           "format": "double",
           "type": [
@@ -1673,7 +1681,7 @@
           ]
         },
         "slug": {
-          "description": "Artificial Analysis' stable slug. This is the cache key.",
+          "description": "Stable RankLLMs slug. This is the cache key.",
           "type": "string"
         }
       },
@@ -2738,7 +2746,7 @@
         },
         "sort": {
           "default": null,
-          "description": "`catalog` (default) or `intelligence` (highest Artificial Analysis\nIntelligence Index first, unknown scores last).",
+          "description": "`catalog` (default) or `intelligence` (highest cached Intelligence\nIndex first, unknown scores last).",
           "type": [
             "string",
             "null"

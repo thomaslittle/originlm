@@ -19,7 +19,7 @@ and [current architecture](design/architecture.md). The support matrix distingui
 | Generated protocol, OpenAPI, JSON Schema | [generated-api.md](integration/generated-api.md), [protocol-preview.md](integration/protocol-preview.md) |
 | Sessions: artifacts, host MCP tools, native resumption | [artifacts.md](integration/artifacts.md), [host-mcp.md](integration/host-mcp.md), [native-session-resumption.md](integration/native-session-resumption.md) |
 | Incremental metadata, refresh, local change watching | [incremental-metadata.md](integration/incremental-metadata.md), [local-change-watching.md](integration/local-change-watching.md), [catalog-pages.md](integration/catalog-pages.md) |
-| Order models by Artificial Analysis Intelligence Index | [artificial-analysis.md](integration/artificial-analysis.md) |
+| Order models by cached Intelligence Index (RankLLMs) | [intelligence-index.md](integration/intelligence-index.md) |
 | Running the showcase against your own machine | [live-demo.md](integration/live-demo.md) |
 | Something is wrong | [troubleshooting.md](troubleshooting.md) |
 

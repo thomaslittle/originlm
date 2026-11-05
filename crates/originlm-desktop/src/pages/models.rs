@@ -161,7 +161,7 @@ impl Desktop {
                     .child(div().w(px(32.)).flex_shrink_0())
                     .child(ds::th("Model", None, &theme))
                     .child(ds::th("Billing", Some(130.), &theme))
-                    .child(ds::th("AA Index", Some(96.), &theme))
+                    .child(ds::th("Index", Some(96.), &theme))
                     .child(ds::th("Options", Some(64.), &theme)),
             )
             .child(list_body);
@@ -315,7 +315,7 @@ impl Desktop {
         )))
         .child({
             let score = scores.score(&model.native_id, &model.name);
-            let tip = "Artificial Analysis Intelligence Index; cached locally. Source: artificialanalysis.ai";
+            let tip = "Intelligence Index via RankLLMs; scores originate from Artificial Analysis where applicable. Cached locally.";
             div()
                 .id(SharedString::from(format!("aa-index-{}", model.id)))
                 .tooltip(move |window, cx| Tooltip::new(tip).build(window, cx))
@@ -483,8 +483,8 @@ impl Desktop {
                                 ))
                                 .child(ds::caption(
                                     match intelligence.index_version {
-                                        Some(version) => format!("Artificial Analysis v{version}"),
-                                        None => "Artificial Analysis".into(),
+                                        Some(version) => format!("RankLLMs · v{version}"),
+                                        None => "via RankLLMs".into(),
                                     },
                                     theme,
                                 ))
@@ -494,9 +494,9 @@ impl Desktop {
                     ))
                     .child(div().px(px(sp::LG)).pb(px(sp::SM)).child(ds::link(
                         "aa-attribution",
-                        "Scores: Artificial Analysis (artificialanalysis.ai)",
+                        "Scores: RankLLMs · Artificial Analysis source",
                         theme,
-                        |_, _, cx| cx.open_url("https://artificialanalysis.ai/"),
+                        |_, _, cx| cx.open_url("https://rankllms.com/"),
                     ))),
             )
             .child(

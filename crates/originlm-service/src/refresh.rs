@@ -50,10 +50,10 @@ impl NativeService {
                 }
             }
             while intelligence.try_join_next().is_some() {}
-            // Artificial Analysis is cached, never called from a UI read. The
-            // cache decides its own deadline (six hours on success, fifteen
-            // minutes after a failure), so this tick only starts a sync when
-            // one is actually due.
+            // RankLLMs is cached, never called from a UI read. The cache
+            // decides its own deadline (six hours on success, fifteen minutes
+            // after a failure), so this tick only starts a sync when one is
+            // actually due.
             if self.intelligence.sync_due() {
                 let cache = self.intelligence.clone();
                 intelligence.spawn(async move {

@@ -187,27 +187,21 @@ impl Desktop {
             })
         });
         let index_status = if !intelligence.configured {
-            "No API key in this runtime. Cached scores still display; set ARTIFICIAL_ANALYSIS_API_KEY to sync the free list."
-                .to_string()
+            "The durable Intelligence Index cache is not enabled in this runtime.".to_string()
         } else if intelligence.models.is_empty() {
-            "No scores cached yet. The free list needs about two requests; a quota-limited sync retries later."
-                .to_string()
+            "No scores cached yet. RankLLMs sync runs on the runtime's background lane.".to_string()
         } else {
             format!(
-                "{} models · index v{} · updated {}{}",
+                "{} models · updated {}{}",
                 intelligence.models.len(),
-                intelligence
-                    .index_version
-                    .map(|version| version.to_string())
-                    .unwrap_or_else(|| "?".into()),
                 updated.unwrap_or_else(|| "unknown".into()),
                 if intelligence.stale { " · stale" } else { "" },
             )
         };
         let intelligence_panel = ds::panel(&theme)
             .child(ds::panel_head(
-                "Artificial Analysis Intelligence Index",
-                Some(ds::caption("Free data API · cached", &theme).into_any_element()),
+                "Intelligence Index (RankLLMs)",
+                Some(ds::caption("No key required · cached", &theme).into_any_element()),
                 &theme,
             ))
             .child(setting(
@@ -232,7 +226,7 @@ impl Desktop {
             .child(setting(
                 "Default order for your apps",
                 "Off by default. When enabled, clients that call models.list or models.page without a sort parameter get Index order. A client can always pass sort=intelligence or sort=catalog explicitly.",
-                Switch::new("apps-aa-default")
+                Switch::new("apps-index-default")
                     .checked(self.apps_default_intelligence_order)
                     .on_change({
                         let entity = entity.clone();
@@ -279,18 +273,27 @@ impl Desktop {
             })
             .child(
                 div()
+                    .h_flex()
+                    .flex_wrap()
+                    .gap(px(sp::SM))
                     .px(px(sp::LG))
                     .pb(px(sp::MD))
                     .child(ds::link(
-                        "settings-aa-attribution",
-                        "Scores: Artificial Analysis (artificialanalysis.ai)",
+                        "settings-rankllms-attribution",
+                        "Scores: RankLLMs",
+                        &theme,
+                        |_, _, cx| cx.open_url("https://rankllms.com/"),
+                    ))
+                    .child(ds::link(
+                        "settings-aa-source",
+                        "Artificial Analysis source",
                         &theme,
                         |_, _, cx| cx.open_url("https://artificialanalysis.ai/"),
                     )),
             )
             .child(
                 div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::caption(
-                    "The runtime syncs the free language-model list at most every six hours (about two requests per sync) and never calls Artificial Analysis from a window read. The key stays in the runtime environment and is never logged or exported.",
+                    "The runtime syncs RankLLMs' leaderboard at most every six hours (one request per sync) and never calls it from a window read. Index scores originate from Artificial Analysis where applicable.",
                     &theme,
                 )),
             );
