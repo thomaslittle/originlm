@@ -168,14 +168,24 @@ pub async fn probe_spec(
     let mut peer = Peer::spawn(spec).await?;
     let outcome = tokio::time::timeout(Duration::from_secs(20), async {
         let init = initialize(&mut peer).await?;
-        let usage = tokio::time::timeout(
-            Duration::from_secs(4),
+        // A cold Claude Code process can take several seconds to answer the
+        // control request. This runs in the background, so waiting longer does
+        // not delay the window; it only turns a spurious empty meter into the
+        // quota the client already knows.
+        let (usage, usage_error) = match tokio::time::timeout(
+            Duration::from_secs(10),
             control(&mut peer, json!({"subtype":"get_usage"})),
         )
         .await
-        .ok()
-        .and_then(Result::ok);
+        {
+            Ok(Ok(value)) => (Some(value), None),
+            Ok(Err(error)) => (None, Some(format!("{:?}", error.code))),
+            Err(_) => (None, Some("Timeout".to_string())),
+        };
         let mut report = parse_metadata(connection, route, &init, usage.as_ref())?;
+        if let Some(code) = usage_error {
+            report.diagnostics.push(format!("USAGE_READ_FAILED_{code}"));
+        }
         if !report
             .diagnostics
             .iter()

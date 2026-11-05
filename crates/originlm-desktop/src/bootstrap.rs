@@ -270,6 +270,12 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
                     browser_blocker: packaged_browser_blocker(),
                     ..Default::default()
                 });
+                let metadata_cache = state
+                    .as_ref()
+                    .map(|directory| directory.join("desktop-metadata.db"));
+                if let Some(directory) = state.as_ref() {
+                    let _ = std::fs::create_dir_all(directory);
+                }
                 if let Some(state) = state {
                     builder = builder.state_dir(state);
                 }
@@ -296,6 +302,13 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
                     .map(|definition| definition.id.to_owned())
                     .collect();
                 let service = kit.service();
+                // Reload the last metadata observations so allowances and
+                // status appear immediately, then let the background lanes
+                // reverify them. This is a desktop-owned file; it never shares
+                // the CLI broker's database.
+                if let Some(path) = metadata_cache {
+                    service.enable_metadata_cache(path);
+                }
                 // Keep the verified state fresh: the periodic background lanes
                 // repeat passive inventory and the same read-only metadata grants
                 // the window uses for its startup probes. Without them, auth

@@ -37,6 +37,7 @@ struct AccountView {
     provider: String,
     account: String,
     status: String,
+    diagnostics: Vec<String>,
     auth: data::AuthView,
     windows: Vec<WindowView>,
 }
@@ -83,6 +84,7 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
                 provider: data::provider_name(snapshot, &connection.provider_id),
                 account: connection.display_name.clone(),
                 status: connection.status.clone(),
+                diagnostics: connection.diagnostics.clone(),
                 auth: data::auth_view(connection),
                 windows,
             }
@@ -169,6 +171,15 @@ fn window_line(window: &WindowView, theme: &Theme) -> Div {
         .when(window.stale, |this| this.child(ds::caption("stale", theme)))
 }
 
+/// A usage read that failed is different from a client that publishes no
+/// quota window. Keep the distinction visible instead of claiming there is no
+/// allowance.
+fn usage_unavailable(diagnostics: &[String]) -> bool {
+    diagnostics
+        .iter()
+        .any(|code| code == "USAGE_UNAVAILABLE" || code.starts_with("USAGE_READ_FAILED_"))
+}
+
 /// What the client can honestly say about allowance, including the cases
 /// where it publishes no quota window at all.
 fn allowance_cell(
@@ -177,28 +188,44 @@ fn allowance_cell(
     theme: &Theme,
 ) -> Div {
     if view.windows.is_empty() {
-        let (label, detail) = if view.status == "configuration_only" {
+        let (label, detail, tone) = if usage_unavailable(&view.diagnostics) {
+            (
+                "Usage unavailable",
+                "The last usage read failed. Local totals remain; Diagnostics has the retry.",
+                Tone::Amber,
+            )
+        } else if view.status == "configuration_only" {
             (
                 "Not installed",
                 "Configuration exists; the client is not installed on this machine.",
+                Tone::Neutral,
             )
         } else {
             match view.auth.kind {
-                data::AuthKind::Required => {
-                    ("No reading", "Sign in to the client to read its allowance.")
-                }
+                data::AuthKind::Required => (
+                    "No reading",
+                    "Sign in to the client to read its allowance.",
+                    Tone::Neutral,
+                ),
                 data::AuthKind::Cached => (
                     "No quota window",
                     "Cached sign-in; the client published no allowance window.",
+                    Tone::Neutral,
                 ),
-                data::AuthKind::Unknown => ("No reading", "Allowance has not been checked yet."),
+                data::AuthKind::Unknown => (
+                    "No reading",
+                    "Allowance has not been checked yet.",
+                    Tone::Neutral,
+                ),
                 data::AuthKind::Verified if tokens.is_some() => (
                     "No quota window",
                     "This client publishes local totals, not an allowance window.",
+                    Tone::Neutral,
                 ),
                 data::AuthKind::Verified => (
                     "No quota window",
                     "Signed in; this client does not publish an allowance window.",
+                    Tone::Neutral,
                 ),
             }
         };
@@ -219,7 +246,7 @@ fn allowance_cell(
                     .h_flex()
                     .items_center()
                     .gap(px(sp::SM))
-                    .child(ds::chip(label, Tone::Neutral, theme))
+                    .child(ds::chip(label, tone, theme))
                     .when_some(token_text, |this, text| {
                         this.child(ds::mono(text, ty::CAPTION, theme.muted_foreground, theme))
                     }),
@@ -688,12 +715,23 @@ impl Desktop {
 
 #[cfg(test)]
 mod tests {
-    use super::compact_tokens;
+    use super::{compact_tokens, usage_unavailable};
 
     #[test]
     fn compact_tokens_keeps_small_values_exact() {
         assert_eq!(compact_tokens(0), "0");
         assert_eq!(compact_tokens(999), "999");
+    }
+
+    #[test]
+    fn usage_unavailable_distinguishes_a_failed_read_from_no_quota() {
+        assert!(usage_unavailable(&["USAGE_UNAVAILABLE".into()]));
+        assert!(usage_unavailable(&[
+            "REPORTED_BY_DISCOVERY".into(),
+            "USAGE_READ_FAILED_Timeout".into()
+        ]));
+        assert!(!usage_unavailable(&["MODEL_CATALOG_NOT_REPORTED".into()]));
+        assert!(!usage_unavailable(&[]));
     }
 
     #[test]
