@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- test(desktop): add a native GPUI end-to-end test for the provider list and model plans. It renders the production Overview and Models pages in GPUI's deterministic test window, injects a synthetic bundle, clicks a provider row with GPUI pointer input, and asserts the cleaned account label, the `5 hr`/`Weekly` Codex windows, and the `Free`/`Zen`/`Go`/`Local` OpenCode plan labels. The desktop is now a library plus a thin binary so the production views are testable; no Windows UI Automation, SendKeys or focus stealing is involved.
 - fix(codex): name allowance windows from `windowDurationMins` instead of the raw `primary`/`secondary` JSON keys. The 300-minute window reads as "5 hr" and the 10,080-minute window as "Weekly"; the raw names remain only as a fallback when no duration is reported.
 - fix(desktop): drop passive-discovery's "Default profile", "Additional profile N" and "Installation N" indices from user-facing connection, profile and route names. Distinct account ids still get an account suffix.
 - feat(models): label OpenCode models by the plan route they come from: Free or Zen on the `opencode` catalog, Go on `opencode-go`, and Local on Ollama. The models page shows the plan next to each model and in the inspector.

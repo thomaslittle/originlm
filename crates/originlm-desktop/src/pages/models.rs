@@ -13,6 +13,8 @@ use gpui_kit::component::{
     input::Input,
 };
 use gpui_kit::prelude::FluentBuilder as _;
+#[cfg(test)]
+use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
 use originlm_contracts::{Model, OptionControl, Snapshot, Support};
 
@@ -181,12 +183,15 @@ impl Desktop {
         let star_entity = cx.entity();
         let id = model.id.clone();
         let star_id = model.id.clone();
-        ds::select_row(
+        let row = ds::select_row(
             SharedString::from(format!("model-{}", model.id)),
             selected == Some(model.id.as_str()),
             theme,
         )
-        .aria_label(format!("{}, {provider}", model.name))
+        .aria_label(match data::model_plan(snapshot, model) {
+            Some(plan) => format!("{}, {provider}, {}", model.name, plan.label()),
+            None => format!("{}, {provider}", model.name),
+        })
         .child(ds::icon_button(
             SharedString::from(format!("star-{}", model.id)),
             if favorite {
@@ -282,8 +287,10 @@ impl Desktop {
                 this.selected_model = Some(id.clone());
                 cx.notify();
             });
-        })
-        .into_any_element()
+        });
+        #[cfg(test)]
+        let row = row.test_support();
+        row.into_any_element()
     }
 
     fn model_inspector(
