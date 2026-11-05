@@ -2342,29 +2342,163 @@ fn data_auth(connection: &originlm_contracts::Connection) -> bool {
     )
 }
 
+/// Pick the best default Playground model that is actually available.
+///
+/// A good default is a current model from a frontier company (Claude, OpenAI,
+/// Gemini, Muse, Grok) on an authenticated connection, with efficient variants
+/// such as Haiku or Luna preferred so a plan's usage lasts. Remaining quota
+/// breaks close ties and removes exhausted pools. Provider flags are not enough
+/// on a gateway route, so the model name also identifies its company.
 fn preferred_model(snapshot: &originlm_contracts::Snapshot) -> Option<String> {
-    let mut candidates: Vec<&originlm_contracts::Model> = snapshot
-        .models
-        .iter()
-        .filter(|model| {
-            snapshot
-                .routes
-                .iter()
-                .find(|route| route.id == model.route_id)
-                .and_then(|route| {
-                    snapshot
-                        .connections
-                        .iter()
-                        .find(|connection| connection.id == route.connection_id)
-                })
-                .is_some_and(data_auth)
-        })
-        .collect();
-    candidates.sort_by_key(|model| !model.is_default);
+    let mut candidates: Vec<(&originlm_contracts::Model, &originlm_contracts::AccessRoute)> =
+        snapshot
+            .models
+            .iter()
+            .filter_map(|model| {
+                let route = snapshot
+                    .routes
+                    .iter()
+                    .find(|route| route.id == model.route_id)?;
+                let connection = snapshot
+                    .connections
+                    .iter()
+                    .find(|connection| connection.id == route.connection_id)?;
+                data_auth(connection).then_some((model, route))
+            })
+            .collect();
+    candidates.sort_by(|(a, a_route), (b, b_route)| {
+        model_preference_score(snapshot, b, b_route)
+            .cmp(&model_preference_score(snapshot, a, a_route))
+            .then_with(|| a.name.cmp(&b.name))
+            .then_with(|| a.id.cmp(&b.id))
+    });
     candidates
         .first()
-        .map(|model| model.id.clone())
+        .map(|(model, _)| model.id.clone())
         .or_else(|| snapshot.models.first().map(|model| model.id.clone()))
+}
+
+fn model_preference_score(
+    snapshot: &originlm_contracts::Snapshot,
+    model: &originlm_contracts::Model,
+    route: &originlm_contracts::AccessRoute,
+) -> i32 {
+    let company = model_company(&route.provider_id, model);
+    let mut score = match company {
+        "anthropic" => 100,
+        "openai" => 95,
+        "google" => 90,
+        "meta" => 85,
+        "xai" => 80,
+        "deepseek" => 72,
+        "moonshot" => 68,
+        "mistral" => 62,
+        "alibaba" => 58,
+        "local" => 45,
+        _ => 40,
+    };
+    let name =
+        format!("{} {} {}", model.name, model.native_id, route.display_name).to_ascii_lowercase();
+    if [
+        "haiku", "luna", "mini", "flash", "spark", "nano", "small", "fast", "instant",
+    ]
+    .iter()
+    .any(|word| name.contains(word))
+    {
+        score += 15;
+    } else if [
+        "opus", "sonnet", "pro", "max", "ultra", "reasoner", "thinking",
+    ]
+    .iter()
+    .any(|word| name.contains(word))
+    {
+        score += 8;
+    }
+    score += match route.billing.value() {
+        Some(originlm_contracts::BillingMode::Subscription) => 12,
+        Some(originlm_contracts::BillingMode::Local) => 6,
+        Some(originlm_contracts::BillingMode::PrepaidCredits) => 2,
+        Some(originlm_contracts::BillingMode::Mixed) => -2,
+        Some(originlm_contracts::BillingMode::ApiMetered) => -5,
+        Some(originlm_contracts::BillingMode::Unknown) | None => -12,
+    };
+    if model.is_default {
+        score += 3;
+    }
+    if let Some(remaining) = route_remaining(snapshot, route) {
+        score += (remaining * 30.0).round() as i32;
+        if remaining <= 0.02 {
+            score -= 200;
+        }
+    }
+    score
+}
+
+fn model_company(provider: &str, model: &originlm_contracts::Model) -> &'static str {
+    let haystack = format!("{} {} {}", provider, model.name, model.native_id).to_ascii_lowercase();
+    if ["claude", "anthropic", "haiku", "sonnet", "opus"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "anthropic"
+    } else if ["gpt", "openai", "luna", "codex"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "openai"
+    } else if ["gemini", "google"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "google"
+    } else if ["muse", "llama", "meta"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "meta"
+    } else if ["grok", "xai"].iter().any(|word| haystack.contains(word)) {
+        "xai"
+    } else if haystack.contains("deepseek") {
+        "deepseek"
+    } else if ["kimi", "moonshot"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "moonshot"
+    } else if haystack.contains("qwen") {
+        "alibaba"
+    } else if haystack.contains("mistral") {
+        "mistral"
+    } else if ["ollama", "lmstudio", "lm studio", "kat-coder"]
+        .iter()
+        .any(|word| haystack.contains(word))
+    {
+        "local"
+    } else {
+        "other"
+    }
+}
+
+/// Lowest remaining fraction across a route's quota pools. Unknown readings
+/// stay neutral instead of being treated as exhausted.
+fn route_remaining(
+    snapshot: &originlm_contracts::Snapshot,
+    route: &originlm_contracts::AccessRoute,
+) -> Option<f32> {
+    snapshot
+        .quota_pools
+        .iter()
+        .filter(|pool| {
+            pool.route_ids.iter().any(|id| id == &route.id)
+                || pool
+                    .connection_ids
+                    .iter()
+                    .any(|id| id == &route.connection_id)
+        })
+        .flat_map(|pool| pool.windows.iter())
+        .filter_map(|window| window.reading.value())
+        .filter_map(crate::data::remaining_fraction)
+        .reduce(f32::min)
 }
 
 pub fn command_key() -> &'static str {
@@ -2514,6 +2648,144 @@ mod attachment_tests {
         std::fs::write(&large, vec![b'a'; TEXT_ATTACHMENT_BYTES as usize + 1]).unwrap();
         let error = prepare_prompt_with_attachments("read this".into(), &[large]).unwrap_err();
         assert!(error.contains("128 KiB"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod preferred_model_tests {
+    use super::preferred_model;
+    use originlm_contracts::*;
+
+    fn evidence() -> EvidenceSource {
+        EvidenceSource::new(EvidenceKind::Synthetic, "desktop-test", "fixture")
+    }
+
+    fn connection(id: &str, provider: &str) -> Connection {
+        Connection {
+            id: id.into(),
+            provider_id: provider.into(),
+            installation_id: "install".into(),
+            profile_id: "profile".into(),
+            display_name: id.into(),
+            account_id: None,
+            auth: Observation::reported(AuthState::Authenticated, evidence()),
+            plan: Observation::unknown("NOT_REPORTED"),
+            status: "metadata_ready".into(),
+            diagnostics: vec![],
+        }
+    }
+
+    fn route(id: &str, connection: &str, provider: &str, billing: BillingMode) -> AccessRoute {
+        AccessRoute {
+            id: id.into(),
+            connection_id: connection.into(),
+            provider_id: provider.into(),
+            display_name: id.into(),
+            billing: Observation::reported(billing, evidence()),
+            capabilities: vec![],
+            catalog_revision: "1".into(),
+        }
+    }
+
+    fn model(id: &str, route: &str, name: &str) -> Model {
+        Model {
+            id: id.into(),
+            route_id: route.into(),
+            native_id: id.into(),
+            name: name.into(),
+            revision: "1".into(),
+            is_default: false,
+            capabilities: vec![],
+            options: vec![],
+            context_window: Observation::unknown("NOT_REPORTED"),
+        }
+    }
+
+    fn exhausted_pool(route: &str) -> QuotaPool {
+        QuotaPool {
+            id: "pool".into(),
+            account_id: None,
+            connection_ids: vec![],
+            route_ids: vec![route.into()],
+            sharing: "account".into(),
+            windows: vec![UsageWindow {
+                id: "five-hour".into(),
+                label: "5 hr".into(),
+                reading: Observation::reported(
+                    UsageReading::try_from(UsageInput {
+                        unit: "percent".into(),
+                        used: "100".to_owned().try_into().unwrap(),
+                        limit: Some("100".to_owned().try_into().unwrap()),
+                    })
+                    .unwrap(),
+                    evidence(),
+                ),
+                resets_at: None,
+                duration_seconds: Some(18_000),
+            }],
+        }
+    }
+
+    fn snapshot() -> Snapshot {
+        let mut snapshot = Snapshot::empty(DataMode::Synthetic);
+        snapshot.connections = vec![
+            connection("c-claude", "opencode"),
+            connection("c-openai", "codex"),
+            connection("c-local", "ollama"),
+        ];
+        snapshot.routes = vec![
+            route("r-claude", "c-claude", "opencode", BillingMode::ApiMetered),
+            route("r-openai", "c-openai", "codex", BillingMode::Subscription),
+            route("r-local", "c-local", "ollama", BillingMode::Local),
+        ];
+        snapshot.models = vec![
+            model("claude", "r-claude", "Claude Haiku 5.5"),
+            model("luna", "r-openai", "GPT-6 Luna"),
+            model("local", "r-local", "KAT-Coder"),
+        ];
+        snapshot
+    }
+
+    #[test]
+    fn chooses_efficient_models_from_major_companies_over_local_and_generic() {
+        assert_eq!(preferred_model(&snapshot()).as_deref(), Some("luna"));
+    }
+
+    #[test]
+    fn subscription_haiku_wins_when_it_is_available() {
+        let mut snapshot = snapshot();
+        snapshot.connections.push(connection("c-go", "opencode-go"));
+        snapshot.routes.push(route(
+            "r-claude-go",
+            "c-go",
+            "opencode-go",
+            BillingMode::Subscription,
+        ));
+        snapshot
+            .models
+            .push(model("claude-go", "r-claude-go", "Claude Haiku 5.5"));
+        assert_eq!(
+            preferred_model(&snapshot).as_deref(),
+            Some("claude-go"),
+            "a subscription Claude Haiku is the best remaining default"
+        );
+    }
+
+    #[test]
+    fn exhausted_quota_moves_the_default_to_the_next_company() {
+        let mut snapshot = snapshot();
+        snapshot.connections.push(connection("c-go", "opencode-go"));
+        snapshot.routes.push(route(
+            "r-claude-go",
+            "c-go",
+            "opencode-go",
+            BillingMode::Subscription,
+        ));
+        snapshot
+            .models
+            .push(model("claude-go", "r-claude-go", "Claude Haiku 5.5"));
+        snapshot.quota_pools.push(exhausted_pool("r-claude-go"));
+        assert_eq!(preferred_model(&snapshot).as_deref(), Some("luna"));
     }
 }
 
