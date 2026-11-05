@@ -78,8 +78,24 @@ impl Cell {
             format!("{assistant}\n\n[turn activity] {notes}")
         };
         if let Ok(mut transcripts) = self.transcripts.lock() {
+            let key = (self.owner.clone(), conversation.clone());
+            // Keep closed-conversation history available for a later model
+            // switch, but never let a host grow this map without bound.
+            if !transcripts.contains_key(&key) {
+                const MAX_OWNER_CONVERSATIONS: usize = 64;
+                let owned: Vec<_> = transcripts
+                    .keys()
+                    .filter(|(owner, _)| owner == &self.owner)
+                    .cloned()
+                    .collect();
+                if owned.len() >= MAX_OWNER_CONVERSATIONS
+                    && let Some(first) = owned.first()
+                {
+                    transcripts.remove(first);
+                }
+            }
             transcripts
-                .entry((self.owner.clone(), conversation.clone()))
+                .entry(key)
                 .or_default()
                 .push_turn(prompt, &assistant);
         }
