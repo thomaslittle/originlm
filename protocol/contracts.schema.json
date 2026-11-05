@@ -1512,6 +1512,180 @@
       ],
       "type": "object"
     },
+    "IntelligenceCatalog": {
+      "additionalProperties": false,
+      "description": "A snapshot of the durable cache. `models` may be empty when the API key is\nmissing or the first sync has not completed.",
+      "properties": {
+        "attribution": {
+          "type": "string"
+        },
+        "configured": {
+          "description": "False when `ARTIFICIAL_ANALYSIS_API_KEY` was not present in the runtime\nenvironment. Callers must not treat this as an error.",
+          "type": "boolean"
+        },
+        "defaultSortForApps": {
+          "description": "User opt-in: when true, `models.list`/`models.page` default to\nIntelligence Index order for clients that do not pass `sort`.",
+          "type": "boolean"
+        },
+        "fetchedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "indexVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lastError": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/IntelligenceModel"
+          },
+          "type": "array"
+        },
+        "source": {
+          "type": "string"
+        },
+        "stale": {
+          "description": "True when the cached fetch is older than the documented refresher.",
+          "type": "boolean"
+        },
+        "tier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "attribution",
+        "models",
+        "configured",
+        "stale",
+        "defaultSortForApps"
+      ],
+      "type": "object"
+    },
+    "IntelligenceConfigureParams": {
+      "additionalProperties": false,
+      "properties": {
+        "defaultSortForApps": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "defaultSortForApps"
+      ],
+      "type": "object"
+    },
+    "IntelligenceModel": {
+      "additionalProperties": false,
+      "description": "One model in the free Artificial Analysis language-model list.",
+      "properties": {
+        "agenticIndex": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "capabilityIndexes": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "description": "The six capability indices, keyed without the common\n`artificial_analysis_` prefix and trailing `_index`.",
+          "type": "object"
+        },
+        "codingIndex": {
+          "description": "Artificial Analysis no longer publishes these two indices; they stay\nnull unless the free response starts returning them again.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "creator": {
+          "type": "string"
+        },
+        "id": {
+          "description": "Artificial Analysis' stable UUID for the model.",
+          "type": "string"
+        },
+        "inputPriceUsdPerMillion": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "intelligenceIndex": {
+          "description": "Null means the model has no published Intelligence Index yet.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "medianOutputTokensPerSecond": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "medianTimeToFirstTokenSeconds": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "outputPriceUsdPerMillion": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "releaseDate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "slug": {
+          "description": "Artificial Analysis' stable slug. This is the cache key.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slug",
+        "name",
+        "creator",
+        "capabilityIndexes"
+      ],
+      "type": "object"
+    },
     "InventoryChange": {
       "additionalProperties": false,
       "properties": {
@@ -1992,6 +2166,15 @@
         "inputs.put": {
           "$ref": "#/$defs/InputPutParams"
         },
+        "intelligence.catalog": {
+          "$ref": "#/$defs/EmptyParams"
+        },
+        "intelligence.configure": {
+          "$ref": "#/$defs/IntelligenceConfigureParams"
+        },
+        "intelligence.refresh": {
+          "$ref": "#/$defs/EmptyParams"
+        },
         "issues.acknowledge": {
           "$ref": "#/$defs/IssueUpdateParams"
         },
@@ -2087,6 +2270,9 @@
         "connections.probe",
         "models.list",
         "models.page",
+        "intelligence.catalog",
+        "intelligence.refresh",
+        "intelligence.configure",
         "usage.read",
         "usage.history",
         "models.local",
@@ -2194,6 +2380,15 @@
         "inputs.put": {
           "$ref": "#/$defs/InputPutResult"
         },
+        "intelligence.catalog": {
+          "$ref": "#/$defs/IntelligenceCatalog"
+        },
+        "intelligence.configure": {
+          "$ref": "#/$defs/IntelligenceCatalog"
+        },
+        "intelligence.refresh": {
+          "$ref": "#/$defs/IntelligenceCatalog"
+        },
         "issues.acknowledge": {
           "$ref": "#/$defs/IssueUpdateResult"
         },
@@ -2299,6 +2494,9 @@
         "connections.probe",
         "models.list",
         "models.page",
+        "intelligence.catalog",
+        "intelligence.refresh",
+        "intelligence.configure",
         "usage.read",
         "usage.history",
         "models.local",
@@ -2440,6 +2638,14 @@
             "string",
             "null"
           ]
+        },
+        "sort": {
+          "default": null,
+          "description": "`catalog` (default) or `intelligence`.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": "object"
@@ -2525,6 +2731,14 @@
       "properties": {
         "routeId": {
           "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sort": {
+          "default": null,
+          "description": "`catalog` (default) or `intelligence` (highest Artificial Analysis\nIntelligence Index first, unknown scores last).",
           "type": [
             "string",
             "null"
@@ -4447,6 +4661,12 @@
     "health": {
       "$ref": "#/$defs/HealthSummary"
     },
+    "intelligence": {
+      "$ref": "#/$defs/IntelligenceCatalog"
+    },
+    "intelligence_model": {
+      "$ref": "#/$defs/IntelligenceModel"
+    },
     "inventory_change": {
       "$ref": "#/$defs/InventoryChange"
     },
@@ -4486,6 +4706,8 @@
     "connection",
     "route",
     "model",
+    "intelligence",
+    "intelligence_model",
     "option",
     "pool",
     "session",

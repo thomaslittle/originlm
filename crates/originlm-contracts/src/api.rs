@@ -63,6 +63,15 @@ pub struct SnapshotParams {
 pub struct ModelsParams {
     #[serde(default)]
     pub route_id: Option<String>,
+    /// `catalog` (default) or `intelligence` (highest Artificial Analysis
+    /// Intelligence Index first, unknown scores last).
+    #[serde(default)]
+    pub sort: Option<String>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IntelligenceConfigureParams {
+    pub default_sort_for_apps: bool,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -476,6 +485,12 @@ pub struct MethodInputs {
     models: ModelsParams,
     #[serde(rename = "models.page")]
     model_page: ModelPageParams,
+    #[serde(rename = "intelligence.catalog")]
+    intelligence_catalog: EmptyParams,
+    #[serde(rename = "intelligence.refresh")]
+    intelligence_refresh: EmptyParams,
+    #[serde(rename = "intelligence.configure")]
+    intelligence_configure: IntelligenceConfigureParams,
     #[serde(rename = "usage.read")]
     usage: EmptyParams,
     #[serde(rename = "usage.history")]
@@ -585,6 +600,12 @@ pub struct MethodOutputs {
     models: Vec<Model>,
     #[serde(rename = "models.page")]
     model_page: ModelPage,
+    #[serde(rename = "intelligence.catalog")]
+    intelligence_catalog: IntelligenceCatalog,
+    #[serde(rename = "intelligence.refresh")]
+    intelligence_refresh: IntelligenceCatalog,
+    #[serde(rename = "intelligence.configure")]
+    intelligence_configure: IntelligenceCatalog,
     #[serde(rename = "usage.read")]
     usage: Vec<QuotaPool>,
     #[serde(rename = "usage.history")]
