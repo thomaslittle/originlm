@@ -236,6 +236,9 @@ impl Desktop {
                         )
                         .when(model.is_default, |this| {
                             this.child(ds::chip("Default", Tone::Neutral, theme))
+                        })
+                        .when_some(data::model_plan(snapshot, model), |this, plan| {
+                            this.child(ds::chip(plan.label(), Tone::Neutral, theme))
                         }),
                 )
                 .child(
@@ -358,6 +361,9 @@ impl Desktop {
                     ))
                     .when(model.is_default, |this| {
                         this.child(ds::chip("Provider default", Tone::Neutral, theme))
+                    })
+                    .when_some(data::model_plan(snapshot, model), |this, plan| {
+                        this.child(ds::chip(plan.label(), Tone::Neutral, theme))
                     }),
             )
             .child(
