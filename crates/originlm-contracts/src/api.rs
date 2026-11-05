@@ -146,6 +146,41 @@ pub struct SessionCreateParams {
     /// Requires the route capability `session.resume.persistent`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub persistent: bool,
+    /// Host-owned conversation identity. Sessions created with the same id
+    /// share OriginLM's canonical transcript, so a new model can continue the
+    /// conversation. Omit for a new conversation; the returned session carries
+    /// the generated id. Never put credentials in this value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
+    /// Application instructions for this conversation (for example a compact
+    /// home or workspace summary). This is kept out of the trimmed transcript
+    /// and is sent once, when the new provider session starts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+}
+/// Largest host conversation id accepted by `sessions.create` and
+/// `sessions.switchModel`.
+pub const MAX_CONVERSATION_ID_BYTES: usize = 128;
+/// Largest application instruction block carried across a model switch.
+pub const MAX_SESSION_INSTRUCTIONS_BYTES: usize = 64 * 1024;
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionSwitchModelParams {
+    /// The session whose canonical transcript is carried forward. It must be
+    /// idle or completed; it is closed after the replacement session opens.
+    pub session_id: String,
+    /// Target route, model, revision and provider options.
+    pub selection: Selection,
+    /// Replace the application instructions. Omitted keeps the current ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    /// Keep the new provider conversation resumable after a helper restart.
+    /// Omitted inherits the previous session when the target route supports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persistent: Option<bool>,
+    /// Accept a paid target route. Omitted inherits the previous session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_paid: Option<bool>,
 }
 /// Most host MCP servers a single session may attach.
 pub const MAX_HOST_MCP_SERVERS: usize = 2;
@@ -461,6 +496,8 @@ pub struct MethodInputs {
     revoke: EmptyParams,
     #[serde(rename = "sessions.create")]
     create: SessionCreateParams,
+    #[serde(rename = "sessions.switchModel")]
+    switch_model: SessionSwitchModelParams,
     #[serde(rename = "sessions.get")]
     session: SessionParams,
     #[serde(rename = "sessions.suspend")]
@@ -568,6 +605,8 @@ pub struct MethodOutputs {
     revoke: Value,
     #[serde(rename = "sessions.create")]
     create: Session,
+    #[serde(rename = "sessions.switchModel")]
+    switch_model: Session,
     #[serde(rename = "sessions.get")]
     session: Session,
     #[serde(rename = "sessions.suspend")]

@@ -1,4 +1,4 @@
-use crate::{Agent, Guard, ImageInput, TurnContext, err, journal::Journal};
+use crate::{Agent, Guard, ImageInput, TurnContext, err, journal::Journal, transcript::Transcript};
 use originlm_contracts::*;
 use serde_json::{Value, json};
 use std::{
@@ -38,9 +38,52 @@ pub(crate) struct Cell {
     pub artifacts: Arc<Mutex<crate::artifact::ArtifactStore>>,
     pub output: Mutex<Vec<u8>>,
     pub image_input: bool,
+    /// Shared canonical transcripts, keyed by (owner, conversation id).
+    pub transcripts: Arc<Mutex<BTreeMap<(String, String), Transcript>>>,
+    pub conversation: Option<String>,
+    /// Compact notes for the current turn (tool calls, produced artifacts).
+    pub turn_notes: Mutex<Vec<String>>,
     costs: Arc<Mutex<crate::costs::CostLedger>>,
 }
 impl Cell {
+    fn note(&self, note: String) {
+        if self.conversation.is_none() {
+            return;
+        }
+        if let Ok(mut notes) = self.turn_notes.lock()
+            && notes.len() < 64
+        {
+            notes.push(note);
+        }
+    }
+    fn reset_turn_notes(&self) {
+        if let Ok(mut notes) = self.turn_notes.lock() {
+            notes.clear();
+        }
+    }
+    fn record_turn(&self, prompt: &str, assistant: &str) {
+        let Some(conversation) = &self.conversation else {
+            return;
+        };
+        let notes = self
+            .turn_notes
+            .lock()
+            .map(|notes| notes.join("; "))
+            .unwrap_or_default();
+        let assistant = if notes.is_empty() {
+            assistant.to_owned()
+        } else if assistant.is_empty() {
+            format!("[turn activity] {notes}")
+        } else {
+            format!("{assistant}\n\n[turn activity] {notes}")
+        };
+        if let Ok(mut transcripts) = self.transcripts.lock() {
+            transcripts
+                .entry((self.owner.clone(), conversation.clone()))
+                .or_default()
+                .push_turn(prompt, &assistant);
+        }
+    }
     pub fn publish_artifact(
         &self,
         turn: &str,
@@ -109,6 +152,17 @@ impl Cell {
         if !self.active.load(Ordering::Acquire) {
             return Err(err(ErrorCode::LocalAccessDenied));
         }
+        match &payload {
+            EventPayload::Tool { name, status } => {
+                self.note(format!("tool {name}: {status}"));
+            }
+            EventPayload::Artifact {
+                media_type, size, ..
+            } => {
+                self.note(format!("artifact {media_type} ({size} bytes)"));
+            }
+            _ => {}
+        }
         self.journal
             .lock()
             .map_err(|_| err(ErrorCode::ProviderUnavailable))?
@@ -136,6 +190,7 @@ pub struct Runtime {
     sessions: Mutex<BTreeMap<String, Arc<Cell>>>,
     journals: Mutex<BTreeMap<String, Arc<Mutex<Journal>>>>,
     artifacts: Arc<Mutex<crate::artifact::ArtifactStore>>,
+    transcripts: Arc<Mutex<BTreeMap<(String, String), Transcript>>>,
 }
 impl Runtime {
     pub fn cost_usage(&self, owner: Option<&str>) -> Result<Vec<CostUsage>> {
@@ -163,10 +218,39 @@ impl Runtime {
     pub fn new() -> Self {
         Self::default()
     }
+    /// Canonical transcript for one host-owned conversation. Owner-scoped:
+    /// another application never sees it.
+    pub fn transcript(&self, owner: &str, conversation: &str) -> Transcript {
+        self.transcripts
+            .lock()
+            .map(|transcripts| {
+                transcripts
+                    .get(&(owner.to_owned(), conversation.to_owned()))
+                    .cloned()
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
     pub fn insert(
         &self,
         owner: &str,
         connection: String,
+        selection: Selection,
+        agent: Box<dyn Agent>,
+        guard: Guard,
+    ) -> Result<Session> {
+        self.insert_with_conversation(owner, connection, None, None, selection, agent, guard)
+    }
+    /// Inserts a session that participates in OriginLM's canonical transcript
+    /// for `conversation`. `history` reports what was seeded into the new
+    /// provider session.
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_with_conversation(
+        &self,
+        owner: &str,
+        connection: String,
+        conversation: Option<String>,
+        history: Option<SessionHistory>,
         selection: Selection,
         agent: Box<dyn Agent>,
         guard: Guard,
@@ -199,6 +283,8 @@ impl Runtime {
             state: SessionState::Ready,
             created_at: Timestamp::now(),
             native_resumption,
+            conversation_id: conversation.clone(),
+            history,
         };
         let journal = self
             .journals
@@ -227,6 +313,9 @@ impl Runtime {
                 artifacts: self.artifacts.clone(),
                 output: Mutex::new(Vec::new()),
                 image_input,
+                transcripts: self.transcripts.clone(),
+                conversation,
+                turn_notes: Mutex::new(Vec::new()),
                 costs: self.costs.clone(),
             }),
         );
@@ -552,6 +641,9 @@ impl Runtime {
         if let Ok(mut artifacts) = self.artifacts.lock() {
             artifacts.clear_owner(owner);
         }
+        if let Ok(mut transcripts) = self.transcripts.lock() {
+            transcripts.retain(|(transcript_owner, _), _| transcript_owner != owner);
+        }
     }
 }
 /// Retain the adapter on failed or dropped cleanup, so a later close can retry.
@@ -573,6 +665,16 @@ async fn run(
     mut cancel: watch::Receiver<bool>,
     images: Vec<ImageInput>,
 ) {
+    let user_prompt = prompt.clone();
+    cell.reset_turn_notes();
+    for image in &images {
+        cell.note(format!(
+            "image {} {}x{}",
+            image.media_type.as_str(),
+            image.width,
+            image.height
+        ));
+    }
     let mut agent = cell.agent.lock().await;
     let result = if let Some(driver) = agent.as_mut() {
         let cx = TurnContext {
@@ -606,8 +708,14 @@ async fn run(
                 .map_err(|_| err(ErrorCode::ProviderUnavailable))?,
         );
         if !bytes.is_empty() {
-            cell.publish_artifact(&turn, "response.txt", "text/plain; charset=utf-8", bytes)?;
+            cell.publish_artifact(
+                &turn,
+                "response.txt",
+                "text/plain; charset=utf-8",
+                bytes.clone(),
+            )?;
         }
+        cell.record_turn(&user_prompt, &String::from_utf8_lossy(&bytes));
         Ok(())
     });
     if result.is_err() {

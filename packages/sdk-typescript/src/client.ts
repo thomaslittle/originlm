@@ -6,7 +6,7 @@ const families = {
   connections: ['list', 'setupInstructions', 'authenticate', 'probe'], models: ['list', 'page', 'local'], usage: ['read', 'history'], capabilities: ['read'],
   selection: ['resolve', 'validate'], grants: ['request', 'list', 'revoke'],
   health: ['get'], issues: ['list', 'acknowledge', 'snooze'], notifications: ['poll', 'configure', 'ack'], apps: ['list', 'revoke'],
-  sessions: ['create', 'get', 'suspend', 'resume', 'updateOptions', 'close'], inputs: ['put'], turns: ['start', 'cancel'], approvals: ['respond'],
+  sessions: ['create', 'switchModel', 'get', 'suspend', 'resume', 'updateOptions', 'close'], inputs: ['put'], turns: ['start', 'cancel'], approvals: ['respond'],
   artifacts: ['read'], diagnostics: ['report'], detection: ['status'], adapters: ['list'],
 } as const;
 type Method = <T = unknown>(params?: unknown, options?: CallOptions) => Promise<T>;

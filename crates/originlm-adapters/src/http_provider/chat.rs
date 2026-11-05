@@ -1,7 +1,7 @@
 use super::{HttpKind, frames};
 use crate::http::Endpoint;
 use originlm_contracts::*;
-use originlm_runtime::{Agent, BoxFuture, ImageInput, TurnContext};
+use originlm_runtime::{Agent, BoxFuture, ImageInput, PriorHistory, SeedRole, TurnContext};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 struct Chat {
@@ -9,9 +9,22 @@ struct Chat {
     endpoint: Endpoint,
     model: Model,
     history: Vec<Value>,
+    /// Anthropic and Gemini take the app/system layer outside the message list.
+    system: Option<String>,
     closed: bool,
 }
 pub fn executor(kind: HttpKind, endpoint: Endpoint, model: Model) -> Box<dyn Agent> {
+    executor_with_history(kind, endpoint, model, None)
+}
+/// Opens an HTTP conversation. A prior conversation is seeded as real
+/// role-tagged messages, never as one opaque prompt block.
+pub fn executor_with_history(
+    kind: HttpKind,
+    endpoint: Endpoint,
+    model: Model,
+    prior: Option<PriorHistory>,
+) -> Box<dyn Agent> {
+    let (system, history) = seeded_history(kind, prior);
     Box::new(Chat {
         kind,
         endpoint: if kind == HttpKind::Anthropic {
@@ -20,9 +33,53 @@ pub fn executor(kind: HttpKind, endpoint: Endpoint, model: Model) -> Box<dyn Age
             endpoint
         },
         model,
-        history: vec![],
+        history,
+        system,
         closed: false,
     })
+}
+
+fn seeded_history(kind: HttpKind, prior: Option<PriorHistory>) -> (Option<String>, Vec<Value>) {
+    let Some(prior) = prior.filter(|prior| !prior.is_empty()) else {
+        return (None, Vec::new());
+    };
+    let outside = matches!(kind, HttpKind::Anthropic | HttpKind::Gemini);
+    let mut system = None;
+    let mut history: Vec<Value> = Vec::new();
+    for message in prior.http_messages() {
+        match message.role {
+            SeedRole::System => {
+                system = Some(match system.take() {
+                    Some(previous) => format!("{previous}\n\n{}", message.text),
+                    None => message.text,
+                });
+            }
+            SeedRole::User | SeedRole::Assistant => {
+                let role = if message.role == SeedRole::User {
+                    "user"
+                } else {
+                    "assistant"
+                };
+                // Some providers reject consecutive messages with the same
+                // role, and a tool-only turn can leave an empty reply. Merge
+                // deterministically so every seed is valid.
+                if let Some(last) = history.last_mut()
+                    && last["role"] == role
+                    && let Some(content) = last["content"].as_str()
+                {
+                    last["content"] = json!(format!("{content}\n\n{}", message.text));
+                    continue;
+                }
+                history.push(json!({"role":role,"content":message.text}));
+            }
+        }
+    }
+    if let Some(system) = &system
+        && !outside
+    {
+        history.insert(0, json!({"role":"system","content":system}));
+    }
+    (system, history)
 }
 /// The current user message in each provider's documented multimodal shape.
 /// Text-only turns keep the plain string form every route already used.
@@ -135,6 +192,9 @@ impl Chat {
             ),
             HttpKind::Anthropic => {
                 let mut body = json!({"model":self.model.native_id,"messages":request,"stream":true,"max_tokens":1024});
+                if let Some(system) = &self.system {
+                    body["system"] = json!(system);
+                }
                 if let Some(effort) = options.get("effort") {
                     body["output_config"] = json!({"effort":effort});
                 }
@@ -154,10 +214,12 @@ impl Chat {
                     return Err(invalid());
                 }
                 let contents=request.iter().map(|v|match v.get("parts"){Some(parts)=>json!({"role":"user","parts":parts}),None=>json!({"role":if v["role"]=="assistant"{"model"}else{"user"},"parts":[{"text":v["content"]}]})}).collect::<Vec<_>>();
-                (
-                    format!("models/{name}:streamGenerateContent"),
-                    json!({"contents":contents,"generationConfig":{"maxOutputTokens":1024}}),
-                )
+                let mut body =
+                    json!({"contents":contents,"generationConfig":{"maxOutputTokens":1024}});
+                if let Some(system) = &self.system {
+                    body["systemInstruction"] = json!({"parts":[{"text":system}]});
+                }
+                (format!("models/{name}:streamGenerateContent"), body)
             }
             _ => (
                 "v1/chat/completions".into(),
@@ -294,6 +356,7 @@ impl Agent for Chat {
     fn close(&mut self) -> BoxFuture<'_, ()> {
         Box::pin(async move {
             self.history.clear();
+            self.system = None;
             self.closed = true;
             Ok(())
         })
