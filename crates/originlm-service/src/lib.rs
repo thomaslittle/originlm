@@ -11,6 +11,7 @@ mod costs;
 mod delivery;
 pub use delivery::NotificationSink;
 mod health;
+mod intelligence;
 mod metadata;
 mod methods;
 mod notifications;
@@ -49,6 +50,7 @@ pub struct NativeService {
     adapters: Vec<originlm_contracts::AdapterDescriptor>,
     execution_state: execution::ExecutionState,
     cache: Arc<InventoryCache>,
+    intelligence: Arc<intelligence::IntelligenceCache>,
     metadata_source: Option<MetadataSource>,
     metadata_locks: std::sync::Mutex<BTreeMap<String, Arc<tokio::sync::Mutex<()>>>>,
     watchers: std::sync::Mutex<BTreeMap<String, DebouncedMetadataWatcher>>,
@@ -95,7 +97,15 @@ impl NativeService {
             chatgpt_auth: None,
             chatgpt_lifecycle: tokio::sync::Mutex::new(()),
             cache: Arc::new(InventoryCache::new(source, ttl)),
+            intelligence: Arc::new(intelligence::IntelligenceCache::default()),
         }
+    }
+    /// Host-only: persist the Artificial Analysis cache beside the runtime's
+    /// other local state. The key is read from `ARTIFICIAL_ANALYSIS_API_KEY`;
+    /// without it the cache still serves the last successful fetch.
+    pub fn with_intelligence_cache(mut self, directory: std::path::PathBuf) -> Self {
+        self.intelligence = Arc::new(intelligence::IntelligenceCache::load(directory));
+        self
     }
     /// Host-only: the home whose Claude/Codex/Gemini/Grok/Kiro session history
     /// is read by `usage.history` and `costs.read`. Omit to use the process
@@ -302,6 +312,7 @@ impl NativeService {
             .inventory_refresh
             .load(std::sync::atomic::Ordering::SeqCst)
             && (providers.is_empty() || self.metadata_source.is_none())
+            && !self.intelligence.catalog().configured
         {
             return false;
         }
@@ -601,6 +612,14 @@ impl NativeService {
             params::allow(&params, &[])?;
             self.close_client(client);
             return Ok(serde_json::json!({"closed":true}));
+        }
+        if method == "intelligence.refresh" {
+            params::allow(&params, &[])?;
+            if !self.policy(client)?.admin {
+                return Err(denied());
+            }
+            return serde_json::to_value(self.intelligence.refresh(true).await)
+                .map_err(|_| params::invalid());
         }
         if method.starts_with("auth.chatgpt.") {
             if !self

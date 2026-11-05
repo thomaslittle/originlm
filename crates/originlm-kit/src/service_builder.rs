@@ -159,6 +159,7 @@ pub fn build_service_with_cursor_usage(
         }));
     if let Some(directory) = &state_dir {
         service = service.with_cost_prices(directory.clone());
+        service = service.with_intelligence_cache(directory.clone());
     }
     if let Some((auth, _)) = &chatgpt {
         service = service.with_chatgpt_auth(auth.clone());
