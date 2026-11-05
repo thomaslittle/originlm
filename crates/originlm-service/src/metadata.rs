@@ -482,6 +482,14 @@ pub(crate) fn merge_report(snapshot: &mut Snapshot, report: &ConnectionMetadata,
     // deleting the only evidence the user has. When usage is present, replace
     // the connection's pools as before.
     let usage_reported = !report.quota_pools.is_empty();
+    // Routes this refresh keeps or re-adds. A stale pool keeps those ids; only
+    // routes that no longer exist fold onto the primary route.
+    let live_routes: BTreeSet<String> = snapshot
+        .routes
+        .iter()
+        .filter(|route| route.connection_id == report.connection_id)
+        .map(|route| route.id.clone())
+        .collect();
     for pool in &mut snapshot.quota_pools {
         if !usage_reported {
             if pool.connection_ids.contains(&report.connection_id) {
@@ -492,7 +500,9 @@ pub(crate) fn merge_report(snapshot: &mut Snapshot, report: &ConnectionMetadata,
                     .route_ids
                     .iter()
                     .map(|route| {
-                        if old_routes.contains(route) {
+                        if live_routes.contains(route) {
+                            route.clone()
+                        } else if old_routes.contains(route) {
                             report.route_id.clone()
                         } else {
                             route.clone()
@@ -678,5 +688,73 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    fn route(id: &str, provider: &str) -> AccessRoute {
+        AccessRoute {
+            id: id.into(),
+            connection_id: "connection-1".into(),
+            provider_id: provider.into(),
+            display_name: id.into(),
+            billing: Observation::reported(BillingMode::Subscription, source()),
+            capabilities: vec![],
+            catalog_revision: "1".into(),
+        }
+    }
+
+    #[test]
+    fn a_refresh_without_usage_keeps_allowances_on_routes_it_still_reports() {
+        let mut snapshot = Snapshot::empty(DataMode::Live);
+        snapshot.connections.push(Connection {
+            id: "connection-1".into(),
+            provider_id: "opencode".into(),
+            installation_id: "installation-1".into(),
+            profile_id: "profile-1".into(),
+            display_name: "OpenCode".into(),
+            account_id: None,
+            auth: Observation::unknown("TEST"),
+            plan: Observation::unknown("TEST"),
+            status: "detected".into(),
+            diagnostics: vec![],
+        });
+        snapshot.routes.push(route("route-primary", "opencode"));
+        snapshot.routes.push(route("route-go", "opencode-go"));
+        snapshot.quota_pools.push(QuotaPool {
+            id: "pool-go".into(),
+            account_id: None,
+            connection_ids: vec!["connection-1".into()],
+            route_ids: vec!["route-go".into()],
+            sharing: "private".into(),
+            windows: vec![UsageWindow {
+                id: "weekly".into(),
+                label: "Weekly".into(),
+                reading: Observation::unknown("TEST"),
+                resets_at: None,
+                duration_seconds: None,
+            }],
+        });
+        let report = ConnectionMetadata {
+            connection_id: "connection-1".into(),
+            route_id: "route-primary".into(),
+            version: Observation::unknown("TEST"),
+            auth: Observation::reported(AuthState::Authenticated, source()),
+            plan: Observation::unknown("TEST"),
+            billing: Observation::reported(BillingMode::Subscription, source()),
+            account: None,
+            models: vec![],
+            additional_routes: vec![route("route-go", "opencode-go")],
+            providers: vec![],
+            quota_pools: vec![],
+            included_usage_allowed: Observation::unknown("NOT_REPORTED"),
+            diagnostics: vec![],
+        };
+
+        merge_report(&mut snapshot, &report, false);
+
+        assert_eq!(
+            snapshot.quota_pools[0].route_ids,
+            vec!["route-go".to_string()],
+            "a route this refresh re-adds keeps its allowance"
+        );
     }
 }
