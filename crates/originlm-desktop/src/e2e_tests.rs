@@ -7,14 +7,20 @@
 
 use crate::app::{Desktop, Page};
 use crate::bootstrap::Credential;
-use crate::broker::Bundle;
+use crate::broker::{Bundle, ExecCommand, ExecEvent, ExecHandle};
 use gpui_kit::test::{TestAppContextExt, TestWindowExt};
 use gpui_kit::{
     AppContext as _, Bounds, Entity, InteractiveElement as _, ParentElement as _, Render,
     Styled as _, TestAppContext, Window, WindowBounds, WindowOptions, point, px, size,
 };
 use originlm_contracts::*;
+use originlm_kit::{ClientPolicy, ExecutionGrant, LocatedClient, NativeService, ScanResult};
+use originlm_runtime::{Agent, BoxFuture, PriorHistory, TurnContext};
 use std::time::Duration;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::{Arc, Mutex},
+};
 
 fn evidence() -> EvidenceSource {
     EvidenceSource::new(EvidenceKind::Synthetic, "native-e2e", "fixture")
@@ -227,7 +233,8 @@ impl Render for PageHarness {
         let page = self.desktop.update(cx, |desktop, cx| match page {
             Page::Overview => desktop.page_overview(cx),
             Page::Models => desktop.page_models(cx),
-            _ => unreachable!("test harness only renders Overview and Models"),
+            Page::Playground => desktop.page_playground(cx),
+            _ => unreachable!("test harness only renders Overview, Models and Playground"),
         });
         gpui_kit::div().id("page-harness").size_full().child(page)
     }
@@ -330,4 +337,400 @@ async fn native_overview_and_models_surface_real_labels(cx: &mut TestAppContext)
         }
     })
     .expect("drive the test window");
+}
+
+// ---------------------------------------------------------------------------
+// Playground model-switch e2e
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+struct OpenedModel {
+    model: String,
+    prior: Option<PriorHistory>,
+}
+
+struct E2eAgent {
+    model: String,
+}
+
+impl Agent for E2eAgent {
+    fn turn<'a>(
+        &'a mut self,
+        _: String,
+        _: BTreeMap<String, serde_json::Value>,
+        cx: TurnContext,
+    ) -> BoxFuture<'a, ()> {
+        Box::pin(async move {
+            cx.emit(EventPayload::TextDelta {
+                text: format!("e2e reply from {}", self.model),
+            })?;
+            Ok(())
+        })
+    }
+    fn close(&mut self) -> BoxFuture<'_, ()> {
+        Box::pin(async { Ok(()) })
+    }
+}
+
+fn handoff_snapshot() -> Snapshot {
+    let mut snapshot = fixture();
+    for id in ["model-local", "model-go"] {
+        if let Some(model) = snapshot.models.iter_mut().find(|model| model.id == id) {
+            model.capabilities.push(Capability {
+                id: "generation.text".into(),
+                support: Support::Supported,
+                origin: CapabilityOrigin::Model,
+                evidence: Observation::reported("native-e2e".into(), evidence()),
+                conditions: vec![],
+            });
+        }
+    }
+    snapshot
+}
+
+fn handoff_service(
+    opened: Arc<Mutex<Vec<OpenedModel>>>,
+    workspace: std::path::PathBuf,
+) -> Arc<NativeService> {
+    let snapshot = Arc::new(handoff_snapshot());
+    let scan = snapshot.clone();
+    let service = NativeService::new(
+        Arc::new(move |_| {
+            let snapshot = (*scan).clone();
+            let locations = snapshot
+                .connections
+                .iter()
+                .map(|connection| {
+                    (
+                        connection.id.clone(),
+                        LocatedClient {
+                            executable_identity: None,
+                            provider_id: connection.provider_id.clone(),
+                            profile_home: std::env::temp_dir(),
+                            executable: None,
+                            scope: None,
+                        },
+                    )
+                })
+                .collect();
+            Ok(ScanResult {
+                snapshot,
+                locations,
+                metadata_probes: 0,
+            })
+        }),
+        Duration::ZERO,
+    )
+    .with_execution(
+        BTreeSet::from(["opencode".into()]),
+        Arc::new(move |input| {
+            opened.lock().unwrap().push(OpenedModel {
+                model: input.model.id.clone(),
+                prior: input.prior_history.clone(),
+            });
+            let model = input.model.id.clone();
+            Box::pin(async move { Ok(Box::new(E2eAgent { model }) as Box<dyn Agent>) })
+        }),
+    );
+    service
+        .register_client("desktop", ClientPolicy::passive())
+        .unwrap();
+    service
+        .register_execution(
+            "desktop",
+            ExecutionGrant {
+                connection_ids: BTreeSet::from(["connection-opencode".into()]),
+                workspaces: BTreeMap::from([("default".into(), workspace)]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    Arc::new(service)
+}
+
+fn test_executor(service: Arc<NativeService>) -> ExecHandle {
+    let (commands_tx, commands_rx) = std::sync::mpsc::channel();
+    let (events_tx, events_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let _ =
+            runtime.block_on(service.handle("desktop", "discovery.refresh", serde_json::json!({})));
+        let mut session: Option<String> = None;
+        while let Ok(command) = commands_rx.recv() {
+            match command {
+                ExecCommand::Run {
+                    prompt,
+                    choice,
+                    allow_paid,
+                } => {
+                    let selection = serde_json::json!({
+                        "routeId": choice.route_id,
+                        "modelId": choice.model_id,
+                        "revision": choice.revision,
+                        "options": {},
+                    });
+                    let created = match &session {
+                        Some(id) => runtime.block_on(service.handle(
+                            "desktop",
+                            "sessions.switchModel",
+                            serde_json::json!({
+                                "sessionId": id,
+                                "selection": selection,
+                                "allowPaid": allow_paid,
+                            }),
+                        )),
+                        None => runtime.block_on(service.handle(
+                            "desktop",
+                            "sessions.create",
+                            serde_json::json!({
+                                "selection": selection,
+                                "workspaceId": "default",
+                                "permissionMode": "read_only",
+                                "reviewRequests": false,
+                                "allowPaid": allow_paid,
+                                "conversationId": "desktop-e2e",
+                            }),
+                        )),
+                    };
+                    let session_id = match created {
+                        Ok(value) => value["id"].as_str().unwrap_or_default().to_string(),
+                        Err(error) => {
+                            let _ = events_tx.send(ExecEvent::Failed {
+                                error: format!("session: {error}"),
+                            });
+                            continue;
+                        }
+                    };
+                    session = Some(session_id.clone());
+                    let started = runtime.block_on(service.handle(
+                        "desktop",
+                        "turns.start",
+                        serde_json::json!({
+                            "sessionId": session_id,
+                            "prompt": prompt,
+                            "requestId": format!("desktop-e2e-{}", chrono::Utc::now().timestamp_millis()),
+                        }),
+                    ));
+                    let turn_id = match started {
+                        Ok(value) => value["turnId"].as_str().unwrap_or_default().to_string(),
+                        Err(error) => {
+                            let _ = events_tx.send(ExecEvent::Failed {
+                                error: format!("turn: {error}"),
+                            });
+                            continue;
+                        }
+                    };
+                    let _ = events_tx.send(ExecEvent::Started {
+                        session_id: session_id.clone(),
+                        turn_id,
+                        label: choice.label.clone(),
+                    });
+                    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+                    loop {
+                        let state = runtime.block_on(service.handle(
+                            "desktop",
+                            "sessions.get",
+                            serde_json::json!({ "sessionId": session_id }),
+                        ));
+                        let state = state
+                            .ok()
+                            .and_then(|value| value["state"].as_str().map(str::to_owned))
+                            .unwrap_or_else(|| "error".into());
+                        if state != "running" && state != "awaiting_approval" {
+                            break;
+                        }
+                        if std::time::Instant::now() > deadline {
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    let text = runtime
+                        .block_on(service.handle(
+                            "desktop",
+                            "events.read",
+                            serde_json::json!({ "sessionId": session_id }),
+                        ))
+                        .ok()
+                        .and_then(|page| {
+                            let mut text = String::new();
+                            for event in page["events"].as_array()? {
+                                if event["payload"]["type"] == "text_delta" {
+                                    text.push_str(event["payload"]["text"].as_str().unwrap_or(""));
+                                }
+                            }
+                            Some(text)
+                        })
+                        .unwrap_or_default();
+                    if !text.is_empty() {
+                        let _ = events_tx.send(ExecEvent::Delta {
+                            session_id: session_id.clone(),
+                            text,
+                        });
+                    }
+                    let _ = events_tx.send(ExecEvent::Finished {
+                        session_id,
+                        status: "completed".into(),
+                    });
+                }
+                ExecCommand::Cancel => {}
+                ExecCommand::Close(session_id) => {
+                    let _ = runtime.block_on(service.handle(
+                        "desktop",
+                        "sessions.close",
+                        serde_json::json!({ "sessionId": session_id }),
+                    ));
+                    session = None;
+                }
+            }
+        }
+    });
+    ExecHandle {
+        commands: commands_tx,
+        events: events_rx,
+    }
+}
+
+#[gpui_kit::test]
+async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut TestAppContext) {
+    cx.update(gpui_kit::init);
+    let workspace = tempfile::tempdir().unwrap();
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let service = handoff_service(opened.clone(), workspace.path().canonicalize().unwrap());
+    let executor = test_executor(service);
+    let (handle, harness, desktop) = cx.update(|cx| {
+        let bounds = Bounds {
+            origin: point(px(0.), px(0.)),
+            size: size(px(1440.), px(920.)),
+        };
+        let (window, harness) = gpui_kit::open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                ..Default::default()
+            },
+            cx,
+            |window, cx| {
+                let desktop = cx.new(|cx| {
+                    Desktop::new(
+                        window,
+                        cx,
+                        Credential::Unavailable("native e2e".into()),
+                        30,
+                        true,
+                    )
+                });
+                desktop.update(cx, |desktop, cx| {
+                    desktop.executor = executor;
+                    desktop.page = Page::Playground;
+                    desktop.viewport_w = 1440.;
+                    cx.notify();
+                });
+                cx.new(|_| PageHarness {
+                    desktop: desktop.clone(),
+                    page: Page::Playground,
+                })
+            },
+        )
+        .expect("open the real Playground view");
+        let desktop = harness.read(cx).desktop.clone();
+        (window, harness, desktop)
+    });
+
+    cx.wait_for(handle, Duration::from_secs(3), |_, cx| {
+        desktop.read(cx).bundle.is_some()
+    })
+    .await;
+
+    cx.update_window(handle, |_, window, cx| {
+        desktop.update(cx, |desktop, cx| {
+            desktop.bundle = Some(bundle());
+            cx.notify();
+        });
+        harness.update(cx, |_, cx| cx.notify());
+        window.render_frame(cx);
+        desktop.update(cx, |desktop, cx| {
+            desktop.selected_model = Some("model-local".into());
+            desktop.prompt.update(cx, |prompt, cx| {
+                prompt.set_value("first e2e question", window, cx)
+            });
+            desktop.run_prompt(cx);
+        });
+    })
+    .expect("run the first model turn");
+
+    cx.wait_for(handle, Duration::from_secs(10), |_, cx| {
+        let desktop = desktop.read(cx);
+        !desktop.running
+            && (desktop.playground_error.is_some()
+                || desktop
+                    .sessions
+                    .iter()
+                    .filter(|session| session.status == "completed")
+                    .count()
+                    >= 1)
+    })
+    .await;
+    assert_eq!(
+        cx.update(|cx| desktop.read(cx).playground_error.clone()),
+        None,
+        "first turn failed"
+    );
+
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        desktop.update(cx, |desktop, cx| {
+            desktop.bundle = Some(bundle());
+            desktop.selected_model = Some("model-go".into());
+            desktop.prompt.update(cx, |prompt, cx| {
+                prompt.set_value("second e2e question", window, cx)
+            });
+            desktop.run_prompt(cx);
+        });
+    })
+    .expect("switch models and run the second turn");
+
+    cx.wait_for(handle, Duration::from_secs(10), |_, cx| {
+        let desktop = desktop.read(cx);
+        !desktop.running
+            && (desktop.playground_error.is_some()
+                || desktop
+                    .sessions
+                    .iter()
+                    .filter(|session| session.status == "completed")
+                    .count()
+                    >= 2)
+    })
+    .await;
+    assert_eq!(
+        cx.update(|cx| desktop.read(cx).playground_error.clone()),
+        None,
+        "second turn failed"
+    );
+
+    let opened = opened.lock().unwrap().clone();
+    assert_eq!(
+        opened.len(),
+        2,
+        "one provider session per model: {opened:?}"
+    );
+    assert_eq!(opened[0].model, "model-local");
+    assert!(opened[0].prior.is_none(), "the first session is not seeded");
+    assert_eq!(opened[1].model, "model-go");
+    let prior = opened[1]
+        .prior
+        .as_ref()
+        .expect("the switched model receives the prior conversation");
+    assert_eq!(prior.turns.len(), 1);
+    assert_eq!(prior.turns[0].user, "first e2e question");
+    assert!(
+        prior.turns[0]
+            .assistant
+            .contains("e2e reply from model-local"),
+        "the prior assistant reply did not carry: {prior:?}"
+    );
+
+    harness.update(cx, |_, cx| cx.notify());
 }

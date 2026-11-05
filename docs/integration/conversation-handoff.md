@@ -164,3 +164,18 @@ on `sessions.create`, the `sessions.switchModel` method, and `conversationId` /
 `history` on `Session`. Existing hosts that omit them get exactly the previous
 behavior. The runtime advertises `session.conversation.handoff` in
 `runtime.handshake`.
+
+## GPUI end-to-end proof
+
+OriginLM Desktop has a deterministic GPUI test window for the real Playground
+page (`crates/originlm-desktop/src/e2e_tests.rs`). It opens two in-process
+sessions through the real service, sends a prompt on model A, switches to model
+B mid-conversation, and asserts the second provider session received the prior
+user and assistant turns. No OS keyboard, mouse or focus is used, and no real
+provider is contacted.
+
+```sh
+cargo test -p originlm-desktop native_playground_model_switch_hands_off_the_conversation
+```
+
+The full desktop suite remains `cargo test -p originlm-desktop`.
