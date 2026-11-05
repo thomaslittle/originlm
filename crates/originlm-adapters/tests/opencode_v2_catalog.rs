@@ -23,6 +23,11 @@ fn retains_route_native_id_and_options_but_never_infers_auth_or_billing() {
             .validate(&json!("future-effort"))
             .is_ok()
     );
+    assert_eq!(
+        result.models[0].options[0].category.as_deref(),
+        Some("reasoning"),
+        "OpenCode variants are the model's reasoning effort selector"
+    );
     assert!(result.auth.value().is_none());
     assert!(
         result

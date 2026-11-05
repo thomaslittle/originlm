@@ -950,8 +950,17 @@ impl Desktop {
             .iter()
             .find(|model| Some(&model.id) == self.selected_model.as_ref())?;
         model.options.iter().find(|option| {
-            option.id.eq_ignore_ascii_case("effort")
-                || option.id.eq_ignore_ascii_case("reasoningEffort")
+            let id = option.id.to_ascii_lowercase();
+            id == "effort"
+                || id == "reasoningeffort"
+                || id == "variant"
+                || id.contains("reasoning")
+                || id.contains("thinking")
+                || id.contains("effort")
+                || option
+                    .category
+                    .as_deref()
+                    .is_some_and(|category| category.eq_ignore_ascii_case("reasoning"))
                 || option.label.to_ascii_lowercase().contains("effort")
         })
     }

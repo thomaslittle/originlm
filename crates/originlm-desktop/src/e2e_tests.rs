@@ -186,8 +186,8 @@ fn fixture() -> Snapshot {
     ));
     let mut local = model("model-local", "route-local", "KAT-Coder", "kat-coder");
     local.options = vec![OptionDescriptor {
-        id: "effort".into(),
-        label: "Reasoning effort".into(),
+        id: "variant".into(),
+        label: "Native variant".into(),
         scope: OptionScope::Turn,
         revision: "1".into(),
         control: OptionControl::Select {
@@ -211,7 +211,7 @@ fn fixture() -> Snapshot {
             default_value: Some("medium".into()),
         },
         current_value: None,
-        category: None,
+        category: Some("reasoning".into()),
         source: None,
         billing_sensitive: false,
         permission_sensitive: false,
@@ -1027,4 +1027,78 @@ async fn native_playground_selectors_keyboard_and_attachments(cx: &mut TestAppCo
         assert!(!desktop.read(cx).model_picker_open);
     })
     .expect("verify Escape closed the selector");
+}
+
+#[gpui_kit::test]
+async fn native_playground_sends_the_selected_reasoning_variant(cx: &mut TestAppContext) {
+    cx.update(gpui_kit::init);
+    let (handle, harness, desktop) = cx.update(|cx| {
+        let bounds = Bounds {
+            origin: point(px(0.), px(0.)),
+            size: size(px(1280.), px(800.)),
+        };
+        let (window, harness) = gpui_kit::open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                ..Default::default()
+            },
+            cx,
+            |window, cx| {
+                let desktop = cx.new(|cx| {
+                    Desktop::new(
+                        window,
+                        cx,
+                        Credential::Unavailable("native e2e".into()),
+                        30,
+                        true,
+                    )
+                });
+                cx.new(|_| PageHarness {
+                    desktop: desktop.clone(),
+                    page: Page::Playground,
+                })
+            },
+        )
+        .expect("open the Playground view");
+        let desktop = harness.read(cx).desktop.clone();
+        (window, harness, desktop)
+    });
+    cx.wait_for(handle, Duration::from_secs(3), |_, cx| {
+        desktop.read(cx).bundle.is_some()
+    })
+    .await;
+
+    let (commands_tx, commands_rx) = std::sync::mpsc::channel();
+    let (_events_tx, events_rx) = std::sync::mpsc::channel();
+    cx.update_window(handle, |_, window, cx| {
+        desktop.update(cx, |desktop, cx| {
+            desktop.bundle = Some(bundle());
+            desktop.executor = ExecHandle {
+                commands: commands_tx,
+                events: events_rx,
+            };
+            desktop.selected_model = Some("model-local".into());
+            desktop.selected_effort = Some("high".into());
+            desktop.prompt.update(cx, |prompt, cx| {
+                prompt.set_value("use high reasoning", window, cx)
+            });
+            cx.notify();
+            desktop.run_prompt(window, cx);
+        });
+        harness.update(cx, |_, cx| cx.notify());
+        window.render_frame(cx);
+    })
+    .expect("run a turn with a reasoning variant");
+
+    let crate::broker::ExecCommand::Run(request) = commands_rx
+        .try_recv()
+        .expect("the turn should be sent to the executor")
+    else {
+        panic!("expected a run command");
+    };
+    assert_eq!(
+        request.options.get("variant"),
+        Some(&serde_json::json!("high")),
+        "the OpenCode reasoning variant was not sent with the turn"
+    );
 }

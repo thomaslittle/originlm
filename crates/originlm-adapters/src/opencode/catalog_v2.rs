@@ -138,7 +138,7 @@ pub fn catalog(
                     default_value: None,
                 },
                 current_value: None,
-                category: None,
+                category: Some("reasoning".into()),
                 source: Some(evidence()),
                 billing_sensitive: false,
                 permission_sensitive: false,
