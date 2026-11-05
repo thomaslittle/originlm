@@ -524,10 +524,9 @@ pub fn spawn_executor(credential: Credential, example: bool) -> ExecHandle {
 /// Decode, downscale and recompress an attachment so the JSON-RPC frame and
 /// the runtime input limits are respected. Photos go to JPEG; PNG stays PNG
 /// when it still fits, otherwise it falls back to JPEG.
-fn prepare_attachment(
-    bytes: Vec<u8>,
-    original_media: &str,
-) -> std::result::Result<(&'static str, Vec<u8>), String> {
+fn prepare_attachment(bytes: Vec<u8>) -> std::result::Result<(&'static str, Vec<u8>), String> {
+    let format = image::guess_format(&bytes)
+        .map_err(|_| "The file is not a supported image format".to_string())?;
     let image = image::load_from_memory(&bytes).map_err(|error| error.to_string())?;
     let edge = originlm_contracts::MAX_INPUT_IMAGE_EDGE;
     let image = if image.width() > edge || image.height() > edge {
@@ -537,7 +536,7 @@ fn prepare_attachment(
     };
     let max_bytes = originlm_contracts::MAX_INPUT_IMAGE_BYTES;
     let mut output = Vec::new();
-    if original_media == "image/png" {
+    if format == image::ImageFormat::Png || image.color().has_alpha() {
         image
             .write_to(
                 &mut std::io::Cursor::new(&mut output),
@@ -649,26 +648,7 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                             continue 'commands;
                         }
                     };
-                    let Some(media) = path
-                        .extension()
-                        .and_then(|extension| extension.to_str())
-                        .map(str::to_ascii_lowercase)
-                        .and_then(|extension| match extension.as_str() {
-                            "jpg" | "jpeg" => Some("image/jpeg"),
-                            "png" => Some("image/png"),
-                            _ => None,
-                        })
-                    else {
-                        let _ = active.call("sessions.close", json!({"sessionId": session_id}));
-                        let _ = events.send(ExecEvent::Failed {
-                            error: format!(
-                                "Only JPEG and PNG images can be attached: {}",
-                                path.display()
-                            ),
-                        });
-                        continue 'commands;
-                    };
-                    let (media, bytes) = match prepare_attachment(bytes, media) {
+                    let (media, bytes) = match prepare_attachment(bytes) {
                         Ok(prepared) => prepared,
                         Err(error) => {
                             let _ = active.call("sessions.close", json!({"sessionId": session_id}));
@@ -868,11 +848,28 @@ mod attachment_tests {
                 image::ImageFormat::Png,
             )
             .unwrap();
-        let (media, prepared) = prepare_attachment(source, "image/png").unwrap();
+        let (media, prepared) = prepare_attachment(source).unwrap();
         assert!(prepared.len() <= originlm_contracts::MAX_INPUT_IMAGE_BYTES);
         assert!(matches!(media, "image/png" | "image/jpeg"));
         let decoded = image::load_from_memory(&prepared).unwrap();
         assert!(decoded.width() <= originlm_contracts::MAX_INPUT_IMAGE_EDGE);
         assert!(decoded.height() <= originlm_contracts::MAX_INPUT_IMAGE_EDGE);
+    }
+
+    #[test]
+    fn non_png_image_formats_are_normalised_for_staging() {
+        let image = image::RgbImage::from_fn(64, 48, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, 40])
+        });
+        let mut source = Vec::new();
+        image::DynamicImage::ImageRgb8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut source),
+                image::ImageFormat::Bmp,
+            )
+            .unwrap();
+        let (media, prepared) = prepare_attachment(source).unwrap();
+        assert!(matches!(media, "image/png" | "image/jpeg"));
+        assert!(image::load_from_memory(&prepared).is_ok());
     }
 }

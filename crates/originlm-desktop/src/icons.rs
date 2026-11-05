@@ -21,6 +21,7 @@ fn bytes(provider: &str) -> Option<&'static [u8]> {
         "lmstudio" | "lm_studio" => include_bytes!("../assets/providers/lmstudio.svg"),
         "grok" => include_bytes!("../assets/providers/grok.svg"),
         "xai" => include_bytes!("../assets/providers/xai.svg"),
+        "muse" | "muse_code" | "muse-code" => include_bytes!("../assets/providers/meta.svg"),
         "local" => include_bytes!("../assets/providers/local.svg"),
         "antigravity" => include_bytes!("../assets/providers/antigravity.svg"),
         _ => return None,
@@ -47,6 +48,7 @@ fn brand_hex(provider: &str) -> Option<u32> {
         "claude_code" | "claude-code" | "claude" | "anthropic_api" => 0xD97757,
         "codex" | "openai" | "openai_api" | "chatgpt" => 0x10A37F,
         "gemini_cli" | "gemini" | "gemini_api" => 0x4285F4,
+        "muse" | "muse_code" | "muse-code" => 0x0081FB,
         _ => return None,
     })
 }
@@ -96,6 +98,12 @@ mod tests {
         assert_eq!(brand_hex("claude_code"), Some(0xD97757));
         assert_eq!(brand_hex("codex"), Some(0x10A37F));
         assert_eq!(brand_hex("gemini_cli"), Some(0x4285F4));
+    }
+
+    #[test]
+    fn muse_uses_the_meta_mark() {
+        assert!(super::bytes("muse").is_some());
+        assert_eq!(brand_hex("muse"), Some(0x0081FB));
     }
 
     #[test]

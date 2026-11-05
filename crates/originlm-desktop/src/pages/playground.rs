@@ -15,6 +15,8 @@ use gpui_kit::component::{
     tooltip::Tooltip,
 };
 use gpui_kit::prelude::FluentBuilder as _;
+#[cfg(test)]
+use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
 use std::f32::consts::PI;
 use std::time::Duration;
@@ -141,7 +143,7 @@ impl Desktop {
                 } else {
                     theme.muted_foreground
                 };
-                div()
+                let tab = div()
                     .id(SharedString::from(id))
                     .role(gpui::Role::Tab)
                     .aria_label(label)
@@ -173,7 +175,10 @@ impl Desktop {
                             this.model_provider_filter = provider.clone();
                             cx.notify();
                         });
-                    })
+                    });
+                #[cfg(test)]
+                let tab = tab.test_support();
+                tab
             }));
 
         let visible_count = visible_choices.len();
@@ -199,7 +204,7 @@ impl Desktop {
                     let is_selected =
                         self.selected_model.as_deref() == Some(choice.model_id.as_str());
                     let entity = entity.clone();
-                    ds::select_row(
+                    let row = ds::select_row(
                         SharedString::from(format!("choice-{id}")),
                         is_selected,
                         &theme,
@@ -234,7 +239,10 @@ impl Desktop {
                             this.effort_picker_open = false;
                             cx.notify();
                         });
-                    })
+                    });
+                    #[cfg(test)]
+                    let row = row.test_support();
+                    row
                 }))
                 .into_any_element()
         };
@@ -298,14 +306,17 @@ impl Desktop {
                     .child(Input::new(&self.model_search)),
             )
             .child(provider_tabs)
-            .child(
-                div()
+            .child({
+                let list = div()
                     .id("model-picker-list")
                     .flex_1()
                     .min_h(px(0.))
                     .overflow_y_scroll()
-                    .child(model_rows),
-            )
+                    .child(model_rows);
+                #[cfg(test)]
+                let list = list.test_support();
+                list
+            })
             .child(
                 div()
                     .h_flex()
@@ -359,13 +370,13 @@ impl Desktop {
                         &theme,
                     )),
             );
+        #[cfg(test)]
+        let picker = picker.test_support();
 
         let effort_choices = self.effort_choices();
         let effort_picker = div()
             .id("effort-picker")
             .w_full()
-            .h_full()
-            .min_h(px(0.))
             .rounded(px(14.))
             .bg(theme.popover)
             .border_1()
@@ -427,14 +438,13 @@ impl Desktop {
                 div()
                     .id("effort-picker-list")
                     .v_flex()
-                    .flex_1()
-                    .min_h(px(0.))
+                    .max_h(px(320.))
                     .overflow_y_scroll()
                     .py(px(4.))
                     .children(effort_choices.into_iter().map(|(value, label)| {
                         let selected = current.as_deref() == Some(value.as_str());
                         let entity = entity.clone();
-                        ds::select_row(
+                        let row = ds::select_row(
                             SharedString::from(format!("effort-option-{value}")),
                             selected,
                             &theme,
@@ -454,10 +464,15 @@ impl Desktop {
                                 this.effort_picker_open = false;
                                 cx.notify();
                             });
-                        })
+                        });
+                        #[cfg(test)]
+                        let row = row.test_support();
+                        row
                     }))
                     .into_any_element()
             });
+        #[cfg(test)]
+        let effort_picker = effort_picker.test_support();
 
         // Chat header: the selected model and the live run state are always
         // visible, even when the transcript is empty.
@@ -682,7 +697,9 @@ impl Desktop {
                 .primary()
                 .label("Send")
                 .icon(IconName::Play)
-                .on_click(move |_, _, cx| entity.update(cx, |this, cx| this.run_prompt(cx)))
+                .on_click(move |_, window, cx| {
+                    entity.update(cx, |this, cx| this.run_prompt(window, cx))
+                })
                 .into_any_element()
         };
         let attachment_tray = if self.attachments.is_empty() {
@@ -692,7 +709,8 @@ impl Desktop {
                 self.attachments.iter().enumerate().map(|(index, path)| {
                     let entity = entity.clone();
                     let path = path.clone();
-                    div()
+                    let chip = div()
+                        .id(SharedString::from(format!("attachment-{index}")))
                         .h_flex()
                         .items_center()
                         .gap(px(5.))
@@ -716,8 +734,8 @@ impl Desktop {
                                     .to_owned(),
                             ),
                         )
-                        .child(
-                            div()
+                        .child({
+                            let remove = div()
                                 .id(SharedString::from(format!("remove-attachment-{index}")))
                                 .w(px(16.))
                                 .h(px(16.))
@@ -737,8 +755,14 @@ impl Desktop {
                                         this.attachments.retain(|current| current != &path);
                                         cx.notify();
                                     });
-                                }),
-                        )
+                                });
+                            #[cfg(test)]
+                            let remove = remove.test_support();
+                            remove
+                        });
+                    #[cfg(test)]
+                    let chip = chip.test_support();
+                    chip
                 }),
             ))
         };
@@ -764,6 +788,8 @@ impl Desktop {
             .on_click(move |_, _, cx| {
                 attach_entity.update(cx, |this, cx| this.pick_attachments(cx))
             });
+        #[cfg(test)]
+        let attach = attach.test_support();
 
         let model_entity = entity.clone();
         let model_chip = div()
@@ -821,12 +847,15 @@ impl Desktop {
                 });
             });
 
+        #[cfg(test)]
+        let model_chip = model_chip.test_support();
+
         let effort = {
             let label = self
                 .effort_label()
                 .unwrap_or_else(|| "Default effort".to_string());
             let entity = entity.clone();
-            div()
+            let effort_chip = div()
                 .id("effort-chip")
                 .role(gpui::Role::Button)
                 .aria_label("Reasoning effort")
@@ -858,7 +887,10 @@ impl Desktop {
                         this.model_picker_open = false;
                         cx.notify();
                     });
-                })
+                });
+            #[cfg(test)]
+            let effort_chip = effort_chip.test_support();
+            effort_chip
         };
 
         let composer = div()
@@ -892,6 +924,9 @@ impl Desktop {
                     .child(send),
             );
 
+        #[cfg(test)]
+        let composer = composer.test_support();
+
         let transcript = ds::panel(&theme)
             .flex_1()
             .min_w(px(0.))
@@ -911,13 +946,15 @@ impl Desktop {
                     .child(effort_picker)
                     .into_any_element()
             } else {
-                div()
+                let transcript = div()
                     .id("playground-transcript")
                     .flex_1()
                     .min_h(px(0.))
                     .overflow_y_scroll()
-                    .child(lines)
-                    .into_any_element()
+                    .child(lines);
+                #[cfg(test)]
+                let transcript = transcript.test_support();
+                transcript.into_any_element()
             })
             .when_some(self.playground_error.clone(), |this, error| {
                 this.child(div().p(px(sp::MD)).child(ds::banner(
@@ -960,6 +997,26 @@ impl Desktop {
                 &theme,
             ));
         }
-        page.child(transcript).into_any_element()
+        let escape_entity = entity.clone();
+        let page = page.child(transcript).on_key_down(move |event, _, cx| {
+            if !event.keystroke.key.eq_ignore_ascii_case("escape") {
+                return;
+            }
+            let mut closed = false;
+            escape_entity.update(cx, |this, cx| {
+                if this.model_picker_open || this.effort_picker_open {
+                    this.model_picker_open = false;
+                    this.effort_picker_open = false;
+                    closed = true;
+                    cx.notify();
+                }
+            });
+            if closed {
+                cx.stop_propagation();
+            }
+        });
+        #[cfg(test)]
+        let page = page.test_support();
+        page.into_any_element()
     }
 }

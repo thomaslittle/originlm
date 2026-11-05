@@ -15,6 +15,8 @@ COMMANDS = [
     ["cargo", "test", "-p", "originlm-desktop", "--all-targets"],
     ["cargo", "test", "-p", "originlm-service", "--test", "model_switch"],
     ["cargo", "test", "-p", "originlm-adapters", "--test", "http_execution"],
+    ["cargo", "test", "-p", "originlm-adapters", "--test", "opencode_v2"],
+    ["cargo", "test", "-p", "originlm-adapters", "--lib", "v2_service"],
 ]
 
 

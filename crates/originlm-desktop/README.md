@@ -179,7 +179,7 @@ Run the desktop UI, handoff and HTTP request-shaping suites together:
 python scripts/test_desktop_e2e.py
 ```
 
-This runs the GPUI Playground tests plus the service model-switch and HTTP adapter execution suites. It covers two-turn model switching, prior-context seeding, transcript retention, no double seeding, resume after switch, target-budget trimming, free-model billing consent, and large-image downscaling before `inputs.put`.
+This runs the GPUI Playground tests plus the service model-switch, HTTP adapter execution and OpenCode 2 transport suites. It covers two-turn model switching, prior-context seeding, transcript retention, no double seeding, resume after switch, target-budget trimming, free-model billing consent, large-image downscaling before `inputs.put`, the catch-all deny ruleset for text-only OpenCode sessions, selector fit/clipping, provider marks, attachment chips, Enter/Shift+Enter/Escape keyboard behavior, and mixed image/text attachments.
 - Availability meters are green at 50% or more remaining, amber below 50%, and red below 20%. The Claude burst and OpenAI marks are used for Claude Code and Codex.
 - Startup renders the cached snapshot first; metadata and usage refresh run in the background rather than queuing one probe behind another on the broker worker. The private runtime keeps its own `desktop-metadata.db`, hydrates the last observations, and reverifies them in the background; it never shares the CLI broker database.
 - Cursor is probed through the installed `cursor-agent` CLI: signed-in state,

@@ -17,7 +17,7 @@ use gpui_kit::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::TryRecvError,
     time::{Duration, Instant},
 };
@@ -342,7 +342,8 @@ impl Desktop {
         });
         let prompt = cx.new(|cx| {
             TextareaState::new(window, cx)
-                .placeholder("Describe a small test request. Nothing runs until you press Run.")
+                .submit_on_enter(true)
+                .placeholder("Write a message. Enter sends, Shift+Enter adds a line.")
         });
 
         let focus = cx.focus_handle();
@@ -398,6 +399,17 @@ impl Desktop {
                 if matches!(event, InputEvent::Change) {
                     this.model_query = input.read(cx).value().to_string();
                     cx.notify();
+                }
+            }
+        }));
+        subscriptions.push(cx.subscribe_in(&prompt, window, {
+            move |this: &mut Desktop, _, event: &InputEvent, window, cx| {
+                if let InputEvent::PressEnter { shift, .. } = event
+                    && !shift
+                    && !this.running
+                    && !this.prompt.read(cx).value().trim().is_empty()
+                {
+                    this.run_prompt(window, cx);
                 }
             }
         }));
@@ -994,18 +1006,9 @@ impl Desktop {
             .or(Some(value))
     }
 
-    pub fn attach_images(&mut self, paths: Vec<PathBuf>) {
+    pub fn attach_files(&mut self, paths: Vec<PathBuf>) {
         for path in paths {
-            let image = path
-                .extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| {
-                    matches!(
-                        extension.to_ascii_lowercase().as_str(),
-                        "jpg" | "jpeg" | "png"
-                    )
-                });
-            if image && !self.attachments.contains(&path) && self.attachments.len() < 4 {
+            if !self.attachments.contains(&path) && self.attachments.len() < 4 {
                 self.attachments.push(path);
             }
         }
@@ -1016,12 +1019,12 @@ impl Desktop {
             files: true,
             directories: false,
             multiple: true,
-            prompt: Some("Attach images".into()),
+            prompt: Some("Attach files".into()),
         });
         cx.spawn(async move |this, cx| {
             if let Ok(Ok(Some(paths))) = receiver.await {
                 this.update(cx, |this, cx| {
-                    this.attach_images(paths);
+                    this.attach_files(paths);
                     cx.notify();
                 })
                 .ok();
@@ -1030,7 +1033,7 @@ impl Desktop {
         .detach();
     }
 
-    pub fn run_prompt(&mut self, cx: &mut Context<Self>) {
+    pub fn run_prompt(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if std::env::var_os("LAI_DEBUG").is_some() {
             eprintln!("[debug] run_prompt invoked");
         }
@@ -1049,6 +1052,14 @@ impl Desktop {
             cx.notify();
             return;
         };
+        let (prompt, images) = match prepare_prompt_with_attachments(prompt, &self.attachments) {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                self.playground_error = Some(error);
+                cx.notify();
+                return;
+            }
+        };
         self.playground_error = None;
         self.usage_note = None;
         self.running = true;
@@ -1057,7 +1068,9 @@ impl Desktop {
         if let (Some(descriptor), Some(value)) = (self.effort_descriptor(), self.effort_value()) {
             options.insert(descriptor.id.clone(), serde_json::Value::String(value));
         }
-        let images = std::mem::take(&mut self.attachments);
+        self.prompt
+            .update(cx, |state, cx| state.set_value("", window, cx));
+        self.attachments.clear();
         self.transcript.push(TranscriptLine {
             role: TranscriptRole::You,
             text: prompt.clone(),
@@ -1247,6 +1260,10 @@ impl Render for Desktop {
                             this.close_palette(cx);
                         } else if this.mini_view {
                             this.mini_view = false;
+                            cx.notify();
+                        } else if this.model_picker_open || this.effort_picker_open {
+                            this.model_picker_open = false;
+                            this.effort_picker_open = false;
                             cx.notify();
                         }
                     });
@@ -2366,9 +2383,138 @@ fn default_inspector_width() -> f32 {
     430.0
 }
 
+/// Image extensions the staged input path can decode and normalise.
+fn image_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "jpg"
+                    | "jpeg"
+                    | "png"
+                    | "webp"
+                    | "gif"
+                    | "bmp"
+                    | "tif"
+                    | "tiff"
+                    | "ico"
+                    | "pnm"
+                    | "pbm"
+                    | "pgm"
+                    | "ppm"
+                    | "tga"
+                    | "qoi"
+                    | "dds"
+                    | "hdr"
+                    | "exr"
+                    | "avif"
+            )
+        })
+}
+
+/// Split attachments into images that the runtime stages and text files whose
+/// contents are folded into the turn prompt. Anything else fails before a
+/// session is created so the user sees which file needs a different format.
+fn prepare_prompt_with_attachments(
+    mut prompt: String,
+    attachments: &[PathBuf],
+) -> Result<(String, Vec<PathBuf>), String> {
+    let mut images = Vec::new();
+    for path in attachments {
+        if image_extension(path) {
+            images.push(path.clone());
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("attachment");
+        let metadata =
+            std::fs::metadata(path).map_err(|error| format!("Could not read {name}: {error}"))?;
+        if metadata.len() > TEXT_ATTACHMENT_BYTES {
+            return Err(format!(
+                "{name} is larger than {}. Attach a smaller text file or an image.",
+                "128 KiB"
+            ));
+        }
+        let bytes =
+            std::fs::read(path).map_err(|error| format!("Could not read {name}: {error}"))?;
+        let text = String::from_utf8(bytes)
+            .map_err(|_| format!("{name} is binary. Attach an image or a UTF-8 text file."))?;
+        if text.contains('\0') {
+            return Err(format!(
+                "{name} is binary. Attach an image or a UTF-8 text file."
+            ));
+        }
+        prompt.push_str(&format!(
+            "\n\n--- Attached file: {name} ---\n{text}\n--- End of {name} ---"
+        ));
+    }
+    if prompt.len() > originlm_contracts::MAX_TURN_PROMPT_BYTES {
+        return Err("The message plus attached files is too large for one turn.".into());
+    }
+    Ok((prompt, images))
+}
+
+const TEXT_ATTACHMENT_BYTES: u64 = 128 * 1024;
+
 fn model_choice_is_free(choice: &ModelChoice) -> bool {
     choice.label.to_ascii_lowercase().contains("free")
         || choice.billing.to_ascii_lowercase().contains("free")
+}
+
+#[cfg(test)]
+mod attachment_tests {
+    use super::{TEXT_ATTACHMENT_BYTES, image_extension, prepare_prompt_with_attachments};
+    use std::path::PathBuf;
+
+    #[test]
+    fn every_common_image_extension_is_treated_as_an_image() {
+        for name in [
+            "photo.png",
+            "photo.JPG",
+            "photo.webp",
+            "photo.gif",
+            "photo.bmp",
+            "photo.tiff",
+            "photo.heic",
+        ] {
+            let expected = !name.ends_with(".heic");
+            assert_eq!(image_extension(&PathBuf::from(name)), expected, "{name}");
+        }
+    }
+
+    #[test]
+    fn text_attachments_are_folded_into_the_prompt() {
+        let dir = tempfile::tempdir().unwrap();
+        let notes = dir.path().join("notes.md");
+        std::fs::write(&notes, "# Notes\nremember this").unwrap();
+        let (prompt, images) =
+            prepare_prompt_with_attachments("read this".into(), std::slice::from_ref(&notes))
+                .unwrap();
+        assert!(images.is_empty());
+        assert!(prompt.contains("Attached file: notes.md"));
+        assert!(prompt.contains("remember this"));
+    }
+
+    #[test]
+    fn binary_attachments_fail_before_a_session_is_created() {
+        let dir = tempfile::tempdir().unwrap();
+        let pdf = dir.path().join("paper.pdf");
+        std::fs::write(&pdf, b"%PDF-1.7\0\0\0").unwrap();
+        let error = prepare_prompt_with_attachments("read this".into(), &[pdf]).unwrap_err();
+        assert!(error.contains("binary"), "{error}");
+    }
+
+    #[test]
+    fn oversized_text_attachments_fail_cleanly() {
+        let dir = tempfile::tempdir().unwrap();
+        let large = dir.path().join("large.txt");
+        std::fs::write(&large, vec![b'a'; TEXT_ATTACHMENT_BYTES as usize + 1]).unwrap();
+        let error = prepare_prompt_with_attachments("read this".into(), &[large]).unwrap_err();
+        assert!(error.contains("128 KiB"), "{error}");
+    }
 }
 
 #[cfg(test)]

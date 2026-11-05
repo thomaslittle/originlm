@@ -306,33 +306,15 @@ fn session_permissions(servers: &[HostMcpServer], allow_native_tools: bool) -> R
             {"action": "*", "resource": "*", "effect": "allow"}
         ]));
     }
-    // Native OpenCode tools stay denied. MCP tools are allowed explicitly and
-    // carry their own host-side `allowed_tools` filter.
-    let mut permissions = Vec::new();
-    for action in [
-        "read",
-        "edit",
-        "glob",
-        "grep",
-        "shell",
-        "subagent",
-        "skill",
-        "question",
-        "webfetch",
-        "websearch",
-        "todowrite",
-        "external_directory",
-        "execute",
-        "opencode_list_mcp_resources",
-        "opencode_read_mcp_resource",
-        "experimental_image_generate",
-    ] {
-        permissions.push(serde_json::json!({
-            "action": action,
-            "resource": "*",
-            "effect": "deny"
-        }));
-    }
+    // Native OpenCode tools stay denied. A catch-all deny comes first so a
+    // newly added native tool (for example `task`) cannot ask the user or
+    // surface a tool event in a text-only chat; rules are evaluated last-match
+    // wins, so the explicitly declared MCP tools are allowed after it.
+    let mut permissions = vec![serde_json::json!({
+        "action": "*",
+        "resource": "*",
+        "effect": "deny"
+    })];
     for server in servers {
         for tool in &server.allowed_tools {
             permissions.push(serde_json::json!({
@@ -711,6 +693,20 @@ mod tests {
     }
 
     #[test]
+    fn text_only_sessions_deny_every_native_tool() {
+        // Regression: a model switch to an OpenCode route surfaced
+        // "OpenCode 2 requested a tool this session does not allow" because
+        // native tools added after the deny list (for example `task`) were
+        // still advertised. A catch-all deny covers every current and future
+        // native tool.
+        let permissions = session_permissions(&[], false).unwrap();
+        assert_eq!(
+            permissions,
+            serde_json::json!([{"action":"*","resource":"*","effect":"deny"}])
+        );
+    }
+
+    #[test]
     fn host_mcp_permissions_allow_only_declared_server_tools() {
         let permissions = session_permissions(&[host_mcp()], false).unwrap();
         let actions: Vec<&str> = permissions
@@ -719,17 +715,14 @@ mod tests {
             .iter()
             .map(|rule| rule["action"].as_str().unwrap())
             .collect();
+        assert_eq!(actions.first(), Some(&"*"));
+        assert_eq!(permissions[0]["effect"], "deny");
         assert!(actions.contains(&"originlm_twinhaus_home_apply"));
         assert!(actions.contains(&"originlm_twinhaus_home_read"));
-        assert!(actions.contains(&"read")); // native read is explicitly denied
-        assert!(!actions.contains(&"*"));
-        let read = permissions
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|rule| rule["action"] == "read")
-            .unwrap();
-        assert_eq!(read["effect"], "deny");
+        // The catch-all is first, so the later MCP allow rules win. Native
+        // tools, including ones added after this list was written, stay
+        // denied without leaking a permission prompt into a text turn.
+        assert_eq!(actions.last(), Some(&"originlm_twinhaus_home_read"));
     }
 
     #[test]

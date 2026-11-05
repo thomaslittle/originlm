@@ -8,7 +8,7 @@
 use crate::app::{Desktop, Page};
 use crate::bootstrap::Credential;
 use crate::broker::{Bundle, ExecCommand, ExecEvent, ExecHandle};
-use gpui_kit::test::{TestAppContextExt, TestWindowExt};
+use gpui_kit::test::{TestAppContextExt, TestSupportExt as _, TestWindowExt};
 use gpui_kit::{
     AppContext as _, Bounds, Entity, InteractiveElement as _, ParentElement as _, Render,
     Styled as _, TestAppContext, Window, WindowBounds, WindowOptions, point, px, size,
@@ -76,6 +76,11 @@ fn fixture() -> Snapshot {
         name: "Codex".into(),
         kind: "native".into(),
     });
+    snapshot.providers.push(Provider {
+        id: "muse".into(),
+        name: "Muse Code".into(),
+        kind: "native".into(),
+    });
     for (id, provider) in [("install-opencode", "opencode"), ("install-codex", "codex")] {
         snapshot.installations.push(Installation {
             id: id.into(),
@@ -119,6 +124,18 @@ fn fixture() -> Snapshot {
         status: "metadata_ready".into(),
         diagnostics: vec![],
     });
+    snapshot.connections.push(Connection {
+        id: "connection-muse".into(),
+        provider_id: "muse".into(),
+        installation_id: "install-codex".into(),
+        profile_id: "profile-codex".into(),
+        display_name: "Muse Code · Local".into(),
+        account_id: None,
+        auth: Observation::reported(AuthState::Authenticated, evidence()),
+        plan: Observation::unknown("NOT_REPORTED"),
+        status: "metadata_ready".into(),
+        diagnostics: vec![],
+    });
     snapshot.routes.push(route(
         "route-zen",
         "connection-opencode",
@@ -143,6 +160,12 @@ fn fixture() -> Snapshot {
         "codex",
         BillingMode::Subscription,
     ));
+    snapshot.routes.push(route(
+        "route-muse",
+        "connection-muse",
+        "muse",
+        BillingMode::Subscription,
+    ));
     snapshot.models.push(model(
         "model-free",
         "route-zen",
@@ -161,17 +184,50 @@ fn fixture() -> Snapshot {
         "Kimi K3.1 Pro",
         "kimi-k3.1-pro",
     ));
-    snapshot.models.push(model(
-        "model-local",
-        "route-local",
-        "KAT-Coder",
-        "kat-coder",
-    ));
+    let mut local = model("model-local", "route-local", "KAT-Coder", "kat-coder");
+    local.options = vec![OptionDescriptor {
+        id: "effort".into(),
+        label: "Reasoning effort".into(),
+        scope: OptionScope::Turn,
+        revision: "1".into(),
+        control: OptionControl::Select {
+            choices: vec![
+                Choice {
+                    value: "low".into(),
+                    label: "Low".into(),
+                    disabled_reason: None,
+                },
+                Choice {
+                    value: "medium".into(),
+                    label: "Medium".into(),
+                    disabled_reason: None,
+                },
+                Choice {
+                    value: "high".into(),
+                    label: "High".into(),
+                    disabled_reason: None,
+                },
+            ],
+            default_value: Some("medium".into()),
+        },
+        current_value: None,
+        category: None,
+        source: None,
+        billing_sensitive: false,
+        permission_sensitive: false,
+    }];
+    snapshot.models.push(local);
     snapshot.models.push(model(
         "model-codex",
         "route-codex",
         "GPT-6 Luna",
         "gpt-6-luna",
+    ));
+    snapshot.models.push(model(
+        "model-muse",
+        "route-muse",
+        "Muse Spark 1.3",
+        "muse-spark-1.3",
     ));
     snapshot.quota_pools.push(QuotaPool {
         id: "pool-codex".into(),
@@ -243,6 +299,7 @@ impl Render for PageHarness {
             .flex()
             .flex_col()
             .child(page)
+            .test_support()
     }
 }
 
@@ -664,7 +721,7 @@ async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut Test
             desktop.prompt.update(cx, |prompt, cx| {
                 prompt.set_value("first e2e question", window, cx)
             });
-            desktop.run_prompt(cx);
+            desktop.run_prompt(window, cx);
         });
     })
     .expect("run the first model turn");
@@ -695,7 +752,7 @@ async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut Test
             desktop.prompt.update(cx, |prompt, cx| {
                 prompt.set_value("second e2e question", window, cx)
             });
-            desktop.run_prompt(cx);
+            desktop.run_prompt(window, cx);
         });
     })
     .expect("switch models and run the second turn");
@@ -770,4 +827,204 @@ async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut Test
     );
 
     harness.update(cx, |_, cx| cx.notify());
+}
+
+#[gpui_kit::test]
+async fn native_playground_selectors_keyboard_and_attachments(cx: &mut TestAppContext) {
+    cx.update(gpui_kit::init);
+    let (handle, harness, desktop) = cx.update(|cx| {
+        let bounds = Bounds {
+            origin: point(px(0.), px(0.)),
+            size: size(px(1280.), px(800.)),
+        };
+        let (window, harness) = gpui_kit::open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(bounds)),
+                ..Default::default()
+            },
+            cx,
+            |window, cx| {
+                let desktop = cx.new(|cx| {
+                    Desktop::new(
+                        window,
+                        cx,
+                        Credential::Unavailable("native e2e".into()),
+                        30,
+                        true,
+                    )
+                });
+                cx.new(|_| PageHarness {
+                    desktop: desktop.clone(),
+                    page: Page::Playground,
+                })
+            },
+        )
+        .expect("open the Playground view");
+        let desktop = harness.read(cx).desktop.clone();
+        (window, harness, desktop)
+    });
+    cx.wait_for(handle, Duration::from_secs(3), |_, cx| {
+        desktop.read(cx).bundle.is_some()
+    })
+    .await;
+    desktop.update(cx, |desktop, cx| {
+        desktop.viewport_w = 1280.;
+        desktop.bundle = Some(bundle());
+        cx.notify();
+    });
+    harness.update(cx, |_, cx| cx.notify());
+
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        for id in [
+            "playground-page",
+            "playground-transcript",
+            "playground-composer",
+            "model-chip",
+            "effort-chip",
+            "attach-images",
+        ] {
+            assert!(window.try_find(id).is_some(), "{id} did not render");
+        }
+        let composer_top = window.find("playground-composer").bounds().origin.y;
+
+        // The model picker is a real in-place surface: it opens, fits above the
+        // composer, lists the fixture models and exposes provider marks.
+        window.click("model-chip", cx);
+        assert!(desktop.read(cx).model_picker_open);
+        window.render_frame(cx);
+        for id in [
+            "model-picker",
+            "model-picker-list",
+            "model-provider-muse",
+            "choice-model-local",
+        ] {
+            assert!(window.try_find(id).is_some(), "{id} missing from picker");
+        }
+        let picker = window.find("model-picker").bounds();
+        assert!(
+            picker.origin.y + picker.size.height <= composer_top + px(1.),
+            "model picker clipped behind the composer: {picker:?}"
+        );
+
+        // Provider tabs filter the list, including the Muse Code mark.
+        window.click("model-provider-muse", cx);
+        window.render_frame(cx);
+        assert!(window.try_find("choice-model-muse").is_some());
+        assert!(window.try_find("choice-model-local").is_none());
+        window.click("model-provider-all", cx);
+        window.render_frame(cx);
+        window.click("choice-model-local", cx);
+        window.render_frame(cx);
+        assert_eq!(
+            desktop.read(cx).selected_model.as_deref(),
+            Some("model-local")
+        );
+        assert!(!desktop.read(cx).model_picker_open);
+
+        // The effort menu sizes to its options. It must not paint a full-height
+        // empty card below the last row.
+        window.click("effort-chip", cx);
+        window.render_frame(cx);
+        assert!(desktop.read(cx).effort_picker_open);
+        for id in ["effort-picker", "effort-option-low", "effort-option-high"] {
+            assert!(
+                window.try_find(id).is_some(),
+                "{id} missing from effort menu"
+            );
+        }
+        let effort = window.find("effort-picker").bounds();
+        let last = window.find("effort-option-high").bounds();
+        assert!(
+            effort.size.height < px(260.),
+            "effort menu kept empty space: {effort:?}"
+        );
+        assert!(
+            effort.origin.y + effort.size.height - (last.origin.y + last.size.height) < px(16.),
+            "effort menu did not fit its content: menu {effort:?}, last row {last:?}"
+        );
+        window.click("effort-option-low", cx);
+        window.render_frame(cx);
+        assert_eq!(desktop.read(cx).selected_effort.as_deref(), Some("low"));
+        assert!(!desktop.read(cx).effort_picker_open);
+
+        // Attachment chips can hold any file; the image/non-image split happens
+        // when the turn starts.
+        let dir = tempfile::tempdir().unwrap();
+        let notes = dir.path().join("notes.md");
+        std::fs::write(&notes, "attached notes").unwrap();
+        desktop.update(cx, |desktop, cx| {
+            desktop.attach_files(vec![notes]);
+            cx.notify();
+        });
+        window.render_frame(cx);
+        assert!(window.try_find("attachment-0").is_some());
+        window.click("remove-attachment-0", cx);
+        window.render_frame(cx);
+        assert!(desktop.read(cx).attachments.is_empty());
+    })
+    .expect("drive the Playground view");
+
+    // Standard chat keyboard: Enter sends, Shift+Enter adds a line, Escape
+    // closes an open selector. Keystroke actions and input events are delivered
+    // by the effect loop, so park it before asserting.
+    let before = cx.update(|cx| desktop.read(cx).transcript.len());
+    cx.update_window(handle, |_, window, cx| {
+        window.click_at("playground-composer", point(px(80.), px(34.)), cx);
+        window.input("keyboard send", cx);
+        window.render_frame(cx);
+        assert_eq!(
+            desktop.read(cx).prompt.read(cx).value(),
+            "keyboard send",
+            "typing did not reach the composer"
+        );
+        window.press("enter", cx);
+    })
+    .expect("press Enter in the composer");
+    cx.run_until_parked();
+
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert_eq!(
+            desktop.read(cx).transcript.len(),
+            before + 1,
+            "Enter did not submit the chat"
+        );
+        assert_eq!(
+            desktop.read(cx).transcript.last().unwrap().text,
+            "keyboard send"
+        );
+        assert_eq!(desktop.read(cx).prompt.read(cx).value(), "");
+        window.click_at("playground-composer", point(px(80.), px(34.)), cx);
+        window.input("first line", cx);
+        window.press("shift-enter", cx);
+    })
+    .expect("press Shift+Enter in the composer");
+    cx.run_until_parked();
+
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert_eq!(
+            desktop.read(cx).transcript.len(),
+            before + 1,
+            "Shift+Enter submitted the chat"
+        );
+        assert!(
+            desktop.read(cx).prompt.read(cx).value().ends_with('\n'),
+            "Shift+Enter did not insert a newline: {:?}",
+            desktop.read(cx).prompt.read(cx).value()
+        );
+        window.click("model-chip", cx);
+        window.render_frame(cx);
+        assert!(desktop.read(cx).model_picker_open);
+        window.press("escape", cx);
+    })
+    .expect("press Escape with the selector open");
+    cx.run_until_parked();
+
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(!desktop.read(cx).model_picker_open);
+    })
+    .expect("verify Escape closed the selector");
 }
