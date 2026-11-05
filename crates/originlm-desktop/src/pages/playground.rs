@@ -63,11 +63,6 @@ impl Desktop {
     }
 
     pub fn page_playground(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        eprintln!(
-            "PAGE_PLAYGROUND bundle={} picker={}",
-            self.bundle.is_some(),
-            self.model_picker_open
-        );
         let theme = cx.theme().clone();
         let reduce = cx.reduce_motion();
         let entity = cx.entity();
