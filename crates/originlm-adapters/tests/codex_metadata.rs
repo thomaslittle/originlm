@@ -154,7 +154,8 @@ fn legacy_and_multi_bucket_views_are_not_double_counted() {
     .unwrap();
     assert_eq!(report.quota_pools.len(), 1);
     assert_eq!(report.quota_pools[0].windows.len(), 2);
-    assert_eq!(report.quota_pools[0].windows[0].label, "Codex · primary");
+    assert_eq!(report.quota_pools[0].windows[0].label, "5 hr");
+    assert_eq!(report.quota_pools[0].windows[1].label, "Weekly");
     let reading = report.quota_pools[0].windows[0]
         .reading
         .fresh_value()
