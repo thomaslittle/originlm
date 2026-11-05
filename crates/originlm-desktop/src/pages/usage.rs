@@ -16,6 +16,122 @@ fn series_key(row: &data::QuotaRow) -> String {
     format!("{}\u{1f}{}", row.pool_id, row.window_id)
 }
 
+fn local_token_panel(
+    snapshot: &originlm_contracts::Snapshot,
+    report: Option<&originlm_contracts::CostReport>,
+    theme: &Theme,
+) -> Div {
+    use std::collections::BTreeMap;
+
+    // Keep a stable row for every provider with a documented local-history
+    // reader. A missing scan is shown as unknown, not as a vanished provider.
+    let order = ["claude_code", "codex", "gemini_cli", "grok", "kiro"];
+    let mut totals: BTreeMap<&str, &originlm_contracts::ProviderUsage> = BTreeMap::new();
+    if let Some(report) = report {
+        for provider in &report.historical.providers {
+            totals.insert(provider.provider_id.as_str(), provider);
+        }
+    }
+    // These rows are stable product surfaces, not scan results. Claude Code
+    // must not disappear just because a scan returned nothing this cycle.
+    let mut ids: Vec<&str> = order.to_vec();
+    for id in totals.keys() {
+        if !ids.contains(id) {
+            ids.push(id);
+        }
+    }
+
+    ds::panel(theme)
+        .child(ds::panel_head(
+            "Recorded session tokens",
+            Some(
+                ds::caption(
+                    format!("{} providers", ids.len()),
+                    theme,
+                )
+                .into_any_element(),
+            ),
+            theme,
+        ))
+        .children(ids.iter().map(|id| {
+            let entry = totals.get(id).copied();
+            let name = data::provider_name(snapshot, id);
+            let input = entry.map(|entry| entry.totals.total_input_tokens());
+            let output = entry.map(|entry| entry.totals.output_tokens);
+            let reasoning = entry.map(|entry| entry.totals.reasoning_tokens);
+            div()
+                .h_flex()
+                .items_center()
+                .gap(px(sp::SM))
+                .px(px(sp::LG))
+                .py(px(sp::SM))
+                .border_b_1()
+                .border_color(theme.border.opacity(0.6))
+                .child(
+                    div()
+                        .v_flex()
+                        .flex_1()
+                        .min_w(px(0.))
+                        .child(
+                            div()
+                                .text_size(px(ty::SMALL))
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(name),
+                        )
+                        .child(ds::mono(
+                            (*id).to_string(),
+                            ty::CAPTION,
+                            theme.muted_foreground,
+                            theme,
+                        )),
+                )
+                .when_some(input, |this, input| {
+                    this.child(ds::mono(
+                        format!("{} in", input),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                })
+                .when_some(output, |this, output| {
+                    this.child(ds::mono(
+                        format!("{} out", output),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                })
+                .when(reasoning.is_some_and(|reasoning| reasoning > 0), |this| {
+                    this.child(ds::mono(
+                        format!("{} reasoning", reasoning.unwrap_or(0)),
+                        ty::CAPTION,
+                        theme.muted_foreground,
+                        theme,
+                    ))
+                })
+                .when(entry.is_none(), |this| {
+                    this.child(ds::caption("No local transcript history", theme))
+                })
+                .when(entry.is_some_and(|entry| !entry.diagnostics.is_empty()), |this| {
+                    this.child(ds::chip(
+                        format!("{} diagnostics", entry.map(|entry| entry.diagnostics.len()).unwrap_or(0)),
+                        Tone::Amber,
+                        theme,
+                    ))
+                })
+                .into_any_element()
+        }))
+        .child(
+            div()
+                .px(px(sp::LG))
+                .py(px(sp::SM))
+                .child(ds::caption(
+                    "Fresh input plus cache reads/writes; reasoning is a subset of output. Local transcript totals, not invoices or quota.",
+                    theme,
+                )),
+        )
+}
+
 impl Desktop {
     pub fn page_usage(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
@@ -28,15 +144,22 @@ impl Desktop {
         let mut seen = std::collections::BTreeSet::new();
         rows.retain(|row| seen.insert(series_key(row)));
 
+        let local_tokens = local_token_panel(
+            &snapshot,
+            self.bundle
+                .as_ref()
+                .and_then(|bundle| bundle.costs.as_ref()),
+            &theme,
+        );
         if rows.is_empty() {
-            return ds::page()
-                .child(ds::panel(&theme).child(ds::state(
-                    ds::StateKind::Empty,
-                    "No allowance windows reported",
-                    "None of the discovered clients reports a usage window, so there is nothing to record. That is not the same as zero usage. Accounts shows which clients are signed in.",
-                    &theme,
-                )))
-                .into_any_element();
+            let mut page = ds::page().child(ds::panel(&theme).child(ds::state(
+                ds::StateKind::Empty,
+                "No allowance windows reported",
+                "None of the discovered clients reports a quota window. Local session-token totals and Accounts are still available below.",
+                &theme,
+            )));
+            page = page.child(local_tokens);
+            return page.into_any_element();
         }
 
         if self
@@ -72,7 +195,7 @@ impl Desktop {
                             .map(|value| format!("{:.0}% left", value * 100.0))
                             .unwrap_or_else(|| "Unknown".into());
                         let figure_color = match row.remaining {
-                            Some(value) if value < 0.35 => {
+                            Some(value) if value < 0.50 => {
                                 ui::tone_color(ds::remaining_tone(value), &theme)
                             }
                             _ => theme.foreground,
@@ -336,24 +459,27 @@ impl Desktop {
             .gap(px(sp::MD))
             .child(history)
             .child(schedule);
-        ds::page()
-            .child(if wide {
-                div()
-                    .h_flex()
-                    .items_start()
-                    .gap(px(sp::MD))
-                    .child(div().w(px(380.)).flex_shrink_0().child(list))
-                    .child(right)
-                    .into_any_element()
-            } else {
-                div()
-                    .v_flex()
-                    .gap(px(sp::MD))
-                    .child(list)
-                    .child(right)
-                    .into_any_element()
-            })
-            .into_any_element()
+        let mut page = ds::page();
+        // Local token totals are the only usage evidence some clients publish.
+        // Keep them above the quota panels so they are not mistaken for absent.
+        page = page.child(local_tokens);
+        page.child(if wide {
+            div()
+                .h_flex()
+                .items_start()
+                .gap(px(sp::MD))
+                .child(div().w(px(380.)).flex_shrink_0().child(list))
+                .child(right)
+                .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .gap(px(sp::MD))
+                .child(list)
+                .child(right)
+                .into_any_element()
+        })
+        .into_any_element()
     }
 
     fn usage_table_view(&self, points: &[data::ChartPoint], theme: &Theme) -> AnyElement {

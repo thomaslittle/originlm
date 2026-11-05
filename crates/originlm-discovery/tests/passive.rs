@@ -616,3 +616,36 @@ fn opencode_desktop_gui_is_not_discovered_as_the_cli() {
             .any(|location| location.executable.as_deref() == Some(bundled.as_path()))
     );
 }
+
+#[test]
+fn antigravity_t3_managed_acp_runtime_is_discovered() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runtime = tmp
+        .path()
+        .join(".t3/tools/antigravity-acp/win32-x64/versions/hash");
+    fs::create_dir_all(&runtime).unwrap();
+    fs::write(runtime.join("agy_acp_server.exe"), b"ACP_SERVER").unwrap();
+    fs::write(runtime.join("localharness_external.exe"), b"HARNESS").unwrap();
+    fs::create_dir_all(tmp.path().join(".gemini/antigravity")).unwrap();
+    let profile = tmp
+        .path()
+        .join(".t3/userdata/providers/antigravity/profile/antigravity-acp");
+    fs::create_dir_all(&profile).unwrap();
+    let env = environment(tmp.path(), HostPlatform::Windows);
+    let result = scan(&env);
+    let antigravity: Vec<_> = result
+        .locations
+        .values()
+        .filter(|location| location.provider_id == "antigravity")
+        .collect();
+    assert!(
+        antigravity.iter().any(|location| {
+            location
+                .executable
+                .as_deref()
+                .is_some_and(|path| path.ends_with("agy_acp_server.exe"))
+                && location.profile_home == profile
+        }),
+        "managed T3 Antigravity ACP runtime was not paired with its profile"
+    );
+}

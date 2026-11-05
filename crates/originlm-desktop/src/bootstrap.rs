@@ -126,6 +126,19 @@ fn home_dir() -> Option<PathBuf> {
         .filter(|path| path.is_absolute())
 }
 
+/// The packaged auth blocker is a separate binary next to the desktop app.
+/// Antigravity metadata probes need it to keep an OAuth prompt from opening a
+/// browser; without it the probe fails closed instead of launching one.
+fn packaged_browser_blocker() -> Option<PathBuf> {
+    let name = if cfg!(windows) {
+        "originlm-auth-blocker.exe"
+    } else {
+        "originlm-auth-blocker"
+    };
+    let candidate = std::env::current_exe().ok()?.parent()?.join(name);
+    candidate.is_file().then_some(candidate)
+}
+
 /// Descriptors already issued on this machine, most privileged first. The
 /// platform state directory is authoritative; the legacy home directory and
 /// the documented control-center path remain readable for existing installs.
@@ -252,7 +265,17 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
                 }
             };
             runtime.block_on(async move {
-                let mut builder = Kit::builder().execution(true);
+                let mut builder = Kit::builder().execution(true).cursor_usage(true);
+                builder = builder.native_clients(originlm_kit::NativeClientRegistry {
+                    browser_blocker: packaged_browser_blocker(),
+                    ..Default::default()
+                });
+                let metadata_cache = state
+                    .as_ref()
+                    .map(|directory| directory.join("desktop-metadata.db"));
+                if let Some(directory) = state.as_ref() {
+                    let _ = std::fs::create_dir_all(directory);
+                }
                 if let Some(state) = state {
                     builder = builder.state_dir(state);
                 }
@@ -279,6 +302,13 @@ fn start_local_with(config: LocalRuntime) -> Result<(String, String), String> {
                     .map(|definition| definition.id.to_owned())
                     .collect();
                 let service = kit.service();
+                // Reload the last metadata observations so allowances and
+                // status appear immediately, then let the background lanes
+                // reverify them. This is a desktop-owned file; it never shares
+                // the CLI broker's database.
+                if let Some(path) = metadata_cache {
+                    service.enable_metadata_cache(path);
+                }
                 // Keep the verified state fresh: the periodic background lanes
                 // repeat passive inventory and the same read-only metadata grants
                 // the window uses for its startup probes. Without them, auth
@@ -366,7 +396,13 @@ mod tests {
 
     #[test]
     fn local_runtime_issues_a_working_administrative_credential() {
-        let (address, token) = start_local_with(isolated("bootstrap")).expect("local runtime");
+        let config = isolated("bootstrap");
+        let cache = config
+            .state_dir
+            .as_ref()
+            .expect("isolated state dir")
+            .join("desktop-metadata.db");
+        let (address, token) = start_local_with(config).expect("local runtime");
         let mut client = BrokerClient::connect(&address, &token).expect("connect");
         client.snapshot().expect("snapshot");
         client.apps().expect("administrative apps list");
@@ -384,6 +420,10 @@ mod tests {
             .expect("passive refresh");
         let snapshot = client.snapshot().expect("snapshot after refresh");
         assert!(snapshot.connections.is_empty());
+        assert!(
+            cache.exists(),
+            "the private runtime persists its metadata cache"
+        );
         client.close();
     }
 

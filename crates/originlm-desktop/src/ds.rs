@@ -99,34 +99,6 @@ pub fn panel_head(
         .children(trailing)
 }
 
-/// Group heading above a set of panels.
-pub fn section_header(
-    title: impl Into<SharedString>,
-    meta: Option<SharedString>,
-    theme: &Theme,
-) -> Div {
-    div()
-        .h_flex()
-        .items_end()
-        .gap(px(sp::MD))
-        .child(
-            div()
-                .text_size(px(ty::TITLE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(theme.foreground)
-                .child(title.into()),
-        )
-        .when_some(meta, |this, meta| {
-            this.child(
-                div()
-                    .pb(px(1.))
-                    .text_size(px(ty::SMALL))
-                    .text_color(theme.muted_foreground)
-                    .child(meta),
-            )
-        })
-}
-
 pub fn caption(text: impl Into<SharedString>, theme: &Theme) -> Div {
     div()
         .text_size(px(ty::CAPTION))
@@ -197,12 +169,12 @@ pub fn status(label: impl Into<SharedString>, tone: Tone, theme: &Theme) -> Div 
 
 /// Tone for a remaining fraction.
 pub fn remaining_tone(remaining: f32) -> Tone {
-    if remaining < 0.15 {
+    if remaining < 0.20 {
         Tone::Red
-    } else if remaining < 0.35 {
+    } else if remaining < 0.50 {
         Tone::Amber
     } else {
-        Tone::Neutral
+        Tone::Green
     }
 }
 
@@ -213,11 +185,12 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         .map(|value| (value.clamp(0.0, 1.0) * METER_CELLS as f32).round() as usize)
         .unwrap_or(0);
     let fill = match remaining {
-        Some(value) if value < 0.15 => theme.danger,
-        Some(value) if value < 0.35 => theme.warning,
-        // chart_1 is the brand amber in dark and #B47400 in light, which keeps
-        // at least 3:1 against the empty-cell track in both themes.
-        _ => theme.chart_1,
+        // Availability has its own meaning: green is healthy, amber is
+        // tightening, red is close to exhausted. Brand amber stays for
+        // actions, never for a healthy quota.
+        Some(value) if value < 0.20 => theme.danger,
+        Some(value) if value < 0.50 => theme.warning,
+        _ => theme.success,
     };
     let track = theme.foreground.opacity(0.08);
     // Full width and a fixed height in both flex directions: `flex_1` would
@@ -708,4 +681,20 @@ pub fn panel_row(first: bool, theme: &Theme) -> Div {
         .when(!first, |this| {
             this.border_t_1().border_color(theme.border.opacity(0.7))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remaining_tone;
+    use crate::ui::Tone;
+
+    #[test]
+    fn availability_is_green_amber_or_red_by_remaining() {
+        assert_eq!(remaining_tone(0.75), Tone::Green);
+        assert_eq!(remaining_tone(0.50), Tone::Green);
+        assert_eq!(remaining_tone(0.49), Tone::Amber);
+        assert_eq!(remaining_tone(0.20), Tone::Amber);
+        assert_eq!(remaining_tone(0.19), Tone::Red);
+        assert_eq!(remaining_tone(0.0), Tone::Red);
+    }
 }

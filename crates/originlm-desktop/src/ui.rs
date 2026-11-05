@@ -4,7 +4,7 @@
 use gpui_kit::component::{Icon, IconName, Sizable, Size, Theme};
 use gpui_kit::*;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tone {
     Neutral,
     Amber,

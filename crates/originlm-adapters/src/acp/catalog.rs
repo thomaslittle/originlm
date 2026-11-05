@@ -30,7 +30,9 @@ pub fn parse_catalog(
                 .collect::<Vec<_>>(),
             descriptor.current_value.as_ref().map(text).transpose()?,
         )
-    } else if session.get("configOptions").is_some() {
+    } else if session.get("configOptions").is_some()
+        && session["models"]["availableModels"].as_array().is_none()
+    {
         (vec![], None)
     } else {
         let model_state = &session["models"];

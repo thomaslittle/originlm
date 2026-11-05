@@ -3,6 +3,16 @@ use crate::process::{LaunchSpec, Peer};
 use originlm_contracts::*;
 use serde_json::{Value, json};
 use std::time::Duration;
+fn provider_timeout(provider: &str) -> Duration {
+    // The Antigravity managed ACP server is a large PyInstaller runtime and
+    // can take well over the generic 20-second budget on a cold Windows start.
+    if provider == "antigravity" {
+        Duration::from_secs(90)
+    } else {
+        Duration::from_secs(20)
+    }
+}
+
 pub(super) struct Wire {
     pub peer: Peer,
     pub init: Value,
@@ -42,10 +52,18 @@ impl Wire {
             route,
         };
         let outcome = tokio::time::timeout(timeout, async {
+            // The managed Antigravity runtime only exposes its full model
+            // catalog to allowlisted ACP clients; T3 uses the Zed identity.
+            // Keep our name for every other provider.
+            let (client_name, client_version) = if this.provider == "antigravity" {
+                ("zed", "0.0.0")
+            } else {
+                ("originlm", env!("CARGO_PKG_VERSION"))
+            };
             this.init = this
                 .call(
                     "initialize",
-                    json!({"protocolVersion":1,"clientInfo":{"name":"originlm","version":env!("CARGO_PKG_VERSION")},"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false,"session":{"configOptions":{"boolean":{}},"notices":{}}}}),
+                    json!({"protocolVersion":1,"clientInfo":{"name":client_name,"version":client_version},"clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false,"session":{"configOptions":{"boolean":{}},"notices":{}}}}),
                 )
                 .await?;
             if this.init["protocolVersion"].as_u64() != Some(1) {
@@ -107,9 +125,9 @@ impl Wire {
         host_mcp_servers: &[HostMcpServer],
     ) -> Result<Self> {
         let cwd = spec.cwd.clone();
-        let mut this =
-            Self::initialized(spec, provider, route, auth, Duration::from_secs(20)).await?;
-        let outcome = tokio::time::timeout(Duration::from_secs(20), async {
+        let timeout = provider_timeout(&provider);
+        let mut this = Self::initialized(spec, provider, route, auth, timeout).await?;
+        let outcome = tokio::time::timeout(timeout, async {
             let mcp_servers = this.mcp_servers(host_mcp_servers)?;
             this.session = this
                 .call("session/new", json!({"cwd":cwd,"mcpServers":mcp_servers}))
@@ -146,8 +164,8 @@ impl Wire {
             return Err(invalid());
         }
         let cwd = spec.cwd.clone();
-        let mut this =
-            Self::initialized(spec, provider, route, auth, Duration::from_secs(20)).await?;
+        let timeout = provider_timeout(&provider);
+        let mut this = Self::initialized(spec, provider, route, auth, timeout).await?;
         if this.init["agentCapabilities"]["loadSession"].as_bool() != Some(true) {
             this.peer.shutdown().await;
             return Err(DomainError::new(
@@ -155,7 +173,7 @@ impl Wire {
                 "Native client does not support session resumption",
             ));
         }
-        let outcome = tokio::time::timeout(Duration::from_secs(20), async {
+        let outcome = tokio::time::timeout(timeout, async {
             let mcp_servers = this.mcp_servers(host_mcp_servers)?;
             let mut session = this
                 .call(

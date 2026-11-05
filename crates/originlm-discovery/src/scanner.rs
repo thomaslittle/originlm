@@ -438,6 +438,11 @@ impl<F: LocalFilesystem> Scanner<F> {
                     continue;
                 }
                 for (installation_index, executable) in executables.iter().cloned().enumerate() {
+                    let Some(profile_home) =
+                        definition.profile_home_for(executable.as_deref(), &root)
+                    else {
+                        continue;
+                    };
                     let binary_key = executable
                         .as_ref()
                         .map(|path| {
@@ -464,7 +469,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                         &[
                             &environment_id,
                             definition.id,
-                            &path_key(&root),
+                            &path_key(&profile_home),
                             &installation_id,
                         ],
                     );
@@ -532,7 +537,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                                 .and_then(|path| identities.get(path))
                                 .cloned(),
                             provider_id: definition.id.into(),
-                            profile_home: root.clone(),
+                            profile_home,
                             executable,
                             scope: None,
                         },

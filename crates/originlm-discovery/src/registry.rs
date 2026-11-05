@@ -122,10 +122,32 @@ impl ProviderDefinition {
             // T3 Code installs the Gemini CLI under its managed tools directory.
             // A Rust host that shares the same machine can use that install
             // without requiring a second copy on PATH.
-            ("antigravity", _) => vec![
-                crate::join_relative(&env.home, ".gemini/antigravity-acp"),
-                crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
-            ],
+            ("antigravity", _) => {
+                let mut dirs = vec![
+                    crate::join_relative(&env.home, ".gemini/antigravity-acp"),
+                    crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
+                ];
+                // T3 Code installs a managed Antigravity ACP pair under
+                // ~/.t3/tools/antigravity-acp/<platform>/versions/<hash>.
+                // A discovered desktop launcher is not enough: the ACP server
+                // and its adjacent localharness_external are the runnable pair.
+                let tools = crate::join_relative(&env.home, ".t3/tools/antigravity-acp");
+                if let Ok(platforms) = std::fs::read_dir(&tools) {
+                    for platform in platforms.flatten() {
+                        let versions = platform.path().join("versions");
+                        if let Ok(entries) = std::fs::read_dir(&versions) {
+                            for entry in entries.flatten() {
+                                if entry.path().is_dir() {
+                                    dirs.push(entry.path());
+                                }
+                            }
+                        }
+                    }
+                }
+                dirs.sort();
+                dirs.dedup();
+                dirs
+            }
             ("gemini_cli", _) => {
                 let mut dirs = vec![crate::join_relative(&env.home, ".local/bin")];
                 let tools = crate::join_relative(&env.home, ".t3/tools/gemini");
@@ -165,9 +187,42 @@ impl ProviderDefinition {
             _ => Vec::new(),
         }
     }
+    /// Pair an executable with the profile root it can actually use. Most
+    /// providers accept every root; Antigravity's ACP launcher validates the
+    /// profile directory name, and T3 keeps its managed profiles separately.
+    pub(crate) fn profile_home_for(
+        &self,
+        executable: Option<&std::path::Path>,
+        root: &std::path::Path,
+    ) -> Option<std::path::PathBuf> {
+        if self.id == "antigravity"
+            && executable.is_some_and(|path| {
+                let name = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                name.starts_with("agy_acp_server")
+            })
+            && root.file_name().and_then(|name| name.to_str()) != Some("antigravity-acp")
+        {
+            return None;
+        }
+        Some(root.to_path_buf())
+    }
     /// Reject a known GUI launcher that shares the CLI's command name. An
     /// explicit host-configured executable is never filtered.
     pub(crate) fn excludes_discovered_executable(&self, path: &std::path::Path) -> bool {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if self.id == "antigravity" {
+            // The desktop IDE launchers are not the ACP runtime. The ACP pair
+            // is discovered from PATH, ~/.gemini, or T3's managed tools.
+            return name.starts_with("antigravity") || name.starts_with("antigravity-ide");
+        }
         if self.id != "opencode" {
             return false;
         }
@@ -178,11 +233,6 @@ impl ProviderDefinition {
         if !lower.contains("/@opencode-aidesktop/") {
             return false;
         }
-        let name = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
         // The npm .cmd/.bat shims are launchers, not the CLI itself. Native
         // npm and desktop CLI executables are discovered explicitly instead.
         if name.ends_with(".cmd") || name.ends_with(".bat") {

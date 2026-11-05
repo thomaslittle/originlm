@@ -31,6 +31,20 @@ fn prefers_config_options_over_legacy_modes_and_models() {
     );
 }
 #[test]
+fn legacy_model_list_is_used_when_config_options_have_no_model_select() {
+    let s = json!({
+        "sessionId": "s",
+        "configOptions": [{"id":"thought","name":"Thought","category":"thought_level","type":"select","currentValue":"high","options":[{"value":"high","name":"High"}]}],
+        "models": {"currentModelId":"gemini-4-argon-high","availableModels":[{"modelId":"gemini-4-argon-high","name":"Gemini 4 Argon (High)"},{"modelId":"gemini-4-argon-low","name":"Gemini 4 Argon (Low)"}]}
+    });
+    let c = parse_catalog("antigravity", "r", &init(), &s).unwrap();
+    assert_eq!(c.models.len(), 2);
+    assert_eq!(c.models[0].native_id, "gemini-4-argon-high");
+    assert!(c.models[0].is_default);
+    assert_eq!(c.models[0].options[0].id, "thought");
+}
+
+#[test]
 fn omitted_capabilities_are_unsupported_not_enabled() {
     let c = parse_catalog("test", "r", &json!({"protocolVersion":1}), &session()).unwrap();
     assert!(!c.load_session);

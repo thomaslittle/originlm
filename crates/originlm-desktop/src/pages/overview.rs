@@ -12,15 +12,17 @@ use gpui_kit::*;
 use originlm_contracts::{BillingMode, Freshness, Observation, Snapshot};
 
 /// What a single allowance window can honestly say.
+#[derive(Clone)]
 enum Reading {
     /// A fraction of the window remains.
     Fraction(f32),
     /// The provider reports a count but no total to compare it with.
     Count(String),
-    Unknown(String),
-    Unavailable(String),
+    Unknown,
+    Unavailable,
 }
 
+#[derive(Clone)]
 struct WindowView {
     label: String,
     reading: Reading,
@@ -28,27 +30,16 @@ struct WindowView {
     stale: bool,
 }
 
+#[derive(Clone)]
 struct AccountView {
     connection_id: String,
     provider_id: String,
     provider: String,
     account: String,
-    plan: String,
+    status: String,
+    diagnostics: Vec<String>,
     auth: data::AuthView,
     windows: Vec<WindowView>,
-}
-
-impl AccountView {
-    /// Lowest remaining fraction, for ordering the grid by urgency.
-    fn tightest(&self) -> f32 {
-        self.windows
-            .iter()
-            .filter_map(|window| match window.reading {
-                Reading::Fraction(value) => Some(value),
-                _ => None,
-            })
-            .fold(2.0, f32::min)
-    }
 }
 
 fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
@@ -76,12 +67,8 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
                             },
                             matches!(freshness, Freshness::Stale),
                         ),
-                        Observation::Unknown { reason, .. } => {
-                            (Reading::Unknown(reason.clone()), false)
-                        }
-                        Observation::Unavailable { reason, .. } => {
-                            (Reading::Unavailable(reason.clone()), false)
-                        }
+                        Observation::Unknown { .. } => (Reading::Unknown, false),
+                        Observation::Unavailable { .. } => (Reading::Unavailable, false),
                     };
                     WindowView {
                         label: crate::human::title_case(&window.label.replace('_', " ")),
@@ -96,7 +83,8 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
                 provider_id: connection.provider_id.clone(),
                 provider: data::provider_name(snapshot, &connection.provider_id),
                 account: connection.display_name.clone(),
-                plan: data::plan_label(connection),
+                status: connection.status.clone(),
+                diagnostics: connection.diagnostics.clone(),
                 auth: data::auth_view(connection),
                 windows,
             }
@@ -104,23 +92,10 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
         .collect();
     // Accounts with readings first, tightest first; then the rest; sign-in last.
     views.sort_by(|a, b| {
-        let rank = |view: &AccountView| {
-            if view.auth.kind == data::AuthKind::Required {
-                2
-            } else if view.windows.is_empty() {
-                1
-            } else {
-                0
-            }
-        };
-        rank(a)
-            .cmp(&rank(b))
-            .then(
-                a.tightest()
-                    .partial_cmp(&b.tightest())
-                    .unwrap_or(std::cmp::Ordering::Equal),
-            )
-            .then(a.provider.cmp(&b.provider))
+        a.provider
+            .to_lowercase()
+            .cmp(&b.provider.to_lowercase())
+            .then(a.account.to_lowercase().cmp(&b.account.to_lowercase()))
     });
     views
 }
@@ -141,194 +116,237 @@ fn auth_chip(view: &data::AuthView, theme: &Theme) -> Div {
     ds::chip(label, tone, theme)
 }
 
-fn window_row(window: &WindowView, theme: &Theme) -> Div {
+fn compact_tokens(value: u64) -> String {
+    let value = value as f64;
+    if value >= 1_000_000.0 {
+        format!("{:.1}M", value / 1_000_000.0)
+    } else if value >= 10_000.0 {
+        format!("{:.0}k", value / 1_000.0)
+    } else if value >= 1_000.0 {
+        format!("{:.1}k", value / 1_000.0)
+    } else {
+        format!("{value:.0}")
+    }
+}
+
+/// One allowance window on a single line: label, meter, percent, reset.
+fn window_line(window: &WindowView, theme: &Theme) -> Div {
     let (meter_value, figure, figure_color) = match &window.reading {
         Reading::Fraction(value) => (
             Some(*value),
-            format!("{:.0}% left", value * 100.0),
+            format!("{:.0}%", value * 100.0),
             ui::tone_color(ds::remaining_tone(*value), theme),
         ),
         Reading::Count(text) => (None, text.clone(), theme.foreground),
-        Reading::Unknown(_) => (None, "Unknown".to_string(), theme.foreground),
-        Reading::Unavailable(_) => (None, "Unavailable".to_string(), theme.foreground),
+        Reading::Unknown => (None, "Unknown".to_string(), theme.muted_foreground),
+        Reading::Unavailable => (None, "Unavailable".to_string(), theme.muted_foreground),
     };
-    let figure_color = if matches!(window.reading, Reading::Fraction(v) if v >= 0.35) {
-        theme.foreground
-    } else {
-        figure_color
+    let reset = match &window.reading {
+        Reading::Fraction(_) => ui::format_countdown(window.reset.as_deref()),
+        _ => None,
     };
-    let detail = match &window.reading {
-        Reading::Count(_) => "No published total".to_string(),
-        Reading::Unknown(reason) | Reading::Unavailable(reason) => reason.clone(),
-        Reading::Fraction(_) => match ui::format_countdown(window.reset.as_deref()) {
-            Some(countdown) if countdown == "reset due" => "Reset due".to_string(),
-            Some(countdown) => format!("Resets in {countdown}"),
-            None => "Reset time not reported".to_string(),
-        },
-    };
-    let reset_clock = window
-        .reset
-        .as_deref()
-        .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
-        .map(|stamp| {
-            stamp
-                .with_timezone(&chrono::Local)
-                .format("%a %H:%M")
-                .to_string()
-        });
-
     div()
-        .v_flex()
-        .gap(px(6.))
-        .px(px(sp::LG))
-        .py(px(sp::MD))
-        .border_t_1()
-        .border_color(theme.border.opacity(0.7))
+        .h_flex()
+        .items_center()
+        .gap(px(sp::SM))
+        .child(
+            ds::caption(window.label.clone(), theme)
+                .w(px(68.))
+                .truncate(),
+        )
         .child(
             div()
-                .h_flex()
-                .items_center()
-                .gap(px(sp::SM))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.))
-                        .truncate()
-                        .text_size(px(ty::SMALL))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(theme.foreground)
-                        .child(window.label.clone()),
-                )
-                .when(window.stale, |this| {
-                    this.child(ds::chip("Stale", Tone::Amber, theme))
-                })
-                .child(ds::mono(figure, ty::BODY, figure_color, theme)),
+                .w(px(96.))
+                .flex_shrink_0()
+                .child(ds::meter(meter_value, theme)),
         )
-        .child(ds::meter(meter_value, theme))
         .child(
-            div()
-                .h_flex()
-                .gap(px(sp::SM))
-                .child(ds::caption(detail, theme).flex_1().min_w(px(0.)).truncate())
-                .when_some(
-                    reset_clock.filter(|_| matches!(window.reading, Reading::Fraction(_))),
-                    |this, clock| {
-                        this.child(ds::mono(clock, ty::CAPTION, theme.muted_foreground, theme))
-                    },
-                ),
+            ds::mono(figure, ty::CAPTION, figure_color, theme)
+                .w(px(42.))
+                .truncate(),
         )
+        .when_some(reset, |this, reset| {
+            this.child(ds::caption(reset, theme).flex_1().truncate())
+        })
+        .when(window.stale, |this| this.child(ds::caption("stale", theme)))
 }
 
-impl Desktop {
-    fn account_card(
-        &self,
-        view: &AccountView,
-        theme: &Theme,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let entity = cx.entity();
-        let header = div()
+/// A usage read that failed is different from a client that publishes no
+/// quota window. Keep the distinction visible instead of claiming there is no
+/// allowance.
+fn usage_unavailable(diagnostics: &[String]) -> bool {
+    diagnostics
+        .iter()
+        .any(|code| code == "USAGE_UNAVAILABLE" || code.starts_with("USAGE_READ_FAILED_"))
+}
+
+/// What the client can honestly say about allowance, including the cases
+/// where it publishes no quota window at all.
+fn allowance_cell(
+    view: &AccountView,
+    tokens: Option<&originlm_contracts::ProviderUsage>,
+    theme: &Theme,
+) -> Div {
+    if view.windows.is_empty() {
+        let (label, detail, tone) = if usage_unavailable(&view.diagnostics) {
+            (
+                "Usage unavailable",
+                "The last usage read failed. Local totals remain; Diagnostics has the retry.",
+                Tone::Amber,
+            )
+        } else if view.status == "configuration_only" {
+            (
+                "Not installed",
+                "Configuration exists; the client is not installed on this machine.",
+                Tone::Neutral,
+            )
+        } else {
+            match view.auth.kind {
+                data::AuthKind::Required => (
+                    "No reading",
+                    "Sign in to the client to read its allowance.",
+                    Tone::Neutral,
+                ),
+                data::AuthKind::Cached => (
+                    "No quota window",
+                    "Cached sign-in; the client published no allowance window.",
+                    Tone::Neutral,
+                ),
+                data::AuthKind::Unknown => (
+                    "No reading",
+                    "Allowance has not been checked yet.",
+                    Tone::Neutral,
+                ),
+                data::AuthKind::Verified if tokens.is_some() => (
+                    "No quota window",
+                    "This client publishes local totals, not an allowance window.",
+                    Tone::Neutral,
+                ),
+                data::AuthKind::Verified => (
+                    "No quota window",
+                    "Signed in; this client does not publish an allowance window.",
+                    Tone::Neutral,
+                ),
+            }
+        };
+        let token_text = tokens.map(|tokens| {
+            format!(
+                "{} in · {} out",
+                compact_tokens(tokens.totals.total_input_tokens()),
+                compact_tokens(tokens.totals.output_tokens)
+            )
+        });
+        div()
+            .v_flex()
+            .w(px(336.))
+            .flex_shrink_0()
+            .gap(px(4.))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::SM))
+                    .child(ds::chip(label, tone, theme))
+                    .when_some(token_text, |this, text| {
+                        this.child(ds::mono(text, ty::CAPTION, theme.muted_foreground, theme))
+                    }),
+            )
+            .child(ds::caption(detail, theme).truncate())
+    } else {
+        div()
+            .v_flex()
+            .gap(px(3.))
+            .w(px(336.))
+            .flex_shrink_0()
+            .children(view.windows.iter().map(|window| window_line(window, theme)))
+    }
+}
+
+fn provider_row(
+    view: &AccountView,
+    tokens: Option<&originlm_contracts::ProviderUsage>,
+    compact: bool,
+    entity: Entity<Desktop>,
+    theme: &Theme,
+) -> AnyElement {
+    let connection_id = view.connection_id.clone();
+    let identity = div()
+        .h_flex()
+        .items_center()
+        .gap(px(sp::MD))
+        .flex_1()
+        .min_w(px(0.))
+        .child(crate::icons::provider_tile(
+            &view.provider_id,
+            &view.provider,
+            24.,
+            theme,
+        ))
+        .child(
+            div()
+                .v_flex()
+                .flex_1()
+                .min_w(px(0.))
+                .child(
+                    div()
+                        .text_size(px(ty::SMALL))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(theme.foreground)
+                        .truncate()
+                        .child(view.provider.clone()),
+                )
+                .child(ds::caption(view.account.clone(), theme).truncate()),
+        );
+    let status = div()
+        .w(px(104.))
+        .flex_shrink_0()
+        .child(auth_chip(&view.auth, theme));
+    let body = if compact {
+        div()
+            .v_flex()
+            .gap(px(sp::SM))
+            .px(px(sp::LG))
+            .py(px(sp::XS))
+            .border_b_1()
+            .border_color(theme.border.opacity(0.7))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .gap(px(sp::MD))
+                    .child(identity)
+                    .child(status),
+            )
+            .child(allowance_cell(view, tokens, theme))
+    } else {
+        div()
             .h_flex()
             .items_center()
             .gap(px(sp::MD))
+            .min_h(px(44.))
             .px(px(sp::LG))
-            .py(px(sp::MD))
-            .child(crate::icons::provider_tile(
-                &view.provider_id,
-                &view.provider,
-                32.,
-                theme,
-            ))
-            .child(
-                div()
-                    .v_flex()
-                    .flex_1()
-                    .min_w(px(0.))
-                    .child(
-                        div()
-                            .text_size(px(ty::BODY))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(theme.foreground)
-                            .truncate()
-                            .child(view.provider.clone()),
-                    )
-                    .child(
-                        ds::caption(format!("{} · {}", view.account, view.plan), theme).truncate(),
-                    ),
-            )
-            .child(auth_chip(&view.auth, theme));
+            .py(px(2.))
+            .border_b_1()
+            .border_color(theme.border.opacity(0.7))
+            .child(identity)
+            .child(status)
+            .child(allowance_cell(view, tokens, theme))
+    };
+    let row_id = SharedString::from(format!("provider-row-{}", view.connection_id));
+    body.id(row_id)
+        .cursor_pointer()
+        .hover(|style| style.bg(theme.foreground.opacity(0.03)))
+        .on_click(move |_, _, cx| {
+            let connection_id = connection_id.clone();
+            entity.update(cx, |this, cx| {
+                this.selected_connection = Some(connection_id);
+                this.set_page(Page::Providers, cx);
+            });
+        })
+        .into_any_element()
+}
 
-        let body: AnyElement = if !view.windows.is_empty() {
-            div()
-                .v_flex()
-                .children(view.windows.iter().map(|window| window_row(window, theme)))
-                .into_any_element()
-        } else {
-            let id = view.connection_id.clone();
-            let required = view.auth.kind == data::AuthKind::Required;
-            div()
-                .v_flex()
-                .gap(px(sp::XS))
-                .px(px(sp::LG))
-                .py(px(sp::MD))
-                .border_t_1()
-                .border_color(theme.border.opacity(0.7))
-                .child(
-                    div()
-                        .h_flex()
-                        .items_center()
-                        .gap(px(sp::SM))
-                        .child(ds::meter(None, theme))
-                        .child(ds::mono(
-                            "Not reported",
-                            ty::BODY,
-                            theme.muted_foreground,
-                            theme,
-                        )),
-                )
-                .child(
-                    div()
-                        .h_flex()
-                        .items_center()
-                        .gap(px(sp::SM))
-                        .child(
-                            ds::caption(
-                                match view.auth.kind {
-                                    data::AuthKind::Required => {
-                                        "Sign in to the client to read its allowance."
-                                    }
-                                    // Nothing was read yet, so nothing can be said about
-                                    // whether this client has an allowance window.
-                                    data::AuthKind::Unknown => {
-                                        "Not checked yet. No allowance has been read."
-                                    }
-                                    _ => "This client reported no allowance window.",
-                                },
-                                theme,
-                            )
-                            .flex_1(),
-                        )
-                        .when(!required, |this| {
-                            this.child(ds::link(
-                                SharedString::from(format!("probe-{id}")),
-                                "Check again",
-                                theme,
-                                move |_, _, cx| {
-                                    let id = id.clone();
-                                    entity.update(cx, |this, cx| this.request_probe(id, cx));
-                                },
-                            ))
-                        }),
-                )
-                .into_any_element()
-        };
-
-        ds::panel(theme)
-            .child(header)
-            .child(body)
-            .into_any_element()
-    }
-
+impl Desktop {
     pub fn page_overview(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let counts = self.counts();
@@ -371,7 +389,7 @@ impl Desktop {
                 .flex_wrap()
                 .gap(px(sp::XL))
                 .px(px(sp::LG))
-                .py(px(sp::MD))
+                .py(px(sp::SM))
                 .child(ds::status(status_text, status_tone, &theme))
                 .child(ds::stat(
                     counts.connections.to_string(),
@@ -411,28 +429,103 @@ impl Desktop {
             self.sidebar_width
         };
         let content = self.viewport_w - sidebar - ds::GUTTER * 2.;
-        let columns: u16 = if content >= 1040. {
-            3
-        } else if content >= 640. {
-            2
-        } else {
-            1
-        };
-        let grid = div()
-            .grid()
-            .grid_cols(columns)
-            .gap(px(sp::MD))
-            .children(views.iter().map(|view| self.account_card(view, &theme, cx)));
+        let wide = content >= 1080.;
+        let compact_rows = content < 860.;
+
+        let mut tokens_by_provider: std::collections::BTreeMap<
+            &str,
+            &originlm_contracts::ProviderUsage,
+        > = std::collections::BTreeMap::new();
+        if let Some(costs) = self
+            .bundle
+            .as_ref()
+            .and_then(|bundle| bundle.costs.as_ref())
+        {
+            for provider in &costs.historical.providers {
+                tokens_by_provider.insert(provider.provider_id.as_str(), provider);
+            }
+        }
+
+        let entity = cx.entity();
+        let providers_panel = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Providers",
+                Some(
+                    ds::caption(
+                        format!(
+                            "{} accounts · {} signed in · {} reporting usage",
+                            views.len(),
+                            views
+                                .iter()
+                                .filter(|view| view.auth.kind == data::AuthKind::Verified)
+                                .count(),
+                            with_readings
+                        ),
+                        &theme,
+                    )
+                    .into_any_element(),
+                ),
+                &theme,
+            ))
+            .when(!compact_rows, |this| {
+                this.child(
+                    div()
+                        .h_flex()
+                        .items_center()
+                        .gap(px(sp::MD))
+                        .px(px(sp::LG))
+                        .py(px(4.))
+                        .bg(theme.foreground.opacity(0.03))
+                        .border_b_1()
+                        .border_color(theme.border)
+                        .child(div().flex_1().child(ds::caption("Account", &theme)))
+                        .child(div().w(px(104.)).child(ds::caption("Status", &theme)))
+                        .child(div().w(px(336.)).child(ds::caption("Allowance", &theme))),
+                )
+            })
+            .when(views.is_empty(), |this| {
+                this.child(ds::state(
+                    ds::StateKind::Empty,
+                    "No accounts discovered yet",
+                    "Discovery found no supported AI client on this machine, so there is no allowance to show. Install or sign in to a client, then refresh. Accounts lists what is supported.",
+                    &theme,
+                ))
+            })
+            .children(views.iter().map(|view| {
+                provider_row(
+                    view,
+                    tokens_by_provider
+                        .get(view.provider_id.as_str())
+                        .copied(),
+                    compact_rows,
+                    entity.clone(),
+                    &theme,
+                )
+            }));
 
         // Needs attention.
         let attention: Vec<(Tone, String)> = self
             .snapshot()
             .map(|snapshot| {
-                let mut items: Vec<(Tone, String)> = data::open_issues(snapshot)
+                let open = data::open_issues(snapshot);
+                let metadata_failures = open
                     .iter()
+                    .filter(|issue| issue.title == "Provider metadata could not be refreshed")
+                    .count();
+                let mut items: Vec<(Tone, String)> = open
+                    .iter()
+                    .filter(|issue| issue.title != "Provider metadata could not be refreshed")
                     .take(4)
                     .map(|issue| (Tone::Amber, issue.title.clone()))
                     .collect();
+                if metadata_failures > 0 {
+                    items.push((
+                        Tone::Neutral,
+                        format!(
+                            "{metadata_failures} provider metadata refreshes failed · see Diagnostics"
+                        ),
+                    ));
+                }
                 for connection in &snapshot.connections {
                     let view = data::auth_view(connection);
                     let name = data::connection_title(snapshot, connection);
@@ -447,12 +540,11 @@ impl Desktop {
                         _ => {}
                     }
                 }
+                items.truncate(6);
                 items
             })
             .unwrap_or_default();
-        let entity = cx.entity();
         let attention_panel = ds::panel(&theme)
-            .flex_1()
             .child(ds::panel_head(
                 "Needs attention",
                 Some(
@@ -511,7 +603,6 @@ impl Desktop {
             None => ui::plural(counts.apps, "app"),
         };
         let build_panel = ds::panel(&theme)
-            .flex_1()
             .child(ds::panel_head(
                 "Build on this runtime",
                 Some(
@@ -587,47 +678,68 @@ impl Desktop {
                     })),
             );
 
+        let rail = div()
+            .v_flex()
+            .gap(px(sp::MD))
+            .when(wide, |this| this.w(px(320.)).flex_shrink_0())
+            .child(attention_panel)
+            .child(build_panel);
+
+        let board = if wide {
+            div()
+                .h_flex()
+                .items_start()
+                .gap(px(sp::MD))
+                .child(div().flex_1().min_w(px(0.)).child(providers_panel))
+                .child(rail)
+        } else {
+            div()
+                .v_flex()
+                .gap(px(sp::MD))
+                .child(providers_panel)
+                .child(rail)
+        };
+
         div()
             .v_flex()
             .w_full()
             .px(px(ds::GUTTER))
             .pb(px(sp::XXL))
-            .gap(px(sp::XL))
+            .gap(px(sp::LG))
             .child(strip)
-            .child(
-                div()
-                    .v_flex()
-                    .gap(px(sp::MD))
-                    .child(ds::section_header(
-                        "Allowances",
-                        Some(
-                            "Percent left in each window the client reports. Missing readings stay unknown."
-                                .into(),
-                        ),
-                        &theme,
-                    ))
-                    .child(if views.is_empty() {
-                        ds::panel(&theme)
-                            .child(ds::state(
-                                ds::StateKind::Empty,
-                                "No accounts discovered yet",
-                                "Discovery found no supported AI client on this machine, so there is no allowance to show. Install or sign in to a client, then refresh. Accounts lists what is supported.",
-                                &theme,
-                            ))
-                            .into_any_element()
-                    } else {
-                        grid.into_any_element()
-                    }),
-            )
-            .child(
-                div()
-                    .h_flex()
-                    .items_start()
-                    .gap(px(sp::MD))
-                    .child(attention_panel)
-                    .child(build_panel),
-            )
+            .child(board)
             .child(self.cost_trend(cx))
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{compact_tokens, usage_unavailable};
+
+    #[test]
+    fn compact_tokens_keeps_small_values_exact() {
+        assert_eq!(compact_tokens(0), "0");
+        assert_eq!(compact_tokens(999), "999");
+    }
+
+    #[test]
+    fn usage_unavailable_distinguishes_a_failed_read_from_no_quota() {
+        assert!(usage_unavailable(&["USAGE_UNAVAILABLE".into()]));
+        assert!(usage_unavailable(&[
+            "REPORTED_BY_DISCOVERY".into(),
+            "USAGE_READ_FAILED_Timeout".into()
+        ]));
+        assert!(!usage_unavailable(&["MODEL_CATALOG_NOT_REPORTED".into()]));
+        assert!(!usage_unavailable(&[]));
+    }
+
+    #[test]
+    fn compact_tokens_uses_readable_thresholds() {
+        assert_eq!(compact_tokens(1_000), "1.0k");
+        assert_eq!(compact_tokens(9_999), "10.0k");
+        assert_eq!(compact_tokens(10_000), "10k");
+        assert_eq!(compact_tokens(749_309), "749k");
+        assert_eq!(compact_tokens(1_250_000), "1.2M");
     }
 }

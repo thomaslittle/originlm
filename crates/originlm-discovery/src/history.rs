@@ -741,7 +741,7 @@ fn read_codex(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
 }
 
 type AggregatedModel = (UsageTotals, BTreeSet<String>, u32);
-type GrokRecordKey = (String, String, u64, u64);
+type GrokRecordKey = (String, String, String, u64, u64);
 
 fn add_usage(
     by_model: &mut BTreeMap<String, AggregatedModel>,
@@ -1052,6 +1052,8 @@ struct GrokUsage {
         alias = "thinkingTokens"
     )]
     reasoning_tokens: Option<i64>,
+    #[serde(default, rename = "modelUsage")]
+    model_usage: Option<BTreeMap<String, GrokUsage>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1071,7 +1073,7 @@ struct GrokParams {
 
 #[derive(Debug, Deserialize)]
 struct GrokLine {
-    timestamp: Option<String>,
+    timestamp: Option<serde_json::Value>,
     params: Option<GrokParams>,
 }
 
@@ -1128,21 +1130,45 @@ fn read_grok(roots: &[PathBuf], limits: Limits) -> ProviderUsage {
             let Some(usage) = update.usage.as_ref() else {
                 return true;
             };
-            let totals = grok_totals(usage);
-            if totals.is_zero() {
-                return true;
-            }
-            let model = model_name(&update.model)
+            let timestamp = value
+                .timestamp
+                .as_ref()
+                .and_then(|value| {
+                    value
+                        .as_str()
+                        .map(str::to_owned)
+                        .or_else(|| value.as_i64().map(|value| value.to_string()))
+                })
+                .unwrap_or_default();
+            let fallback_model = model_name(&update.model)
                 .or_else(|| model_name(&update.model_id))
                 .unwrap_or_else(|| "unknown".into());
-            let timestamp = value.timestamp.clone().unwrap_or_default();
-            let key = (
-                session.clone(),
-                timestamp,
-                totals.input_tokens,
-                totals.output_tokens,
-            );
-            records.insert(key, (session.clone(), model, totals));
+            let mut emitted = false;
+            let mut push = |model: String, totals: UsageTotals| {
+                if totals.is_zero() {
+                    return;
+                }
+                emitted = true;
+                let key = (
+                    session.clone(),
+                    timestamp.clone(),
+                    model.clone(),
+                    totals.input_tokens,
+                    totals.output_tokens,
+                );
+                records.insert(key, (session.clone(), model, totals));
+            };
+            if let Some(models) = usage
+                .model_usage
+                .as_ref()
+                .filter(|models| !models.is_empty())
+            {
+                for (model, usage) in models {
+                    push(model.clone(), grok_totals(usage));
+                }
+            } else {
+                push(fallback_model, grok_totals(usage));
+            }
             true
         });
         if read {
@@ -1503,6 +1529,31 @@ mod tests {
         assert_eq!(grok.totals.cache_creation_tokens, 5);
         assert_eq!(grok.totals.output_tokens, 30);
         assert_eq!(grok.totals.reasoning_tokens, 6);
+    }
+
+    #[test]
+    fn grok_numeric_timestamps_and_model_usage_are_counted() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path();
+        write(
+            &home.join(".grok/sessions/ws/session-n/updates.jsonl"),
+            &[
+                r#"{"timestamp":1770983427123,"method":"session/update","params":{"sessionId":"s-n","update":{"sessionUpdate":"turn_completed","usage":{"inputTokens":100,"outputTokens":20,"cachedReadTokens":40,"cacheCreationTokens":5,"reasoningTokens":4,"modelUsage":{"grok-4.7":{"inputTokens":100,"outputTokens":20,"cachedReadTokens":40,"cacheCreationTokens":5,"reasoningTokens":4}}}}}}"#,
+            ],
+        );
+        let usage = read_usage(home, Limits::default());
+        let grok = usage
+            .providers
+            .iter()
+            .find(|provider| provider.provider_id == "grok")
+            .unwrap();
+        assert_eq!(grok.malformed_lines, 0);
+        assert_eq!(grok.models.len(), 1);
+        assert_eq!(grok.models[0].native_model_id, "grok-4.7");
+        assert_eq!(grok.totals.input_tokens, 60);
+        assert_eq!(grok.totals.cached_input_tokens, 40);
+        assert_eq!(grok.totals.cache_creation_tokens, 5);
+        assert_eq!(grok.totals.output_tokens, 20);
     }
 
     #[test]
