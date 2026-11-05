@@ -1065,8 +1065,7 @@ impl Desktop {
         // A model the provider labels "free" can run without the paid-route
         // switch even when its route does not report a billing class. Other
         // unknown/paid routes still require the one-run consent.
-        let allow_paid = choice.label.to_ascii_lowercase().contains("free")
-            || choice.billing.to_ascii_lowercase().contains("free")
+        let allow_paid = model_choice_is_free(&choice)
             || self
                 .selected_model
                 .as_deref()
@@ -2365,4 +2364,36 @@ fn default_sidebar_width() -> f32 {
 
 fn default_inspector_width() -> f32 {
     430.0
+}
+
+fn model_choice_is_free(choice: &ModelChoice) -> bool {
+    choice.label.to_ascii_lowercase().contains("free")
+        || choice.billing.to_ascii_lowercase().contains("free")
+}
+
+#[cfg(test)]
+mod model_choice_tests {
+    use super::{ModelChoice, model_choice_is_free};
+
+    fn choice(label: &str, billing: &str) -> ModelChoice {
+        ModelChoice {
+            route_id: "r".into(),
+            model_id: "m".into(),
+            revision: "1".into(),
+            label: label.into(),
+            connection: "c".into(),
+            provider_id: "p".into(),
+            billing: billing.into(),
+        }
+    }
+
+    #[test]
+    fn provider_free_models_do_not_need_paid_consent() {
+        assert!(model_choice_is_free(&choice("Beam Free", "unknown")));
+        assert!(model_choice_is_free(&choice("Paid model", "Free")));
+        assert!(!model_choice_is_free(&choice(
+            "DeepSeek V4.1",
+            "subscription"
+        )));
+    }
 }
