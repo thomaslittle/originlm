@@ -181,7 +181,7 @@ jobs:
           version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Download all target npm artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: prepared-*
@@ -227,7 +227,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Download the canonical npm release set
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: npm-release
           path: npm-release
