@@ -279,8 +279,6 @@ pub struct Desktop {
     pub mini_view: bool,
     /// Last rendered viewport width, for responsive page layouts.
     pub viewport_w: f32,
-    /// Last rendered viewport height, for bounded popovers.
-    pub viewport_h: f32,
     /// Selected SDK sample on the Developer page.
     pub dev_sample: usize,
     pub broker: BrokerHandle,
@@ -453,7 +451,6 @@ impl Desktop {
             toast: None,
             mini_view: example && std::env::var_os("LAI_DESKTOP_MINI_VIEW").is_some(),
             viewport_w: 1440.,
-            viewport_h: 920.,
             dev_sample: 0,
             broker,
             executor,
@@ -1168,7 +1165,6 @@ impl Render for Desktop {
         let theme = cx.theme().clone();
         let entity = cx.entity();
         self.viewport_w = window.viewport_size().width.as_f32();
-        self.viewport_h = window.viewport_size().height.as_f32();
         if self.initial_focus {
             self.initial_focus = false;
             window.focus(&self.focus, cx);

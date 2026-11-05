@@ -236,7 +236,13 @@ impl Render for PageHarness {
             Page::Playground => desktop.page_playground(cx),
             _ => unreachable!("test harness only renders Overview, Models and Playground"),
         });
-        gpui_kit::div().id("page-harness").size_full().child(page)
+        gpui_kit::div()
+            .id("page-harness")
+            .w_full()
+            .h(px(800.))
+            .flex()
+            .flex_col()
+            .child(page)
     }
 }
 

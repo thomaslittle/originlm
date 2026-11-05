@@ -63,6 +63,11 @@ impl Desktop {
     }
 
     pub fn page_playground(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        eprintln!(
+            "PAGE_PLAYGROUND bundle={} picker={}",
+            self.bundle.is_some(),
+            self.model_picker_open
+        );
         let theme = cx.theme().clone();
         let reduce = cx.reduce_motion();
         let entity = cx.entity();
@@ -896,34 +901,29 @@ impl Desktop {
             .flex_1()
             .min_w(px(0.))
             .child(header)
-            .child(
+            .child(if self.model_picker_open {
                 div()
-                    .id("playground-transcript")
-                    .relative()
                     .flex_1()
                     .min_h(px(0.))
-                    .overflow_hidden()
-                    .child(
-                        div()
-                            .id("playground-transcript-scroll")
-                            .absolute()
-                            .inset_0()
-                            .overflow_y_scroll()
-                            .child(lines),
-                    )
-                    .when(self.model_picker_open, |this| {
-                        this.child(div().absolute().inset_0().p(px(sp::MD)).child(picker))
-                    })
-                    .when(self.effort_picker_open, |this| {
-                        this.child(
-                            div()
-                                .absolute()
-                                .inset_0()
-                                .p(px(sp::MD))
-                                .child(effort_picker),
-                        )
-                    }),
-            )
+                    .p(px(sp::MD))
+                    .child(picker)
+                    .into_any_element()
+            } else if self.effort_picker_open {
+                div()
+                    .flex_1()
+                    .min_h(px(0.))
+                    .p(px(sp::MD))
+                    .child(effort_picker)
+                    .into_any_element()
+            } else {
+                div()
+                    .id("playground-transcript")
+                    .flex_1()
+                    .min_h(px(0.))
+                    .overflow_y_scroll()
+                    .child(lines)
+                    .into_any_element()
+            })
             .when_some(self.playground_error.clone(), |this, error| {
                 this.child(div().p(px(sp::MD)).child(ds::banner(
                     Tone::Red,
@@ -949,7 +949,11 @@ impl Desktop {
             })
             .child(composer);
 
-        let mut page = ds::page();
+        let mut page = ds::page()
+            .id("playground-page")
+            .size_full()
+            .flex()
+            .flex_col();
         if self.example {
             page = page.child(ds::banner(
                 Tone::Amber,
