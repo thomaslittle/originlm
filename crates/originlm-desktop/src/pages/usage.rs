@@ -195,7 +195,7 @@ impl Desktop {
                             .map(|value| format!("{:.0}% left", value * 100.0))
                             .unwrap_or_else(|| "Unknown".into());
                         let figure_color = match row.remaining {
-                            Some(value) if value < 0.35 => {
+                            Some(value) if value < 0.50 => {
                                 ui::tone_color(ds::remaining_tone(value), &theme)
                             }
                             _ => theme.foreground,

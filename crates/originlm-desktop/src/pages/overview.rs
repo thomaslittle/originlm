@@ -127,8 +127,8 @@ fn compact_tokens(value: u64) -> String {
     }
 }
 
-/// One allowance window, compact enough to sit inline in the provider list.
-fn window_cell(window: &WindowView, theme: &Theme) -> Div {
+/// One allowance window on a single line: label, meter, percent, reset.
+fn window_line(window: &WindowView, theme: &Theme) -> Div {
     let (meter_value, figure, figure_color) = match &window.reading {
         Reading::Fraction(value) => (
             Some(*value),
@@ -140,34 +140,33 @@ fn window_cell(window: &WindowView, theme: &Theme) -> Div {
         Reading::Unavailable => (None, "Unavailable".to_string(), theme.muted_foreground),
     };
     let reset = match &window.reading {
-        Reading::Fraction(_) => match ui::format_countdown(window.reset.as_deref()) {
-            Some(countdown) if countdown == "reset due" => Some("due".to_string()),
-            Some(countdown) => Some(countdown),
-            None => None,
-        },
+        Reading::Fraction(_) => ui::format_countdown(window.reset.as_deref()),
         _ => None,
     };
     div()
-        .v_flex()
-        .w(px(160.))
-        .flex_shrink_0()
-        .gap(px(4.))
+        .h_flex()
+        .items_center()
+        .gap(px(sp::SM))
+        .child(
+            ds::caption(window.label.clone(), theme)
+                .w(px(68.))
+                .truncate(),
+        )
         .child(
             div()
-                .h_flex()
-                .items_center()
-                .gap(px(sp::XS))
-                .child(
-                    ds::caption(window.label.clone(), theme)
-                        .flex_1()
-                        .min_w(px(0.))
-                        .truncate(),
-                )
-                .when(window.stale, |this| this.child(ds::caption("stale", theme)))
-                .when_some(reset, |this, reset| this.child(ds::caption(reset, theme)))
-                .child(ds::mono(figure, ty::CAPTION, figure_color, theme)),
+                .w(px(96.))
+                .flex_shrink_0()
+                .child(ds::meter(meter_value, theme)),
         )
-        .child(ds::meter(meter_value, theme))
+        .child(
+            ds::mono(figure, ty::CAPTION, figure_color, theme)
+                .w(px(42.))
+                .truncate(),
+        )
+        .when_some(reset, |this, reset| {
+            this.child(ds::caption(reset, theme).flex_1().truncate())
+        })
+        .when(window.stale, |this| this.child(ds::caption("stale", theme)))
 }
 
 /// What the client can honestly say about allowance, including the cases
@@ -228,23 +227,11 @@ fn allowance_cell(
             .child(ds::caption(detail, theme).truncate())
     } else {
         div()
-            .h_flex()
-            .items_start()
-            .gap(px(sp::MD))
+            .v_flex()
+            .gap(px(3.))
             .w(px(336.))
             .flex_shrink_0()
-            .children(
-                view.windows
-                    .iter()
-                    .take(2)
-                    .map(|window| window_cell(window, theme)),
-            )
-            .when(view.windows.len() > 2, |this| {
-                this.child(ds::caption(
-                    format!("+{} windows", view.windows.len() - 2),
-                    theme,
-                ))
-            })
+            .children(view.windows.iter().map(|window| window_line(window, theme)))
     }
 }
 

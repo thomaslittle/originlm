@@ -476,21 +476,50 @@ pub(crate) fn merge_report(snapshot: &mut Snapshot, report: &ConnectionMetadata,
         }
         snapshot.models.push(model);
     }
+    // A metadata refresh can succeed while the provider declines to return
+    // usage (for example an expired sign-in that still lists models). In that
+    // case keep the last allowance windows and mark them stale instead of
+    // deleting the only evidence the user has. When usage is present, replace
+    // the connection's pools as before.
+    let usage_reported = !report.quota_pools.is_empty();
     for pool in &mut snapshot.quota_pools {
+        if !usage_reported {
+            if pool.connection_ids.contains(&report.connection_id) {
+                for window in &mut pool.windows {
+                    window.reading.mark_stale();
+                }
+                pool.route_ids = pool
+                    .route_ids
+                    .iter()
+                    .map(|route| {
+                        if old_routes.contains(route) {
+                            report.route_id.clone()
+                        } else {
+                            route.clone()
+                        }
+                    })
+                    .collect();
+                pool.route_ids.sort();
+                pool.route_ids.dedup();
+            }
+            continue;
+        }
         pool.connection_ids.retain(|c| c != &report.connection_id);
         pool.route_ids.retain(|r| !old_routes.contains(r));
     }
-    snapshot
-        .quota_pools
-        .retain(|p| !p.connection_ids.is_empty() && !p.route_ids.is_empty());
-    for original in &report.quota_pools {
-        let mut pool = original.clone();
-        if stale {
-            for window in &mut pool.windows {
-                window.reading.mark_stale();
+    if usage_reported {
+        snapshot
+            .quota_pools
+            .retain(|p| !p.connection_ids.is_empty() && !p.route_ids.is_empty());
+        for original in &report.quota_pools {
+            let mut pool = original.clone();
+            if stale {
+                for window in &mut pool.windows {
+                    window.reading.mark_stale();
+                }
             }
+            snapshot.quota_pools.push(pool);
         }
-        snapshot.quota_pools.push(pool);
     }
 }
 fn usage_evidence(value: &Observation<bool>) -> Observation<String> {
@@ -555,5 +584,99 @@ fn runtime_evidence(
             expires_at: None,
         },
         _ => Observation::unknown("EXECUTION_NOT_IMPLEMENTED"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_report;
+    use originlm_contracts::{
+        AccessRoute, AuthState, BillingMode, Connection, ConnectionMetadata, DataMode,
+        EvidenceKind, EvidenceSource, Freshness, Observation, Plan, QuotaPool, Snapshot,
+        UsageInput, UsageReading, UsageWindow,
+    };
+
+    fn source() -> EvidenceSource {
+        EvidenceSource::new(EvidenceKind::Synthetic, "test", "metadata")
+    }
+
+    #[test]
+    fn a_refresh_without_usage_keeps_the_last_allowance_stale() {
+        let mut snapshot = Snapshot::empty(DataMode::Live);
+        snapshot.connections.push(Connection {
+            id: "connection-1".into(),
+            provider_id: "claude_code".into(),
+            installation_id: "installation-1".into(),
+            profile_id: "profile-1".into(),
+            display_name: "Claude Code".into(),
+            account_id: None,
+            auth: Observation::unknown("TEST"),
+            plan: Observation::unknown("TEST"),
+            status: "detected".into(),
+            diagnostics: vec![],
+        });
+        snapshot.routes.push(AccessRoute {
+            id: "route-1".into(),
+            connection_id: "connection-1".into(),
+            provider_id: "claude_code".into(),
+            display_name: "Claude Code".into(),
+            billing: Observation::reported(BillingMode::Subscription, source()),
+            capabilities: vec![],
+            catalog_revision: "1".into(),
+        });
+        snapshot.quota_pools.push(QuotaPool {
+            id: "pool-1".into(),
+            account_id: None,
+            connection_ids: vec!["connection-1".into()],
+            route_ids: vec!["route-1".into()],
+            sharing: "private".into(),
+            windows: vec![UsageWindow {
+                id: "five_hour".into(),
+                label: "Five hour".into(),
+                reading: Observation::reported(
+                    UsageReading::try_from(UsageInput {
+                        unit: "percent".into(),
+                        used: "94".to_owned().try_into().unwrap(),
+                        limit: Some("100".to_owned().try_into().unwrap()),
+                    })
+                    .unwrap(),
+                    source(),
+                ),
+                resets_at: None,
+                duration_seconds: None,
+            }],
+        });
+        let report = ConnectionMetadata {
+            connection_id: "connection-1".into(),
+            route_id: "route-1".into(),
+            version: Observation::unknown("TEST"),
+            auth: Observation::reported(AuthState::Authenticated, source()),
+            plan: Observation::reported(
+                Plan {
+                    native_id: "pro".into(),
+                    label: "Pro".into(),
+                },
+                source(),
+            ),
+            billing: Observation::reported(BillingMode::Subscription, source()),
+            account: None,
+            models: vec![],
+            additional_routes: vec![],
+            providers: vec![],
+            quota_pools: vec![],
+            included_usage_allowed: Observation::unknown("NOT_REPORTED"),
+            diagnostics: vec![],
+        };
+
+        merge_report(&mut snapshot, &report, false);
+
+        assert_eq!(snapshot.quota_pools.len(), 1);
+        assert!(matches!(
+            snapshot.quota_pools[0].windows[0].reading,
+            Observation::Known {
+                freshness: Freshness::Stale,
+                ..
+            }
+        ));
     }
 }

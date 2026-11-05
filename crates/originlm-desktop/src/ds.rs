@@ -169,9 +169,9 @@ pub fn status(label: impl Into<SharedString>, tone: Tone, theme: &Theme) -> Div 
 
 /// Tone for a remaining fraction.
 pub fn remaining_tone(remaining: f32) -> Tone {
-    if remaining < 0.15 {
+    if remaining < 0.20 {
         Tone::Red
-    } else if remaining < 0.35 {
+    } else if remaining < 0.50 {
         Tone::Amber
     } else {
         Tone::Green
@@ -188,8 +188,8 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         // Availability has its own meaning: green is healthy, amber is
         // tightening, red is close to exhausted. Brand amber stays for
         // actions, never for a healthy quota.
-        Some(value) if value < 0.15 => theme.danger,
-        Some(value) if value < 0.35 => theme.warning,
+        Some(value) if value < 0.20 => theme.danger,
+        Some(value) if value < 0.50 => theme.warning,
         _ => theme.success,
     };
     let track = theme.foreground.opacity(0.08);
@@ -681,4 +681,20 @@ pub fn panel_row(first: bool, theme: &Theme) -> Div {
         .when(!first, |this| {
             this.border_t_1().border_color(theme.border.opacity(0.7))
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remaining_tone;
+    use crate::ui::Tone;
+
+    #[test]
+    fn availability_is_green_amber_or_red_by_remaining() {
+        assert_eq!(remaining_tone(0.75), Tone::Green);
+        assert_eq!(remaining_tone(0.50), Tone::Green);
+        assert_eq!(remaining_tone(0.49), Tone::Amber);
+        assert_eq!(remaining_tone(0.20), Tone::Amber);
+        assert_eq!(remaining_tone(0.19), Tone::Red);
+        assert_eq!(remaining_tone(0.0), Tone::Red);
+    }
 }
