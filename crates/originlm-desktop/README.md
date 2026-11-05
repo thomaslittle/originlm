@@ -170,6 +170,16 @@ native plots with a table alternative.
 - Passive discovery can see several command shims, profile roots or bundled copies of one client. The desktop collapses them to one account per provider unless the service reports distinct account ids. Overview is one provider list, not a summary plus a second allowance grid: every account always appears with its meter, its explicit no-quota state, or its local token totals. Quota evidence read from a folded duplicate stays attached to the visible account. Discovery installation and profile indices are removed from user-facing names, while genuinely distinct account ids keep an account suffix.
 - Codex allowance windows are named from the provider duration (`5 hr`, `Weekly`) rather than the raw `primary`/`secondary` bucket keys. OpenCode models carry their plan (`Free`, `Zen`, `Go`, or `Local`) next to the model name.
 - `cargo test -p originlm-desktop` includes native GPUI end-to-end tests. They render the real Overview, Models and Playground pages in the deterministic test window and drive them with GPUI pointer events, following Zed's `#[gpui::test]`/`TestAppContext` pattern. They never use Windows UI Automation, SendKeys or OS focus. The Playground test runs two in-process OriginLM sessions against a model-switch conversation and asserts the second model receives the first turn through the real handoff: `cargo test -p originlm-desktop native_playground_model_switch_hands_off_the_conversation`. The Playground itself uses a Twinhaus-inspired chat surface: right-aligned user bubbles, full-width assistant prose, a live status pulse, staggered message entry, and composer controls below the input for image attachments, model selection with an inline picker, reasoning effort, and Send that becomes an animated Stop.
+
+## Automated end-to-end gate
+
+Run the desktop UI, handoff and HTTP request-shaping suites together:
+
+```sh
+python scripts/test_desktop_e2e.py
+```
+
+This runs the GPUI Playground tests plus the service model-switch and HTTP adapter execution suites. It covers two-turn model switching, prior-context seeding, transcript retention, no double seeding, resume after switch, target-budget trimming, free-model billing consent, and large-image downscaling before `inputs.put`.
 - Availability meters are green at 50% or more remaining, amber below 50%, and red below 20%. The Claude burst and OpenAI marks are used for Claude Code and Codex.
 - Startup renders the cached snapshot first; metadata and usage refresh run in the background rather than queuing one probe behind another on the broker worker. The private runtime keeps its own `desktop-metadata.db`, hydrates the last observations, and reverifies them in the background; it never shares the CLI broker database.
 - Cursor is probed through the installed `cursor-agent` CLI: signed-in state,
