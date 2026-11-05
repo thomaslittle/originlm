@@ -248,6 +248,8 @@ pub struct Desktop {
     pub selected_effort: Option<String>,
     /// The model chip's picker is open below the composer.
     pub model_picker_open: bool,
+    /// Provider tab selected in the model popover; `None` means all providers.
+    pub model_provider_filter: Option<String>,
     pub price_fields: [Entity<InputState>; 6],
     pub price_edit_original: Option<originlm_contracts::ModelPrice>,
     pub query: String,
@@ -406,6 +408,7 @@ impl Desktop {
             attachments: Vec::new(),
             selected_effort: None,
             model_picker_open: false,
+            model_provider_filter: None,
             price_fields,
             price_edit_original: None,
             query: String::new(),

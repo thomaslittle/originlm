@@ -63,7 +63,7 @@ pub fn run() {
     } else {
         bootstrap::Credential::acquire(token_path)
     };
-    let application = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
+    let application = gpui_kit::application().with_assets(gpui_kit::assets::AllAssets);
     application.run(move |cx| {
         let _ = cx
             .text_system()

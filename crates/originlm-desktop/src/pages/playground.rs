@@ -3,7 +3,7 @@
 //! the useful parts of the Twinhaus Studio chat surface without its 3D shell:
 //! a compact model rail, right-aligned user bubbles, full-width assistant
 //! prose, a live run card, and a composer that becomes an animated Stop.
-use crate::app::{Desktop, Page, TranscriptRole};
+use crate::app::{Desktop, TranscriptRole};
 use crate::ds::{self, sp, ty};
 use crate::ui::Tone;
 use gpui_kit::base::StyledExt as _;
@@ -83,85 +83,206 @@ impl Desktop {
 
         // Model rail. The chat stays the main surface; this is the compact
         // "app + model" switch a conversation needs.
-        let picker = ds::panel(&theme)
-            .child(ds::panel_head(
-                "Model",
-                Some(
-                    ds::link("pick-elsewhere", "All models", &theme, {
-                        let entity = entity.clone();
-                        move |_, _, cx| {
-                            entity.update(cx, |this, cx| this.set_page(Page::Models, cx))
-                        }
-                    })
-                    .into_any_element(),
-                ),
-                &theme,
-            ))
-            .when(choices.is_empty(), |this| {
-                this.child(ds::state(
-                    ds::StateKind::Empty,
-                    "No runnable model",
-                    if self.bundle.is_none() {
-                        "Waiting for the first snapshot from the runtime."
-                    } else {
-                        "No signed-in account reports a model with a text driver. Check Accounts."
-                    },
-                    &theme,
-                ))
+        // Provider tabs and a bounded model list live in the composer popover.
+        // No navigation to another page and no unbounded scroll surface.
+        let mut providers: Vec<(String, String)> = Vec::new();
+        for choice in &choices {
+            if !providers
+                .iter()
+                .any(|(provider, _)| provider == &choice.provider_id)
+            {
+                providers.push((
+                    choice.provider_id.clone(),
+                    self.provider_name(&choice.provider_id),
+                ));
+            }
+        }
+        providers.sort_by(|a, b| a.1.cmp(&b.1));
+        let active_provider = self.model_provider_filter.clone();
+        let visible_choices: Vec<_> = choices
+            .iter()
+            .filter(|choice| {
+                active_provider
+                    .as_ref()
+                    .is_none_or(|provider| provider == &choice.provider_id)
             })
+            .collect();
+
+        let mut tabs: Vec<(Option<String>, String)> = vec![(None, "All".into())];
+        tabs.extend(
+            providers
+                .iter()
+                .map(|(id, label)| (Some(id.clone()), label.clone())),
+        );
+        let provider_tabs = div()
+            .h_flex()
+            .flex_wrap()
+            .gap(px(4.))
+            .px(px(10.))
+            .pb(px(8.))
+            .children(tabs.into_iter().map(|(provider, label)| {
+                let selected = active_provider == provider;
+                let entity = entity.clone();
+                let id = provider
+                    .as_deref()
+                    .map(|provider| format!("model-provider-{provider}"))
+                    .unwrap_or_else(|| "model-provider-all".into());
+                div()
+                    .id(SharedString::from(id))
+                    .role(gpui::Role::Tab)
+                    .aria_label(label.clone())
+                    .h_flex()
+                    .items_center()
+                    .h(px(28.))
+                    .px(px(9.))
+                    .rounded(px(8.))
+                    .text_size(px(11.))
+                    .font_weight(FontWeight::MEDIUM)
+                    .cursor_pointer()
+                    .when(selected, |this| {
+                        this.bg(theme.muted)
+                            .border_1()
+                            .border_color(theme.border)
+                            .text_color(theme.foreground)
+                    })
+                    .when(!selected, |this| {
+                        this.text_color(theme.muted_foreground)
+                            .hover(|style| style.bg(theme.muted).text_color(theme.foreground))
+                    })
+                    .child(label)
+                    .on_click(move |_, _, cx| {
+                        entity.update(cx, |this, cx| {
+                            this.model_provider_filter = provider.clone();
+                            cx.notify();
+                        });
+                    })
+            }));
+
+        let visible_count = visible_choices.len();
+        let model_rows = if visible_choices.is_empty() {
+            ds::state(
+                ds::StateKind::Empty,
+                "No models for this app",
+                "Choose another provider tab or refresh the model catalog.",
+                &theme,
+            )
+            .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .py(px(4.))
+                .children(visible_choices.into_iter().map(|choice| {
+                    let id = choice.model_id.clone();
+                    let provider_id = choice.provider_id.clone();
+                    let is_selected =
+                        self.selected_model.as_deref() == Some(choice.model_id.as_str());
+                    let entity = entity.clone();
+                    ds::select_row(
+                        SharedString::from(format!("choice-{id}")),
+                        is_selected,
+                        &theme,
+                    )
+                    .aria_label(format!("{}, {}", choice.label, choice.connection))
+                    .children(crate::icons::provider_mark(
+                        &choice.provider_id,
+                        14.,
+                        theme.muted_foreground,
+                    ))
+                    .child(
+                        div()
+                            .v_flex()
+                            .flex_1()
+                            .min_w(px(0.))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .truncate()
+                                    .child(choice.label.clone()),
+                            )
+                            .child(ds::caption(choice.connection.clone(), &theme).truncate()),
+                    )
+                    .child(ds::chip(choice.billing.clone(), Tone::Neutral, &theme))
+                    .on_click(move |_, _, cx| {
+                        entity.update(cx, |this, cx| {
+                            this.selected_model = Some(id.clone());
+                            this.selected_effort = None;
+                            this.model_provider_filter = Some(provider_id.clone());
+                            this.model_picker_open = false;
+                            cx.notify();
+                        });
+                    })
+                }))
+                .into_any_element()
+        };
+
+        let picker = div()
+            .id("model-picker")
+            .w_full()
+            .rounded(px(14.))
+            .bg(theme.popover)
+            .border_1()
+            .border_color(theme.border)
+            .shadow_lg()
+            .v_flex()
             .child(
                 div()
-                    .v_flex()
-                    .py(px(sp::XS))
-                    .children(choices.iter().take(8).map(|choice| {
-                        let id = choice.model_id.clone();
-                        let is_selected =
-                            self.selected_model.as_deref() == Some(choice.model_id.as_str());
+                    .h_flex()
+                    .items_center()
+                    .justify_between()
+                    .px(px(12.))
+                    .pt(px(10.))
+                    .pb(px(6.))
+                    .child(
+                        div()
+                            .text_size(px(ty::SMALL))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Choose a model"),
+                    )
+                    .child({
                         let entity = entity.clone();
-                        ds::select_row(
-                            SharedString::from(format!("choice-{id}")),
-                            is_selected,
-                            &theme,
-                        )
-                        .aria_label(format!("{}, {}", choice.label, choice.connection))
-                        .children(crate::icons::provider_mark(
-                            &choice.provider_id,
-                            14.,
-                            theme.muted_foreground,
-                        ))
-                        .child(
-                            div()
-                                .v_flex()
-                                .flex_1()
-                                .min_w(px(0.))
-                                .child(
-                                    div()
-                                        .text_size(px(ty::SMALL))
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .truncate()
-                                        .child(choice.label.clone()),
-                                )
-                                .child(ds::caption(choice.connection.clone(), &theme).truncate()),
-                        )
-                        .child(ds::chip(choice.billing.clone(), Tone::Neutral, &theme))
-                        .on_click(move |_, _, cx| {
-                            entity.update(cx, |this, cx| {
-                                this.selected_model = Some(id.clone());
-                                this.model_picker_open = false;
-                                cx.notify();
-                            });
-                        })
-                    })),
+                        div()
+                            .id("close-model-picker")
+                            .role(gpui::Role::Button)
+                            .aria_label("Close model picker")
+                            .w(px(22.))
+                            .h(px(22.))
+                            .rounded(px(6.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .cursor_pointer()
+                            .hover(|style| style.bg(theme.muted))
+                            .child(asset_icon(
+                                gpui_kit::assets::IconName::X,
+                                12.,
+                                theme.muted_foreground,
+                            ))
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |this, cx| {
+                                    this.model_picker_open = false;
+                                    cx.notify();
+                                });
+                            })
+                    }),
+            )
+            .child(provider_tabs)
+            .child(
+                div()
+                    .id("model-picker-list")
+                    .max_h(px(320.))
+                    .overflow_y_scroll()
+                    .child(model_rows),
             )
             .child(
                 div()
                     .h_flex()
                     .items_center()
                     .gap(px(sp::MD))
+                    .px(px(12.))
+                    .py(px(8.))
                     .border_t_1()
                     .border_color(theme.border)
-                    .px(px(sp::LG))
-                    .py(px(sp::MD))
                     .child(
                         Switch::new("paid-consent")
                             .checked(paid_consent)
@@ -180,10 +301,31 @@ impl Desktop {
                     .child(
                         div()
                             .v_flex()
-                            .gap(px(2.))
-                            .child(div().text_size(px(ty::SMALL)).child("Allow paid routes"))
+                            .gap(px(1.))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .child("Allow paid or unknown-billing routes"),
+                            )
                             .child(ds::caption("For the next run of this model only.", &theme)),
                     ),
+            )
+            .child(
+                div()
+                    .px(px(12.))
+                    .py(px(7.))
+                    .border_t_1()
+                    .border_color(theme.border)
+                    .child(ds::caption(
+                        format!(
+                            "{} model{} · {} provider{}",
+                            visible_count,
+                            if visible_count == 1 { "" } else { "s" },
+                            providers.len(),
+                            if providers.len() == 1 { "" } else { "s" },
+                        ),
+                        &theme,
+                    )),
             );
 
         // Chat header: the selected model and the live run state are always
@@ -473,6 +615,8 @@ impl Desktop {
         let attach_entity = entity.clone();
         let attach = div()
             .id("attach-images")
+            .role(gpui::Role::Button)
+            .aria_label("Attach images")
             .w(px(30.))
             .h(px(30.))
             .rounded(px(9.))
@@ -493,6 +637,8 @@ impl Desktop {
         let model_entity = entity.clone();
         let model_chip = div()
             .id("model-chip")
+            .role(gpui::Role::Button)
+            .aria_label("Choose a model")
             .h_flex()
             .items_center()
             .gap(px(6.))
@@ -543,10 +689,15 @@ impl Desktop {
                 });
             });
 
-        let effort = self.effort_label().map(|label| {
+        let effort = {
+            let label = self
+                .effort_label()
+                .unwrap_or_else(|| "Default effort".to_string());
             let entity = entity.clone();
             div()
                 .id("effort-chip")
+                .role(gpui::Role::Button)
+                .aria_label("Reasoning effort")
                 .h_flex()
                 .items_center()
                 .gap(px(5.))
@@ -575,10 +726,11 @@ impl Desktop {
                         cx.notify();
                     });
                 })
-        });
+        };
 
         let composer = div()
             .id("playground-composer")
+            .relative()
             .m(px(sp::MD))
             .p(px(10.))
             .rounded(px(14.))
@@ -603,11 +755,21 @@ impl Desktop {
                             .gap(px(sp::XS))
                             .child(attach)
                             .child(model_chip)
-                            .when_some(effort, |this, effort| this.child(effort)),
+                            .child(effort),
                     )
                     .child(send),
             )
-            .when(self.model_picker_open, |this| this.child(picker));
+            .when(self.model_picker_open, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .left(px(0.))
+                        .right(px(0.))
+                        .bottom(relative(1.0))
+                        .pb(px(sp::SM))
+                        .child(picker),
+                )
+            });
 
         let transcript = ds::panel(&theme)
             .flex_1()
