@@ -42,6 +42,11 @@ and [current architecture](design/architecture.md). The support matrix distingui
 - [Landing page audit](design/landing-audit.md): the developer-first rebuild of `apps/site`, compiled code samples, motion and performance measurements, accessibility and SEO checks, and the decision log.
 - [Detection lab](design/detection-lab.md) (proposal, not built): how to catch vendor client changes that break what OriginLM reads, before users do.
 
+## Testing
+
+See [TESTING.md](../TESTING.md) for the test pyramid, desktop in-process view
+tests, nextest settings, and the OS-level checks that are not PR gates.
+
 ## Contributing
 
 [CONTRIBUTING.md](../CONTRIBUTING.md), [Code of Conduct](../CODE_OF_CONDUCT.md), and [migration guide](integration/migration.md).

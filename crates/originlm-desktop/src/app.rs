@@ -219,6 +219,10 @@ fn prefs_path() -> Option<PathBuf> {
 }
 
 fn load_prefs() -> Prefs {
+    // Tests must not depend on the developer's real desktop preferences.
+    if cfg!(test) {
+        return Prefs::default();
+    }
     prefs_path()
         .and_then(|path| std::fs::read(path).ok())
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -379,11 +383,15 @@ impl Desktop {
 
         let mut this = Self {
             example,
-            page: std::env::var("LAI_DESKTOP_PAGE")
-                .ok()
-                .and_then(|name| Page::from_name(&name))
-                .or_else(|| prefs.page.as_deref().and_then(Page::from_name))
-                .unwrap_or(Page::Overview),
+            page: if cfg!(test) {
+                Page::Overview
+            } else {
+                std::env::var("LAI_DESKTOP_PAGE")
+                    .ok()
+                    .and_then(|name| Page::from_name(&name))
+                    .or_else(|| prefs.page.as_deref().and_then(Page::from_name))
+                    .unwrap_or(Page::Overview)
+            },
             brand_marks,
             bundle: None,
             dark,
@@ -742,6 +750,10 @@ impl Desktop {
     }
 
     pub fn save_prefs(&self) {
+        // Tests must not write to the developer's real desktop preferences.
+        if cfg!(test) {
+            return;
+        }
         let prefs = Prefs {
             dark: self.dark,
             refresh_seconds: self.refresh_seconds,
@@ -1146,6 +1158,7 @@ impl Render for Desktop {
                             .flex_1()
                             .min_h(px(0.))
                             .overflow_y_scroll()
+                            .test_support()
                             .child(page_body),
                     );
                 div().flex_1().min_h(px(0.)).child(
@@ -1418,6 +1431,7 @@ impl Desktop {
                                 window.refresh();
                             });
                         })
+                        .test_support()
                         .into_any_element()
                 }))
         };
@@ -1609,6 +1623,7 @@ impl Desktop {
                             .on_click(move |_, window, cx| {
                                 e.update(cx, |this, cx| this.open_palette(window, cx));
                             })
+                            .test_support()
                     }),
             )
             .into_any_element()
@@ -2220,4 +2235,86 @@ fn default_sidebar_width() -> f32 {
 
 fn default_inspector_width() -> f32 {
     430.0
+}
+
+#[cfg(test)]
+mod view_tests {
+    //! In-process view tests. They render the real desktop shell in a headless
+    //! window, then click production navigation and header controls. They never
+    //! open an OS window, send input, or read a real account.
+
+    use super::{Desktop, Page};
+    use crate::bootstrap::Credential;
+    use gpui_kit::test::TestWindowExt as _;
+    use gpui_kit::{
+        AppContext as _, Bounds, TestAppContext, WindowBounds, WindowOptions, point, px, size,
+    };
+
+    fn open_desktop(
+        cx: &mut TestAppContext,
+    ) -> (
+        gpui_kit::WindowHandle<gpui_kit::base::Root>,
+        gpui_kit::Entity<Desktop>,
+    ) {
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            let (window, desktop) = gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds {
+                        origin: point(px(0.), px(0.)),
+                        size: size(px(1280.), px(800.)),
+                    })),
+                    ..Default::default()
+                },
+                cx,
+                |window, cx| {
+                    cx.new(|cx| {
+                        Desktop::new(
+                            window,
+                            cx,
+                            Credential::Unavailable("in-process view test".into()),
+                            30,
+                            true,
+                        )
+                    })
+                },
+            )
+            .expect("open the desktop test window");
+            (
+                window
+                    .downcast::<gpui_kit::base::Root>()
+                    .expect("Base Root"),
+                desktop,
+            )
+        })
+    }
+
+    #[gpui_kit::test]
+    fn desktop_shell_renders_navigation_and_opens_the_palette(cx: &mut TestAppContext) {
+        let (window, desktop) = open_desktop(cx);
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+
+            // The real shell, not a stand-in, renders every page target.
+            for page in Page::ALL {
+                assert!(
+                    window.try_find(("nav", page as usize)).is_some(),
+                    "missing navigation target for {}",
+                    page.title()
+                );
+            }
+            assert!(window.try_find("page-scroll").is_some());
+            assert!(window.try_find("palette-button").is_some());
+
+            // Production navigation still switches the page in-process.
+            assert_eq!(desktop.read(cx).page, Page::Overview);
+            window.click(("nav", Page::Settings as usize), cx);
+            assert_eq!(desktop.read(cx).page, Page::Settings);
+
+            // The header control opens the real command-palette overlay.
+            window.click("palette-button", cx);
+            assert!(desktop.read(cx).palette_open);
+        })
+        .unwrap();
+    }
 }
