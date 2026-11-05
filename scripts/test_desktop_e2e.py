@@ -12,11 +12,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMMANDS = [
-    ["cargo", "test", "-p", "originlm-desktop", "--all-targets"],
-    ["cargo", "test", "-p", "originlm-service", "--test", "model_switch"],
-    ["cargo", "test", "-p", "originlm-adapters", "--test", "http_execution"],
-    ["cargo", "test", "-p", "originlm-adapters", "--test", "opencode_v2"],
-    ["cargo", "test", "-p", "originlm-adapters", "--lib", "v2_service"],
+    ["cargo", "test", "--locked", "-p", "originlm-desktop", "--all-targets"],
+    ["cargo", "test", "--locked", "-p", "originlm-service", "--test", "model_switch"],
+    ["cargo", "test", "--locked", "-p", "originlm-adapters", "--test", "http_execution"],
+    ["cargo", "test", "--locked", "-p", "originlm-adapters", "--test", "opencode_v2"],
+    ["cargo", "test", "--locked", "-p", "originlm-adapters", "--lib", "v2_service"],
 ]
 
 
