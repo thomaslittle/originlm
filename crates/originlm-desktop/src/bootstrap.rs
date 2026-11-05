@@ -396,7 +396,13 @@ mod tests {
 
     #[test]
     fn local_runtime_issues_a_working_administrative_credential() {
-        let (address, token) = start_local_with(isolated("bootstrap")).expect("local runtime");
+        let config = isolated("bootstrap");
+        let cache = config
+            .state_dir
+            .as_ref()
+            .expect("isolated state dir")
+            .join("desktop-metadata.db");
+        let (address, token) = start_local_with(config).expect("local runtime");
         let mut client = BrokerClient::connect(&address, &token).expect("connect");
         client.snapshot().expect("snapshot");
         client.apps().expect("administrative apps list");
@@ -414,6 +420,10 @@ mod tests {
             .expect("passive refresh");
         let snapshot = client.snapshot().expect("snapshot after refresh");
         assert!(snapshot.connections.is_empty());
+        assert!(
+            cache.exists(),
+            "the private runtime persists its metadata cache"
+        );
         client.close();
     }
 
