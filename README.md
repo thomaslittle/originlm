@@ -167,6 +167,7 @@ try {
 | C# over HTTP, Tauri, browser extension | [`examples/dotnet-http`](examples/dotnet-http/), [`examples/tauri`](examples/tauri/), [`examples/browser-extension`](examples/browser-extension/) |
 | Wire protocol, OpenAPI, JSON Schema | [Generated API](docs/integration/generated-api.md), [`protocol/`](protocol/) |
 | Read approved cached usage through MCP | [Cache-only MCP guide](docs/integration/cached-usage-mcp.md) |
+| Order model catalogs by Artificial Analysis Intelligence Index | [Intelligence Index guide](docs/integration/artificial-analysis.md) |
 | Add a provider adapter | [Adapter authoring guide](docs/adapters/AUTHORING.md) |
 
 ## Repository layout
