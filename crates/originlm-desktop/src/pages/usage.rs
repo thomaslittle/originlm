@@ -59,6 +59,7 @@ fn local_token_panel(
             let input = entry.map(|entry| entry.totals.total_input_tokens());
             let output = entry.map(|entry| entry.totals.output_tokens);
             let reasoning = entry.map(|entry| entry.totals.reasoning_tokens);
+            let show_id = !name.eq_ignore_ascii_case(id);
             div()
                 .h_flex()
                 .items_center()
@@ -78,12 +79,16 @@ fn local_token_panel(
                                 .font_weight(FontWeight::MEDIUM)
                                 .child(name),
                         )
-                        .child(ds::mono(
-                            (*id).to_string(),
-                            ty::CAPTION,
-                            theme.muted_foreground,
-                            theme,
-                        )),
+                        // Do not print the same identifier twice. The mono
+                        // line is only useful when it differs from the name.
+                        .when(show_id, |this| {
+                            this.child(ds::mono(
+                                (*id).to_string(),
+                                ty::CAPTION,
+                                theme.muted_foreground,
+                                theme,
+                            ))
+                        }),
                 )
                 .when_some(input, |this, input| {
                     this.child(ds::mono(
@@ -110,7 +115,7 @@ fn local_token_panel(
                     ))
                 })
                 .when(entry.is_none(), |this| {
-                    this.child(ds::caption("No local transcript history", theme))
+                    this.child(ds::body("No local transcript history", theme))
                 })
                 .when(entry.is_some_and(|entry| !entry.diagnostics.is_empty()), |this| {
                     this.child(ds::chip(

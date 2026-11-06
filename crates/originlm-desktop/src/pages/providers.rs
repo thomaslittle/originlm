@@ -215,7 +215,8 @@ impl Desktop {
             ))
             .child(
                 ds::table_head(&theme)
-                    .px(px(sp::MD + 2.))
+                    // Match select_row's 12px inset so headers sit over rows.
+                    .px(px(sp::MD))
                     .child(div().w(px(28.)).flex_shrink_0())
                     .child(ds::th("Account", None, &theme))
                     .child(ds::th("Plan", Some(170.), &theme))
@@ -485,6 +486,7 @@ impl Desktop {
                     .child(
                         Button::new("open-models")
                             .ghost()
+                            .icon(IconName::Cpu)
                             .label("Models")
                             .on_click(move |_, _, cx| {
                                 entity.update(cx, |this, cx| this.set_page(Page::Models, cx));

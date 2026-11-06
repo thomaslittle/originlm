@@ -139,9 +139,11 @@ pub fn chip(label: impl Into<SharedString>, tone: Tone, theme: &Theme) -> Div {
         .border_color(if neutral {
             theme.border
         } else {
-            color.opacity(0.4)
+            color.opacity(0.55)
         })
-        .when(!neutral, |this| this.bg(color.opacity(0.08)))
+        // A tint strong enough to read as a filled state in both themes. At
+        // 8% the light theme lost the fill entirely.
+        .when(!neutral, |this| this.bg(color.opacity(0.14)))
         .text_size(px(ty::CAPTION))
         .font_weight(FontWeight::MEDIUM)
         .text_color(if neutral {
@@ -558,7 +560,8 @@ pub fn select_row(id: impl Into<ElementId>, selected: bool, theme: &Theme) -> St
             this.bg(theme.list_active).child(
                 div()
                     .absolute()
-                    .left(px(-2.))
+                    // Keep the selection edge inside the panel's clipped bounds.
+                    .left(px(0.))
                     .top(px(8.))
                     .bottom(px(8.))
                     .w(px(2.))

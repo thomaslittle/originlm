@@ -100,15 +100,15 @@ pub fn billing_label(route: &originlm_contracts::AccessRoute) -> &'static str {
             value, freshness, ..
         } => {
             let label = match value {
-                BillingMode::Subscription => "subscription",
-                BillingMode::ApiMetered => "metered API",
-                BillingMode::PrepaidCredits => "prepaid credits",
-                BillingMode::Local => "local",
-                BillingMode::Mixed => "mixed",
-                BillingMode::Unknown => "billing unknown",
+                BillingMode::Subscription => "Subscription",
+                BillingMode::ApiMetered => "Metered API",
+                BillingMode::PrepaidCredits => "Prepaid credits",
+                BillingMode::Local => "Local",
+                BillingMode::Mixed => "Mixed",
+                BillingMode::Unknown => "Billing unknown",
             };
             if matches!(freshness, originlm_contracts::Freshness::Stale) {
-                "stale billing"
+                "Stale billing"
             } else {
                 label
             }

@@ -3,7 +3,7 @@
 
 use crate::app::{Desktop, Page};
 use crate::data;
-use crate::ds::{self, sp, ty};
+use crate::ds::{self, Focusable as _, sp, ty};
 use crate::ui::{self, Tone};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{ActiveTheme, IconName, Theme};
@@ -152,25 +152,32 @@ fn window_line(window: &WindowView, theme: &Theme) -> Div {
         .items_center()
         .gap(px(sp::SM))
         .child(
-            ds::caption(window.label.clone(), theme)
-                .w(px(68.))
-                .truncate(),
+            ds::caption(
+                if matches!(window.reading, Reading::Count(_)) {
+                    "Count only"
+                } else {
+                    window.label.as_str()
+                },
+                theme,
+            )
+            .w(px(78.))
+            .truncate(),
         )
         .child(
             div()
-                .w(px(96.))
+                .w(px(76.))
                 .flex_shrink_0()
                 .child(ds::meter(meter_value, theme)),
         )
         .child(
             ds::mono(figure, ty::CAPTION, figure_color, theme)
-                .w(px(42.))
+                .w(px(72.))
                 .truncate(),
         )
         .when_some(reset, |this, reset| {
             this.child(ds::caption(reset, theme).flex_1().truncate())
         })
-        .when(window.stale, |this| this.child(ds::caption("stale", theme)))
+        .when(window.stale, |this| this.child(ds::caption("Stale", theme)))
 }
 
 /// A usage read that failed is different from a client that publishes no
@@ -348,6 +355,8 @@ fn provider_row(
     let row_id = SharedString::from(format!("provider-row-{}", view.connection_id));
     let row = body
         .id(row_id)
+        .role(gpui::Role::Button)
+        .focus_ring(theme)
         .aria_label(if window_summary.is_empty() {
             format!("{}, {}", view.provider, view.account)
         } else {
@@ -606,7 +615,11 @@ impl Desktop {
                                 ui::tone_color(tone, &theme),
                             ))
                             .child(
+                                // Let long alerts wrap inside the 320px rail
+                                // instead of being clipped mid-word.
                                 div()
+                                    .flex_1()
+                                    .min_w(px(0.))
                                     .text_size(px(ty::SMALL))
                                     .text_color(theme.foreground)
                                     .child(text),
@@ -656,7 +669,9 @@ impl Desktop {
                             ty::SMALL,
                             theme.foreground,
                             &theme,
-                        ),
+                        )
+                        .flex_1()
+                        .min_w(px(0.)),
                         &theme,
                     ))
                     .child(ds::kv(

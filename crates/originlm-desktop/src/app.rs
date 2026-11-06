@@ -1779,7 +1779,7 @@ impl Desktop {
                     .focus_ring(theme)
                     .h_flex()
                     .items_center()
-                    .h(px(26.))
+                    .h(px(ds::TARGET))
                     .px(px(6.))
                     .rounded(px(ds::radius::CONTROL))
                     .gap_1()
