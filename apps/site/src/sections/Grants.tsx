@@ -49,8 +49,8 @@ export function Grants() {
                 {RULES.map(([what, method, needs]) => (
                   <tr key={what}>
                     <th scope="row">{what}</th>
-                    <td><code>{method}</code></td>
-                    <td>{needs}</td>
+                    <td data-label="Method"><code>{method}</code></td>
+                    <td data-label="Needs">{needs}</td>
                   </tr>
                 ))}
               </tbody>

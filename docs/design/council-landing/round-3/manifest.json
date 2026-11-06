@@ -1,0 +1,225 @@
+{
+  "url": "http://127.0.0.1:5178/",
+  "layout": "static (reduced motion)",
+  "scale": 1,
+  "viewports": {
+    "desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "scale": 1,
+      "pageHeight": 17056,
+      "full": "desktop-full.png",
+      "sections": {
+        "01-hero": {
+          "selector": "header.hero",
+          "y": 1,
+          "width": 1440,
+          "height": 900,
+          "file": "desktop-01-hero.png",
+          "sha256": "52765bf6f5a08cfa658ffa11f2f0b9891e3534a80d136a98d68ea3410e3b18d5"
+        },
+        "02-story": {
+          "selector": "#story",
+          "y": 828,
+          "width": 1440,
+          "height": 3053,
+          "file": "desktop-02-story.png",
+          "sha256": "4bb14d2bf3adb8d4a0711b6b174ad048fb840de49c34b02d5b824e8933780d10"
+        },
+        "03-how": {
+          "selector": "#how",
+          "y": 3881,
+          "width": 1440,
+          "height": 1273,
+          "file": "desktop-03-how.png",
+          "sha256": "9f70db5d7d7199d6d0c1c10b016e8ba08f3f81a2054f1b03cce66009daa63643"
+        },
+        "04-sdk": {
+          "selector": "#sdk",
+          "y": 5154,
+          "width": 1440,
+          "height": 1084,
+          "file": "desktop-04-sdk.png",
+          "sha256": "639bb7adb0107cd1938c54e0aef5ec5d635446f53d43518caa37286c61a4dcc4"
+        },
+        "05-grants": {
+          "selector": "#grants",
+          "y": 6237,
+          "width": 1440,
+          "height": 1159,
+          "file": "desktop-05-grants.png",
+          "sha256": "d4f6a9f5e5dae6b181b9696de0f9bf3e47eedfb123ba3daaf9510f6f4ee52fcc"
+        },
+        "06-sessions": {
+          "selector": "#sessions",
+          "y": 7396,
+          "width": 1440,
+          "height": 1178,
+          "file": "desktop-06-sessions.png",
+          "sha256": "dcfa8a544d353114b173bffb7dbc6204dc7fb3e42e9327e5664167f9183b206b"
+        },
+        "07-integrations": {
+          "selector": "#integrations",
+          "y": 8574,
+          "width": 1440,
+          "height": 1011,
+          "file": "desktop-07-integrations.png",
+          "sha256": "6bd3757fe9fe46aba56e8a7ab8cff37224d1a51674f88400264438e0d0f9b966"
+        },
+        "08-providers": {
+          "selector": "#providers",
+          "y": 9585,
+          "width": 1440,
+          "height": 2534,
+          "file": "desktop-08-providers.png",
+          "sha256": "ca10560cb7a275dbcfc40160b288a2ba29ab916bb589d3aa5caad35fefe037ad"
+        },
+        "09-usage": {
+          "selector": "#usage",
+          "y": 12118,
+          "width": 1440,
+          "height": 1958,
+          "file": "desktop-09-usage.png",
+          "sha256": "e003ca4f99a51cee26cc72036dc739933cd19280e35fab0663dba44ffbfb0c08"
+        },
+        "10-security": {
+          "selector": "#security",
+          "y": 14076,
+          "width": 1440,
+          "height": 810,
+          "file": "desktop-10-security.png",
+          "sha256": "f9f4ed5e7daac434423339517bd7e63963de3760582f677890ce6f45545ed77b"
+        },
+        "11-install": {
+          "selector": "#install",
+          "y": 14886,
+          "width": 1440,
+          "height": 715,
+          "file": "desktop-11-install.png",
+          "sha256": "b0271dc68b0e5d1062aff0c3518502de4cbcba580c38d22947b2cfa25f6b4630"
+        },
+        "12-close": {
+          "selector": "footer.footer",
+          "y": 15602,
+          "width": 1440,
+          "height": 1381,
+          "file": "desktop-12-close.png",
+          "sha256": "9ec9068eed47d4561cd20fee5d4285b12c95a5d0b15f599182637086f5b3402e"
+        }
+      },
+      "errors": [],
+      "fullSha256": "501a5b0fd7b1e9418fd37cc9953a10361c4cb84264f560f21de2344c2dd9f491"
+    },
+    "mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scale": 1,
+      "pageHeight": 24906,
+      "full": "mobile-full.png",
+      "sections": {
+        "01-hero": {
+          "selector": "header.hero",
+          "y": 1,
+          "width": 390,
+          "height": 844,
+          "file": "mobile-01-hero.png",
+          "sha256": "d2b54039a36f14205a58c240642946a171ddaeb07cb9f908039b22d591046c87"
+        },
+        "02-story": {
+          "selector": "#story",
+          "y": 780,
+          "width": 390,
+          "height": 3925,
+          "file": "mobile-02-story.png",
+          "sha256": "a385cf3cf2c3cbe04e0a9feafa0a62f9b545ddf4ff39fc896b3f4713748769e1"
+        },
+        "03-how": {
+          "selector": "#how",
+          "y": 4705,
+          "width": 390,
+          "height": 2050,
+          "file": "mobile-03-how.png",
+          "sha256": "73636a2a4613be824efdf2a4ccb0ed75f7f281556ea3286601c5c15c29d3750b"
+        },
+        "04-sdk": {
+          "selector": "#sdk",
+          "y": 6756,
+          "width": 390,
+          "height": 1847,
+          "file": "mobile-04-sdk.png",
+          "sha256": "fbd6ea8cd2e83a5a271c6ba09b0996890cac591fc8550cc5e2d6b3290e21d2d1"
+        },
+        "05-grants": {
+          "selector": "#grants",
+          "y": 8603,
+          "width": 390,
+          "height": 1853,
+          "file": "mobile-05-grants.png",
+          "sha256": "7e0d523cb0f4d9341ec9023d4c82350eb3f479843f133aa9179fd00990a81e7f"
+        },
+        "06-sessions": {
+          "selector": "#sessions",
+          "y": 10455,
+          "width": 390,
+          "height": 1948,
+          "file": "mobile-06-sessions.png",
+          "sha256": "bc4132130c2d26063d263bdbb706bc107874fbf7930391237bc716af13ebbd10"
+        },
+        "07-integrations": {
+          "selector": "#integrations",
+          "y": 12403,
+          "width": 390,
+          "height": 1485,
+          "file": "mobile-07-integrations.png",
+          "sha256": "acbb109cb1036322611fe050a82c9ad14fc045b9b678710b7b673e940a39f1d0"
+        },
+        "08-providers": {
+          "selector": "#providers",
+          "y": 13888,
+          "width": 390,
+          "height": 4629,
+          "file": "mobile-08-providers.png",
+          "sha256": "7711370841572658866ead9068206b64b318700200940b37bf5d6f0ec4b5441b"
+        },
+        "09-usage": {
+          "selector": "#usage",
+          "y": 18517,
+          "width": 390,
+          "height": 2189,
+          "file": "mobile-09-usage.png",
+          "sha256": "1edda25ef93dcf4186c344af5c71f25810da472493a8de01dea77a93e76ef75d"
+        },
+        "10-security": {
+          "selector": "#security",
+          "y": 20706,
+          "width": 390,
+          "height": 1053,
+          "file": "mobile-10-security.png",
+          "sha256": "c03ca384408588b6371281f76f7d3622304a0acd521fab9609790de1c11289f4"
+        },
+        "11-install": {
+          "selector": "#install",
+          "y": 21759,
+          "width": 390,
+          "height": 998,
+          "file": "mobile-11-install.png",
+          "sha256": "3bd122253d8c517c4355d7c6027121efab29086d9d98750d1b268b35e24839e5"
+        },
+        "12-close": {
+          "selector": "footer.footer",
+          "y": 22757,
+          "width": 390,
+          "height": 2084,
+          "file": "mobile-12-close.png",
+          "sha256": "70c9a84dba65d76863baed5290eb92749ac42b1f38e20f34d226e426839492d0"
+        }
+      },
+      "errors": [],
+      "fullSha256": "4b89e83c45d279b5ec3486dcd68afee6217cc2522e09dcad7ec00a879272af41"
+    }
+  }
+}

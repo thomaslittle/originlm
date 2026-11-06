@@ -212,7 +212,7 @@ test('reduced motion gets the static story, stills, native scroll and no scene',
       lenis: document.documentElement.classList.contains('lenis'),
       stage: getComputedStyle(document.querySelector('.stage')).display,
       scene: !!window.__originlmScene,
-      staticSteps: document.querySelectorAll('.story-static .step').length,
+      staticSteps: document.querySelectorAll('.story-static .chapter').length,
       stageShown: getComputedStyle(document.querySelector('.story-stage')).display,
       still: getComputedStyle(document.querySelector('.hero-still')).backgroundImage,
       lens: !!document.querySelector('.lens'),
@@ -226,7 +226,7 @@ test('reduced motion gets the static story, stills, native scroll and no scene',
     assert.match(facts.still, /still-hero/);
     assert.equal(facts.lens, false, 'no cursor lens');
     // Each static step is filled in: the grant waits for the host, the run has its reply.
-    const steps = page.locator('.story-static .step');
+    const steps = page.locator('.story-static .chapter');
     assert.match(await steps.nth(2).innerText(), /requires_host_approval/);
     assert.match(await steps.nth(3).innerText(), /Thursday/);
     await steps.nth(0).locator('img').scrollIntoViewIfNeeded();
@@ -251,7 +251,7 @@ test('without WebGL the page falls back to the static layout', async () => {
     await page.waitForTimeout(600);
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains('motion')), false);
     assert.equal(await page.evaluate(() => document.documentElement.dataset.sceneFallback), 'webgl2 unavailable');
-    assert.equal(await page.locator('.story-static .step').count(), 4);
+    assert.equal(await page.locator('.story-static .chapter').count(), 4);
     assert.ok(await page.locator('.story-static h3').first().isVisible());
     assert.deepEqual(errors, []);
     await context.close();

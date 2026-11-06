@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check } from "../components/Icon";
+import { ArrowRight, Check } from "../components/Icon";
 import { OP_LABELS, PROVIDERS, type ProviderEntry, type ProviderOps } from "../data/providers";
 import { Title } from "../components/Title";
 
@@ -19,7 +19,7 @@ const STATE_LABEL: Record<ProviderOps[keyof ProviderOps], string> = {
 function OpMark({ state }: { state: ProviderOps[keyof ProviderOps] }) {
   return (
     <span className="op-mark" data-state={state}>
-      {state === "yes" ? <Check size={15} /> : state === "partial" ? <Half /> : <Dash />}
+      {state === "yes" ? <Check size={17} /> : state === "partial" ? <Half /> : <Dash />}
       <span className="visually-hidden">{STATE_LABEL[state]}</span>
     </span>
   );
@@ -27,7 +27,7 @@ function OpMark({ state }: { state: ProviderOps[keyof ProviderOps] }) {
 
 function Half() {
   return (
-    <svg width={15} height={15} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <svg width={17} height={17} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
       <path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" />
     </svg>
@@ -36,7 +36,7 @@ function Half() {
 
 function Dash() {
   return (
-    <svg width={15} height={15} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <svg width={17} height={17} viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <path d="M4.5 8h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
@@ -56,7 +56,7 @@ function ProviderRow({ provider }: { provider: ProviderEntry }) {
         </div>
       </th>
       {OP_LABELS.map((operation) => (
-        <td key={operation.key} title={`${operation.label}: ${STATE_LABEL[provider.ops[operation.key]]}`}>
+        <td key={operation.key} data-label={operation.label} title={`${operation.label}: ${STATE_LABEL[provider.ops[operation.key]]}`}>
           <OpMark state={provider.ops[operation.key]} />
         </td>
       ))}
@@ -102,6 +102,13 @@ export function Providers() {
           </span>
         </div>
 
+        <div className="provider-legend">
+          <span><span aria-hidden="true"><OpMark state="yes" /></span> supported</span>
+          <span><span aria-hidden="true"><OpMark state="partial" /></span> conditional, fixture-tested, or gated by a reported capability</span>
+          <span><span aria-hidden="true"><OpMark state="none" /></span> not supported or not reported</span>
+        </div>
+
+        <p className="matrix-hint" aria-hidden="true">Swipe sideways for all eight operations <ArrowRight size={14} /></p>
         <div className="provider-scroll" role="region" aria-label="Provider support table" tabIndex={0}>
           <table className="provider-table">
             <caption className="visually-hidden">What each provider exposes, operation by operation.</caption>
@@ -115,12 +122,6 @@ export function Providers() {
               {visible.map((provider) => <ProviderRow key={provider.id} provider={provider} />)}
             </tbody>
           </table>
-        </div>
-
-        <div className="provider-legend">
-          <span><span aria-hidden="true"><OpMark state="yes" /></span> supported</span>
-          <span><span aria-hidden="true"><OpMark state="partial" /></span> conditional, fixture-tested, or gated by a reported capability</span>
-          <span><span aria-hidden="true"><OpMark state="none" /></span> not supported or not reported</span>
         </div>
 
         <p className="fine">
