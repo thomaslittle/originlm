@@ -21,41 +21,85 @@ or put this experiment in any public description.
 - Main thread model pattern for this project: provider `opencode`,
   model `opencode-go/deepseek-v4.1-flash`, runtime full-access.
 
-## Model assignments (exact IDs — resolve first, do not guess)
-Implementer / main thread:
+## Model assignments — v2 (2026-11-06, after test run 1)
+Run 1 evidence behind this lineup: Gemini 3.8 Flash was an unstable gate
+(passed calibration once, then read a PNG as binary, truncated, and timed
+out 30+ min); MiniMax M3's Round 1 scores contradicted its own prose;
+Kimi K2.7 Code was the most reliable scorer. Tom's economy rule: the two
+near-free vision models (Haiku, Luna) do the frequent work; the two
+flagships (Sol, Opus) get only very small single runs at brief occasions.
+
+Exact IDs — resolve first, do not guess.
+
+Implementer / main thread (unchanged):
   - opencode / opencode-go/deepseek-v4.1-flash
     (abundant OpenCode Go usage; implements from structured text feedback,
      it is NOT a screenshot judge)
 
-Gate reviewer (every round, delegate_task, role: review):
-  - antigravity_2 / gemini-3.8-flash-high
-  - Fallback, in order: antigravity_2 / gemini-3.8-flash-medium,
-    then opencode / opencode-go/minimax-m3
+PROVIDER ROUTING IS FIXED (Tom, 2026-11-06 — do not reroute):
+  - Claude account (`claudeAgent`): Haiku and Opus. Nothing else.
+  - Codex account (`codex`): Luna and Sol. Nothing else.
+  - OpenCode (`opencode`): DeepSeek and Kimi ONLY. No other OpenCode
+    model may be used in any seat.
+  - Gemini / Antigravity: dropped entirely. No seat, no fallback,
+    no tie-break. (Run 1 instability + Tom's call.)
 
-Panel reviewers (Round 1 only, blind, independent, role: review):
-  - opencode / opencode-go/kimi-k2.7-code
-  - opencode / opencode-go/minimax-m3
+CHEAP SEATS — run freely, every round (delegate_task, role: review):
+  Gate A: claudeAgent / claude-haiku-5-5, low effort
+    (Tom's Claude account — NOT OpenCode. Haiku is the baseline weight
+     on that account, so a small single review packet is negligible
+     even on a low remaining pool. No fallback route: if this delegate
+     fails, log it and run the round on Gate B + panel alone.)
+  Gate B: codex / gpt-6-luna
+    (Tom's Codex account — NOT OpenCode. No fallback route, same rule.)
+  Two cheap gates from two families cross-check each other every round.
+  If Gate A and Gate B split >2 points on a category, that category is
+  flagged — see the flagship occasions below.
 
-Final reviewer (ONE pass, final screenshots vs Round 0 only):
-  - codex / gpt-6.1-sol   (Tom's $20 Codex plan — never use it as the gate)
+Panel reviewer (blind, independent, role: review):
+  - opencode / opencode-go/kimi-k2.7-code (most reliable scorer in run 1)
+  There is no reserve panel seat. A contested category goes to a
+  flagship tie-break (occasion 2 below), not to another cheap model.
+  MiniMax M3 is out: OpenCode is DeepSeek + Kimi only now, and its
+  run-1 scores contradicted its own prose anyway.
 
-Optional tie-breaker if panel splits >2 points on a category:
-  - antigravity_2 / claude-sonnet-5-5-medium
-    (This is Antigravity quota, NOT Tom's Claude Max. It is the only
-     Claude allowed anywhere in this test run, and only in that case.)
+FLAGSHIP SEATS — Sol and Opus, rationed to brief occasions ONLY.
+  - codex / gpt-6.1-sol
+  - claudeAgent / claude-opus-5-5
+  The ONLY permitted occasions (one flagship per occasion, never both
+  by default):
+    1. Final verdict — ONE of them, once, on the final round vs Round 0.
+       Default: Sol (it did this well in run 1: +2/+1/+1, "improved").
+    2. Tie-break — the cheap gates + panel split >2 points on a category
+       that decides a pass/fail, or a hard-gate result is disputed.
+    3. Pre-merge taste check — the OTHER flagship gets one look at the
+       final PR screenshots before Tom merges. Once per PR, not per round.
+  Every flagship run obeys the brief-run contract:
+    - Single delegate call, packet = brief + shots/crops for the screens
+      in scope + Round 0 shots. Nothing else.
+    - NO repo browsing, NO file exploration, NO tool use beyond reading
+      the packet. One structured score block (§3) and out.
+    - Effort medium at most. Hard timeout 10 minutes: on timeout, record
+      `no score`, do not retry, and the run moves on without it.
+    - Opus occasions: while Claude Max is at ~3% before the Saturday
+      reset, Opus does not run at all except a tie-break Tom approved.
+      After the reset, its occasion is the pre-merge taste check.
 
 FORBIDDEN in this run:
-  - The `claudeAgent` provider in any role — Tom's Claude Max is at 3%
-    until Saturday. Do not burn it in a loop.
+  - Gemini / Antigravity in ANY seat, fallback, or tie-break — dropped
+    entirely. Grok in any role (usage exhausted). Haiku routed through
+    OpenCode, Luna routed through OpenCode, and any OpenCode model other
+    than DeepSeek (implementer) and Kimi (panel). Any flagship use
+    outside the 3 occasions and the brief-run contract above.
   - DeepSeek as a screenshot scorer. Standard DeepSeek V4.1 Flash / V4 Pro
     are text implementers here. `deepseek-v4-flash-vision-exp` must never
     give a final score: it downscales images to ~800x800, so type and
     alignment detail is lost. Coarse layout-only comment at most.
-  - Grok in any role (usage exhausted).
   - Silent substitution. If an assigned model ID is missing or a delegate
-    cannot accept images, log the exact failure and use only the fallback
-    named above for that seat. If no fallback works, stop that seat and
-    report it — do not quietly swap in Claude or Codex early.
+    cannot accept images, log the exact failure and follow the seat's
+    stated rule (gates: continue without it; panel/implementer: stop and
+    report). Never reroute a model to a different provider than the one
+    named for it, and do not quietly promote a flagship into a cheap seat.
 
 All reviewers are read-only: instruct every delegate in writing to edit
 nothing and return only the structured score block (§3).
@@ -72,8 +116,8 @@ nothing and return only the structured score block (§3).
   output on this machine, stop the run and report that as the result.
   A failed harness is a valid test result; fake scores are not.
 - Captures per screen, per round: light + dark at default size, plus
-  100%-scale crops (header / main / footer or equivalent regions) for
-  the Go-model reviewers. Full shots alone are not enough.
+  100%-scale crops (header / main / footer or equivalent regions) for the
+  Go-model reviewers. Full shots alone are not enough.
 - Brief: if `docs/design/brief.md` does not exist, write a short one
   from what the repo itself shows (existing colors, fonts, density)
   and mark it DRAFT in the PR. Anti-goal for this run: do not turn the
@@ -93,11 +137,14 @@ hierarchy, states, copy), and these test-run limits:
 ## 2. Calibration (before Round 0 scoring, no exceptions)
 Make one calibration image from a real screenshot with 3 planted flaws:
 low-contrast text, a misaligned element, clipped/overflowing text.
-Send it to the gate and both panel models, each blind:
+Send it to both gates and the panel model, each blind:
   - Must name at least 2 of the 3 flaws with their locations, and
   - Must return the structured score block cleanly.
+Gate seats need TWO consecutive passes, not one — in run 1 Gemini
+passed once and failed the retry, and a single pass let it through.
 A model that fails does not score in this run. Record pass/fail per
-model in the PR — this table is one of the test run's main deliverables.
+model (and per attempt for gates) in the PR — this table is one of the
+test run's main deliverables.
 
 ## 3. Rubric (same 13 categories as the original skill)
 Typography, Color and contrast, Spacing and rhythm, Alignment,
@@ -116,18 +163,18 @@ Reviewers NEVER get: a target score, a round number, another reviewer's
 scores, or the fact that a later round will happen.
 
 ## 4. Loop (test run)
-1. Round 0: render, gate review, panel review, final-reviewer does NOT
-   run yet. Synthesise: keep only points at least 2 reviewers agree on,
-   or that the gate + one panel member both cite.
+1. Round 0: render, both gate reviews, panel review, NO flagship runs
+   yet. Synthesise: keep only points at least 2 reviewers agree on, or
+   that a gate + the panel member both cite.
 2. Implement fixes for the 3 lowest categories only. Log every change as
    feedback -> change -> expected category.
 3. Re-render identically. Run cargo fmt, clippy, and the workspace tests
    that cover the desktop crate, plus a keyboard/focus smoke check.
-4. Round 1: fresh blind gate + panel review (final reviewer now runs,
-   once, on Round 1 vs Round 0).
+4. Round 1: fresh blind gate + panel reviews, then flagship occasion 1
+   (final verdict, Sol by default, brief-run contract).
 5. Stop. Even if scores are below 9, this run ends here — reaching 9+
-   is the full skill's job, not the test's. Only escalate mid-run if a
-   hard gate fails or reviewers split >2 points (optional tie-breaker).
+   is the full skill's job, not the test's. Escalate mid-run only via
+   flagship occasion 2 (tie-break) as defined above.
 
 ## 5. Output
 - Save this skill in the repo where its other skills live (check for an
