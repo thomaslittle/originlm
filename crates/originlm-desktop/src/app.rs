@@ -246,6 +246,11 @@ pub struct Desktop {
     pub brand_marks: [Entity<crate::brand::EyeLogo>; 3],
     pub bundle: Option<Bundle>,
     pub dark: bool,
+    /// SPIKE: the one Longbridge NSH surface, created when the Diagnostics
+    /// page first renders. `None` until then.
+    pub nsh_panel: Option<Entity<nsh_platform_gpui::AppView>>,
+    /// SPIKE: the light/dark mode the panel's NSH theme was last set to.
+    pub nsh_panel_dark: bool,
     pub refresh_seconds: u64,
     pub error: Option<String>,
     pub connected: bool,
@@ -411,6 +416,8 @@ impl Desktop {
             brand_marks,
             bundle: None,
             dark,
+            nsh_panel: None,
+            nsh_panel_dark: dark,
             refresh_seconds,
             error: None,
             connected: false,
@@ -1130,7 +1137,7 @@ impl Render for Desktop {
                 Page::Sessions => self.page_sessions(cx),
                 Page::Playground => self.page_playground(cx),
                 Page::Developer => self.page_developer(cx),
-                Page::Diagnostics => self.page_diagnostics(cx),
+                Page::Diagnostics => self.page_diagnostics(window, cx),
                 Page::Settings => self.page_settings(cx),
             }
         };

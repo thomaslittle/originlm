@@ -24,7 +24,7 @@ fn health_view(status: HealthStatus) -> (Tone, &'static str) {
 }
 
 impl Desktop {
-    pub fn page_diagnostics(&mut self, cx: &mut Context<Self>) -> AnyElement {
+    pub fn page_diagnostics(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let Some(bundle) = self.bundle.as_ref() else {
             return div().into_any_element();
@@ -287,11 +287,52 @@ impl Desktop {
                     })),
             );
 
+        // SPIKE: one embedded NSH surface, created the first time this page
+        // renders and kept for later visits. Fixture-only, and isolated to
+        // its own panel.
+        if self.nsh_panel.is_none() {
+            self.nsh_panel = Some(crate::nsh_spike::create(window, cx, self.dark));
+            self.nsh_panel_dark = self.dark;
+        } else if self.nsh_panel_dark != self.dark {
+            if let Some(panel) = self.nsh_panel.as_ref() {
+                crate::nsh_spike::apply_theme(panel, cx, self.dark);
+            }
+            self.nsh_panel_dark = self.dark;
+        }
+        let nsh_panel = self
+            .nsh_panel
+            .clone()
+            .expect("the NSH spike panel was just created");
+        let nsh_spike = ds::panel(&theme)
+            .child(ds::panel_head(
+                "NSH spike",
+                Some(ds::chip("Spike", Tone::Amber, &theme).into_any_element()),
+                &theme,
+            ))
+            .child(
+                div()
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
+                    .child(ds::body(
+                        "Longbridge NSH (nsh-platform-gpui) drawing one TSX module in an AppView. \
+                         Fixture data from host.call(\"getProviderCard\"); no broker or provider is read.",
+                        &theme,
+                    )),
+            )
+            .child(
+                div()
+                    .h(px(240.))
+                    .border_t_1()
+                    .border_color(theme.border)
+                    .child(nsh_panel),
+            );
+
         ds::page()
             .child(health_panel)
             .child(issues_panel)
             .child(detection)
             .child(lines)
+            .child(nsh_spike)
             .into_any_element()
     }
 }

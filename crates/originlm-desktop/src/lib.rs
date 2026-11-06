@@ -11,6 +11,7 @@ mod e2e_tests;
 mod history;
 mod human;
 mod icons;
+mod nsh_spike;
 mod pages;
 mod theme;
 mod ui;
