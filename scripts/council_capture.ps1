@@ -89,6 +89,44 @@ foreach ($page in $pages) {
   }
 }
 
+# Focus smoke: same Overview capture after eight Tab presses, so reviewers can
+# score Interaction states / focus from evidence instead of "no evidence".
+# Dark only: Windows' foreground lock makes the second process's Tab delivery
+# unreliable, and the pass-1 focus evidence was the dark capture.
+Get-ChildItem $outDir -Filter "focus-smoke-*.png" -ErrorAction SilentlyContinue | Remove-Item -Force
+$focusOut = Join-Path $outDir "focus-smoke"
+New-Item -ItemType Directory -Force $focusOut | Out-Null
+$focusArgs = @{
+  Pages  = @("Overview")
+  Themes = @("dark")
+  OutDir = $focusOut
+  Size   = $Size
+  NoMini = $true
+  Tabs   = 8
+}
+if ($Exe) { $focusArgs.Exe = $Exe }
+& (Join-Path $PSScriptRoot "capture_desktop_example.ps1") @focusArgs
+foreach ($theme in @("dark")) {
+  $src = Join-Path $focusOut "overview-$theme.png"
+  if (-not (Test-Path $src)) { throw "focus capture missing: $src" }
+  $dest = Join-Path $outDir "focus-smoke-$theme.png"
+  Move-Item -Force $src $dest
+  $image = [System.Drawing.Image]::FromFile($dest)
+  try { $width = $image.Width; $height = $image.Height } finally { $image.Dispose() }
+  $entries += [ordered]@{
+    screen  = "Overview (focus smoke)"
+    slug    = "focussmoke"
+    theme   = $theme
+    file    = [System.IO.Path]::GetFileName($dest)
+    width   = $width
+    height  = $height
+    scale   = "100%"
+    sha256  = (Get-FileHash $dest -Algorithm SHA256).Hash
+    crops   = @()
+  }
+}
+Remove-Item -Recurse -Force $focusOut
+
 $manifest = [ordered]@{
   round = $Round
   captured_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -97,6 +135,7 @@ $manifest = [ordered]@{
   window = $Size
   reduced_motion = $true
   example_mode = $true
+  focus_smoke = $true
   screens = $entries
 }
 $manifestPath = Join-Path $outDir "manifest.json"
