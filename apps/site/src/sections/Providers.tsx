@@ -57,6 +57,7 @@ function ProviderRow({ provider }: { provider: ProviderEntry }) {
       </th>
       {OP_LABELS.map((operation) => (
         <td key={operation.key} data-label={operation.label} title={`${operation.label}: ${STATE_LABEL[provider.ops[operation.key]]}`}>
+          <span className="visually-hidden">{operation.label}: </span>
           <OpMark state={provider.ops[operation.key]} />
         </td>
       ))}
