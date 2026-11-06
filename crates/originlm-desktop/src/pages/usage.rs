@@ -251,7 +251,7 @@ impl Desktop {
             );
 
         // History of the selected window.
-        let since = chrono::Utc::now().timestamp() - self.range.seconds();
+        let since = crate::clock::timestamp() - self.range.seconds();
         let points = self
             .series_key()
             .map(|(pool, window)| data::series_points(self.history(), &pool, &window, since))

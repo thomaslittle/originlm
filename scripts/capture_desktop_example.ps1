@@ -56,6 +56,12 @@ function Capture([string]$page, [string]$theme, [string]$exampleState, [string]$
   $env:LAI_DESKTOP_WINDOW = $Size
   $env:LAI_DESKTOP_PAGE = $page
   $env:LAI_DESKTOP_THEME = $theme
+  # Council test run: freeze the eye-logo and easing animations so two
+  # captures of the same screen/theme are pixel-identical.
+  $env:ORIGINLM_REDUCED_MOTION = "1"
+  # Pin "now" so relative labels ("Updated 2s", reset countdowns) do not drift
+  # between two captures. 2026-11-06T12:00:00Z.
+  $env:ORIGINLM_CAPTURE_TIME = "1793966400"
   if ($exampleState) { $env:LAI_DESKTOP_EXAMPLE_STATE = $exampleState } else { Remove-Item Env:LAI_DESKTOP_EXAMPLE_STATE -ErrorAction SilentlyContinue }
   if ($mini) { $env:LAI_DESKTOP_MINI_VIEW = "1" } else { Remove-Item Env:LAI_DESKTOP_MINI_VIEW -ErrorAction SilentlyContinue }
   $process = Start-Process -FilePath $Exe -ArgumentList "--example" -PassThru

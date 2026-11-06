@@ -1512,7 +1512,7 @@ impl Desktop {
             None => "Waiting for data".to_string(),
             Some(bundle) if bundle.error.is_some() && !self.stale => "Not connected".to_string(),
             Some(bundle) => {
-                let age = chrono::Utc::now().timestamp() - bundle.fetched_at;
+                let age = crate::clock::timestamp() - bundle.fetched_at;
                 format!(
                     "{} {}",
                     if self.stale { "Last read" } else { "Updated" },
@@ -1623,7 +1623,7 @@ impl Desktop {
         let age = self
             .bundle
             .as_ref()
-            .map(|bundle| ui::format_age(chrono::Utc::now().timestamp() - bundle.fetched_at))
+            .map(|bundle| ui::format_age(crate::clock::timestamp() - bundle.fetched_at))
             .unwrap_or_else(|| "?".into());
         Some(
             div()
@@ -1718,7 +1718,7 @@ impl Desktop {
                 if b.error.is_some() {
                     "stale".to_string()
                 } else {
-                    ui::format_age(chrono::Utc::now().timestamp() - b.fetched_at)
+                    ui::format_age(crate::clock::timestamp() - b.fetched_at)
                 }
             })
             .unwrap_or_else(|| "offline".into());

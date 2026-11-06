@@ -77,7 +77,7 @@ pub fn format_age(seconds: i64) -> String {
 pub fn format_countdown(resets_at: Option<&str>) -> Option<String> {
     let value = resets_at?;
     let reset = chrono::DateTime::parse_from_rfc3339(value).ok()?;
-    let seconds = (reset.with_timezone(&chrono::Utc) - chrono::Utc::now()).num_seconds();
+    let seconds = (reset.with_timezone(&chrono::Utc) - crate::clock::utc_now()).num_seconds();
     if seconds <= 0 {
         return Some("reset due".into());
     }
