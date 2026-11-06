@@ -42,7 +42,7 @@ for (const still of STILLS) {
   await page.goto(`${url}?capture&tier=high`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => window.__originlmScene, null, { timeout: 20000 });
   await page.waitForTimeout(1800);
-  await page.addStyleTag({ content: 'main, .nav, .footer, .skip-link, .lens { visibility: hidden !important; } body::after { display: none !important; } .stage { display: block !important; }' });
+  await page.addStyleTag({ content: 'main, .nav, .footer, .skip-link, .lens, .stage-labels { visibility: hidden !important; } body::after { display: none !important; } .stage { display: block !important; }' });
   await page.evaluate((pose) => {
     const state = window.__originlmScene.state;
     Object.assign(state, pose, { pointer: null, introOverride: 14, timeOverride: 13.5, blinkAt: -1 });

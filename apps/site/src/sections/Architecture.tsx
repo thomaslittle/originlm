@@ -46,6 +46,7 @@ export function Architecture() {
       <div className="noserver-track">
         <div className="noserver-pin">
           <div className="container noserver-copy">
+            <p className="eyebrow"><span className="eyebrow-n">One machine</span> No relay</p>
             <h2 id="arch-title" className="noserver-title">One local runtime between your app and the AI the user already has.</h2>
             <p className="noserver-lead">
               Your code talks to the SDK. The SDK talks to a runtime on the same machine, which drives
@@ -64,6 +65,7 @@ export function Architecture() {
       </div>
 
       <div className="container arch">
+        <p className="arch-label"><span aria-hidden="true" className="arch-label-line" /> The request path, on one machine</p>
         <ol className="arch-flow" aria-label="Request path">
           {NODES.map((node, index) => (
             <li key={node.id} className="arch-node" data-node={node.id} data-outside={node.id === "provider" || undefined}>
