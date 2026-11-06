@@ -21,13 +21,29 @@ or put this experiment in any public description.
 - Main thread model pattern for this project: provider `opencode`,
   model `opencode-go/deepseek-v4.1-flash`, runtime full-access.
 
-## Model assignments — v2 (2026-11-06, after test run 1)
-Run 1 evidence behind this lineup: Gemini 3.8 Flash was an unstable gate
-(passed calibration once, then read a PNG as binary, truncated, and timed
-out 30+ min); MiniMax M3's Round 1 scores contradicted its own prose;
-Kimi K2.7 Code was the most reliable scorer. Tom's economy rule: the two
-near-free vision models (Haiku, Luna) do the frequent work; the two
-flagships (Sol, Opus) get only very small single runs at brief occasions.
+## Model assignments — v3 (2026-11-06, after pass 2)
+Run 1 evidence behind the v2 lineup: Gemini 3.8 Flash was an unstable
+gate (passed calibration once, then read a PNG as binary, truncated, and
+timed out 30+ min); MiniMax M3's Round 1 scores contradicted its own
+prose; Kimi K2.7 Code was the most reliable scorer. Tom's economy rule:
+the two near-free vision models (Haiku, Luna) do the frequent work; the
+two flagships (Sol, Opus) get only very small single runs at brief
+occasions.
+V3 CHANGE (Tom, 2026-11-06): Kimi is REMOVED. In pass 2 it scored 0
+delta on nearly every affected category while both gates and Sol moved
++1 — it was passing calibration but not discriminating on real screens.
+The panel seat was VACANT pending a model bake-off (single test calls
+to 9 reviewer candidates, T3 thread
+`mcp:4e33f3ab-b918-4c5c-8293-0a8ae0df5226`).
+APPOINTED (Tom, 2026-11-06, from the bake-off results): Panel =
+codex / gpt-6.1-terra (bake-off: 3/3 planted flaws, 0 false positives,
+23s — fastest clean run, purpose-built for visual reasoning, $1/$5).
+Reserve panel = claudeAgent / claude-sonnet-5-5, under the reserve
+rule in the panel section below. The bake-off also produced a
+ground-truth correction: the committed `calibration.png` is an
+Overview capture whose planted flaws are the header control collision,
+the overprinted faint "Local cache only" line, and the stray
+overflowing text at the right edge — not a settings dialog.
 
 Exact IDs — resolve first, do not guess.
 
@@ -37,12 +53,20 @@ Implementer / main thread (unchanged):
      it is NOT a screenshot judge)
 
 PROVIDER ROUTING IS FIXED (Tom, 2026-11-06 — do not reroute):
-  - Claude account (`claudeAgent`): Haiku and Opus. Nothing else.
-  - Codex account (`codex`): Luna and Sol. Nothing else.
-  - OpenCode (`opencode`): DeepSeek and Kimi ONLY. No other OpenCode
-    model may be used in any seat.
+  - Claude account (`claudeAgent`): Haiku and Opus, plus Sonnet ONLY
+    as reserve panel. Nothing else.
+  - Codex account (`codex`): Luna, Sol, and Terra (panel). Nothing
+    else.
+  - OpenCode (`opencode`): DeepSeek ONLY. No other OpenCode model may
+    be used in any seat. (Kimi removed 2026-11-06 — see v3 note.)
   - Gemini / Antigravity: dropped entirely. No seat, no fallback,
     no tie-break. (Run 1 instability + Tom's call.)
+  - Other bake-off candidates (Astra, Fable, Grok, Muse Wonder, Qwen,
+    GLM) were TESTED via single calls only and hold NO council seat.
+    Do not use them in a scoring run.
+  - Image-generation models in ANY role — including any render-target
+    or direction-generation step — are out entirely (Tom, 2026-11-06).
+    The council reviews real captures only.
 
 CHEAP SEATS — run freely, every round (delegate_task, role: review):
   Gate A: claudeAgent / claude-haiku-5-5, low effort
@@ -57,11 +81,19 @@ CHEAP SEATS — run freely, every round (delegate_task, role: review):
   flagged — see the flagship occasions below.
 
 Panel reviewer (blind, independent, role: review):
-  - opencode / opencode-go/kimi-k2.7-code (most reliable scorer in run 1)
-  There is no reserve panel seat. A contested category goes to a
-  flagship tie-break (occasion 2 below), not to another cheap model.
-  MiniMax M3 is out: OpenCode is DeepSeek + Kimi only now, and its
-  run-1 scores contradicted its own prose anyway.
+  - codex / gpt-6.1-terra, medium reasoning effort (appointed by Tom
+    2026-11-06 from bake-off results; route: Tom's Codex account —
+    NOT OpenCode). Terra must pass calibration TWICE consecutively
+    before its first scoring round, same standard as the gates; its
+    bake-off call was evidence, not a calibration pass.
+  Reserve panel: claudeAgent / claude-sonnet-5-5. The reserve steps in
+  ONLY if Terra fails its double calibration, or errors/times out in
+  a round. If called, Sonnet must pass calibration twice itself
+  before scoring. Otherwise Sonnet does not run — it is not a fourth
+  reviewer.
+  A contested category (gates + panel split >2) goes to a flagship
+  tie-break (occasion 2 below), not to the reserve.
+  MiniMax M3 stays out: its run-1 scores contradicted its own prose.
 
 FLAGSHIP SEATS — Sol and Opus, rationed to brief occasions ONLY.
   - codex / gpt-6.1-sol
@@ -87,9 +119,10 @@ FLAGSHIP SEATS — Sol and Opus, rationed to brief occasions ONLY.
 
 FORBIDDEN in this run:
   - Gemini / Antigravity in ANY seat, fallback, or tie-break — dropped
-    entirely. Grok in any role (usage exhausted). Haiku routed through
-    OpenCode, Luna routed through OpenCode, and any OpenCode model other
-    than DeepSeek (implementer) and Kimi (panel). Any flagship use
+    entirely. Kimi K2.7 Code in any seat — removed by Tom. Grok in any
+    role (usage exhausted; bake-off test call excepted). Haiku routed
+    through OpenCode, Luna routed through OpenCode, and any OpenCode
+    model other than DeepSeek (implementer). Any flagship use
     outside the 3 occasions and the brief-run contract above.
   - DeepSeek as a screenshot scorer. Standard DeepSeek V4.1 Flash / V4 Pro
     are text implementers here. `deepseek-v4-flash-vision-exp` must never
@@ -142,6 +175,8 @@ Send it to both gates and the panel model, each blind:
   - Must return the structured score block cleanly.
 Gate seats need TWO consecutive passes, not one — in run 1 Gemini
 passed once and failed the retry, and a single pass let it through.
+The same two-pass standard applies to the panel appointee (Terra)
+and, if ever called, to the reserve (Sonnet).
 A model that fails does not score in this run. Record pass/fail per
 model (and per attempt for gates) in the PR — this table is one of the
 test run's main deliverables.
@@ -185,6 +220,13 @@ scores, or the fact that a later round will happen.
 - PR description, before the model/harness line:
   - Calibration table (model x pass/fail + what it missed)
   - Before (Round 0) / after (Round 1) pairs per screen, numbered callouts
+  - Every image in the PR body MUST be an absolute raw URL pinned to the
+    PR's own branch:
+    `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`.
+    Bare relative paths (`docs/...`) do NOT render in a PR description —
+    they show as broken-image icons (learned on PR #63, pass 2). After
+    writing the body, fetch each image URL and confirm it returns
+    `200 image/png` before finishing.
   - `## Council review`: per-reviewer, per-category scores for both
     rounds, the delta on the 3 fixed categories, hard-gate results,
     rounds/models actually used, and any model that failed or was
@@ -192,12 +234,6 @@ scores, or the fact that a later round will happen.
     was given; never invent one.
   - "For Tom" section: direction questions and any advice you overruled
   - "Later" list of out-of-scope ideas
-- **PR image rule:** Every image in the PR body MUST be an absolute raw
-  URL pinned to the PR's own branch
-  (https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>).
-  Bare relative paths do not render in a PR description. After writing
-  the body, fetch each image URL and confirm it returns 200 image/png
-  before finishing.
 - Final message in the thread: a short handoff Tom's Muse (outside T3)
   can verify — PR link, screenshot paths, scores headline, cost/time
   if the harness reports it, and what broke.
