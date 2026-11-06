@@ -29,16 +29,17 @@ Diagnostics, Models, Developer, Apps & grants, Sessions and Playground.
 
 ## Test-run limits
 
-- **Max 2 scoring rounds:** Round 0 (baseline) and Round 1 (after fixes).
+- **Two scoring rounds per pass:** a baseline round and one after fixes.
+  This branch's pass 3 is a follow-up comparison round on the same branch.
 - **Fix only the 3 lowest-scoring categories**, across these 3 screens.
 - **Conservative changes only:** no palette overhaul, no typeface change,
   no layout rewrite. Direction questions go in the final report for Tom;
   do not block on them.
 - **No new features, no new dependencies, no unlisted screens.**
-- Stop after Round 1 even if scores are below 9. Escalate mid-run only if
-  a hard gate fails or reviewers split more than 2 points on a category
-  (then, and only then, the Antigravity `claude-sonnet-5-5-medium`
-  tie-breaker may be used).
+- Stop after the fix round even if scores are below 9. Escalate mid-run only
+  if a hard gate fails or reviewers split more than 2 points on a category
+  (then, and only then, flagship occasion 2 — a one-shot tie-break — may be
+  used).
 
 ## Capture protocol
 
@@ -70,10 +71,10 @@ score` where a capture cannot show the thing (for example motion).
 
 ## Reviewers
 
-Gate every round: `antigravity_2 / gemini-3.8-flash-high` (fallbacks:
-`gemini-3.8-flash-medium`, then `opencode-go/minimax-m3`).
-Panel: `opencode-go/kimi-k2.7-code` and `opencode-go/minimax-m3`.
-Final, once, after Round 1: `codex / gpt-6.1-sol`.
+Gate every round: `claudeAgent / claude-haiku-5-5` (low effort) and
+`codex / gpt-6-luna` (low effort). Panel: `codex / gpt-6.1-terra`
+(medium effort); reserve `claudeAgent / claude-sonnet-5-5` only if Terra
+fails double calibration or errors. Final, once: `codex / gpt-6.1-sol`.
 
-Forbidden: the `claudeAgent` provider, Grok, DeepSeek as a screenshot
-scorer, and any silent substitution.
+Forbidden: Gemini/Antigravity, Kimi, Grok, MiniMax, image-generation
+models, DeepSeek as a screenshot scorer, and any silent substitution.
