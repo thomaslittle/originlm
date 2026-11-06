@@ -120,7 +120,7 @@ pub fn plan_label(connection: &Connection) -> String {
     match &connection.plan {
         Observation::Known { value, .. } => value.label.clone(),
         Observation::Unknown { .. } => "Plan unknown".into(),
-        Observation::Unavailable { .. } => "plan unavailable".into(),
+        Observation::Unavailable { .. } => "Plan unavailable".into(),
     }
 }
 
