@@ -192,6 +192,12 @@ scores, or the fact that a later round will happen.
     was given; never invent one.
   - "For Tom" section: direction questions and any advice you overruled
   - "Later" list of out-of-scope ideas
+- **PR image rule:** Every image in the PR body MUST be an absolute raw
+  URL pinned to the PR's own branch
+  (https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>).
+  Bare relative paths do not render in a PR description. After writing
+  the body, fetch each image URL and confirm it returns 200 image/png
+  before finishing.
 - Final message in the thread: a short handoff Tom's Muse (outside T3)
   can verify — PR link, screenshot paths, scores headline, cost/time
   if the harness reports it, and what broke.
