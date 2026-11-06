@@ -131,7 +131,10 @@ fn compact_tokens(value: u64) -> String {
     }
 }
 
-/// One allowance window on a single line: label, meter, percent, reset.
+/// One allowance window: label, figure and reset on one line, meter beneath.
+/// Same shape as the quota list on Usage history. Nothing is fixed-width, so
+/// "Example session window" and "17 requests used" stay readable instead of
+/// being cut mid-word by a 78px label column and a 72px figure column.
 fn window_line(window: &WindowView, theme: &Theme) -> Div {
     let (meter_value, figure, figure_color) = match &window.reading {
         Reading::Fraction(value) => (
@@ -147,37 +150,27 @@ fn window_line(window: &WindowView, theme: &Theme) -> Div {
         Reading::Fraction(_) => ui::format_countdown(window.reset.as_deref()),
         _ => None,
     };
+    let label = if matches!(window.reading, Reading::Count(_)) {
+        "Count only"
+    } else {
+        window.label.as_str()
+    };
     div()
-        .h_flex()
-        .items_center()
-        .gap(px(sp::SM))
-        .child(
-            ds::caption(
-                if matches!(window.reading, Reading::Count(_)) {
-                    "Count only"
-                } else {
-                    window.label.as_str()
-                },
-                theme,
-            )
-            .w(px(78.))
-            .truncate(),
-        )
+        .v_flex()
+        .gap(px(4.))
         .child(
             div()
-                .w(px(76.))
-                .flex_shrink_0()
-                .child(ds::meter(meter_value, theme)),
+                .h_flex()
+                .items_center()
+                .gap(px(sp::SM))
+                .child(ds::caption(label, theme).flex_1().min_w(px(0.)).truncate())
+                .child(ds::mono(figure, ty::CAPTION, figure_color, theme).flex_shrink_0())
+                .when_some(reset, |this, reset| {
+                    this.child(ds::caption(reset, theme).flex_shrink_0())
+                })
+                .when(window.stale, |this| this.child(ds::caption("Stale", theme))),
         )
-        .child(
-            ds::mono(figure, ty::CAPTION, figure_color, theme)
-                .w(px(72.))
-                .truncate(),
-        )
-        .when_some(reset, |this, reset| {
-            this.child(ds::caption(reset, theme).flex_1().truncate())
-        })
-        .when(window.stale, |this| this.child(ds::caption("Stale", theme)))
+        .child(ds::meter(meter_value, theme))
 }
 
 /// A compact count/label pair for the Routes strip. Four of these sit on one
