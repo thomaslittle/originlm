@@ -194,7 +194,10 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         Some(value) if value < 0.50 => theme.warning,
         _ => theme.success,
     };
-    let track = theme.foreground.opacity(0.08);
+    // Empty cells are meaningful state, so their outline must clear the
+    // 3:1 non-text minimum against both page and panel surfaces. A hollow
+    // outline keeps "no reading" distinct from a filled or zero meter.
+    let outline: Hsla = rgb(crate::brand_tokens::METER_OUTLINE).into();
     // Full width and a fixed height in both flex directions: `flex_1` would
     // collapse the height to zero inside a column.
     div()
@@ -205,12 +208,10 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         .gap(px(2.))
         .children((0..METER_CELLS).map(move |index| {
             let cell = div().flex_1().h_full().rounded(px(1.));
-            if remaining.is_none() {
-                cell.border_1().border_color(track.opacity(1.6))
-            } else if index < filled {
-                cell.bg(fill)
-            } else {
-                cell.bg(track)
+            match remaining {
+                None => cell.border_1().border_color(outline),
+                Some(_) if index < filled => cell.bg(fill),
+                Some(_) => cell.border_1().border_color(outline),
             }
         }))
 }

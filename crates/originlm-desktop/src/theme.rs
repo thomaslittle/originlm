@@ -280,8 +280,28 @@ mod tests {
         let non_text = [
             ("dark focus ring", brand::AMBER, brand::DARK_BACKGROUND),
             ("light focus ring", brand::LIGHT_AMBER_TEXT, brand::PAPER),
-            // Meter fill against the empty-cell track (graphite at 8% on white).
-            ("light meter fill", 0xB47400, 0xececec),
+            // The unknown/empty meter outline is the only boundary around a
+            // meaningful state, so it must clear 3:1 on page and panel in
+            // both themes. See `ds::meter`.
+            (
+                "dark meter outline on page",
+                brand::METER_OUTLINE,
+                brand::DARK_BACKGROUND,
+            ),
+            (
+                "dark meter outline on panel",
+                brand::METER_OUTLINE,
+                brand::DARK_CARD,
+            ),
+            (
+                "light meter outline on page",
+                brand::METER_OUTLINE,
+                brand::PAPER,
+            ),
+            ("light meter outline on panel", brand::METER_OUTLINE, WHITE),
+            // Meter fills stay distinguishable from the panel surface too.
+            ("dark meter fill", brand::DARK_SUCCESS, brand::DARK_CARD),
+            ("light meter fill", brand::LIGHT_SUCCESS, WHITE),
         ];
         for (name, fg, bg) in non_text {
             let ratio = contrast(fg, bg);
