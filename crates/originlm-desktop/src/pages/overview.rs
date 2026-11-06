@@ -180,6 +180,23 @@ fn window_line(window: &WindowView, theme: &Theme) -> Div {
         .when(window.stale, |this| this.child(ds::caption("Stale", theme)))
 }
 
+/// A compact count/label pair for the Routes strip. Four of these sit on one
+/// row so the rail does not grow when the prose would wrap.
+fn route_stat(count: usize, label: &'static str, theme: &Theme) -> Div {
+    div()
+        .h_flex()
+        .items_end()
+        .flex_none()
+        .gap(px(4.))
+        .child(ds::mono(
+            count.to_string(),
+            ty::SMALL,
+            theme.foreground,
+            theme,
+        ))
+        .child(ds::caption(label, theme))
+}
+
 /// A usage read that failed is different from a client that publishes no
 /// quota window. Keep the distinction visible instead of claiming there is no
 /// allowance.
@@ -332,9 +349,12 @@ fn provider_row(
             .h_flex()
             .items_center()
             .gap(px(sp::MD))
-            .min_h(px(44.))
+            // 36px keeps the two-line identity readable while recovering the
+            // ~32px that the right-rail wrap cost the Overview fold. Still
+            // above the 28px minimum hit target.
+            .min_h(px(36.))
             .px(px(sp::LG))
-            .py(px(2.))
+            .py(px(0.))
             .border_b_1()
             .border_color(theme.border.opacity(0.7))
             .child(identity)
@@ -655,25 +675,21 @@ impl Desktop {
                     .v_flex()
                     .px(px(sp::LG))
                     .py(px(sp::SM))
-                    .child(ds::kv(
-                        "Routes",
-                        ds::mono(
-                            format!(
-                                "{subscription} subscription · {metered} metered · {local} local{}",
-                                if other > 0 {
-                                    format!(" · {other} unknown")
-                                } else {
-                                    String::new()
-                                }
-                            ),
-                            ty::SMALL,
-                            theme.foreground,
-                            &theme,
-                        )
-                        .flex_1()
-                        .min_w(px(0.)),
-                        &theme,
-                    ))
+                    .child(
+                        div()
+                            .h_flex()
+                            .items_center()
+                            .gap(px(sp::SM))
+                            .min_h(px(28.))
+                            .child(ds::caption("Routes", &theme))
+                            .child(div().flex_1())
+                            .child(route_stat(subscription as usize, "subs", &theme))
+                            .child(route_stat(metered as usize, "metered", &theme))
+                            .child(route_stat(local as usize, "local", &theme))
+                            .when(other > 0, |this| {
+                                this.child(route_stat(other as usize, "unknown", &theme))
+                            }),
+                    )
                     .child(ds::kv(
                         "Connected apps",
                         div().text_size(px(ty::SMALL)).child(apps_value),
