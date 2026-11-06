@@ -20,3 +20,4 @@ pub const LIGHT_DANGER: u32 = 0xa64b42;
 pub const DARK_INPUT: u32 = 0x807975;
 pub const LIGHT_INPUT: u32 = 0x6b635c;
 pub const LIGHT_AMBER_TEXT: u32 = 0x8f5d00;
+pub const METER_OUTLINE: u32 = 0x7c746e;

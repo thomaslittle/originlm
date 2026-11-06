@@ -412,7 +412,7 @@ impl Desktop {
                                 }
                                 this.price_fields[4].update(cx, |field, cx| {
                                     field.set_value(
-                                        chrono::Utc::now().format("%Y-%m-%d").to_string(),
+                                        crate::clock::utc_now().format("%Y-%m-%d").to_string(),
                                         window,
                                         cx,
                                     )
