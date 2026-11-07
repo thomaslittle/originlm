@@ -1,0 +1,4 @@
+/* @contrast
+   ink on bg 4.5
+*/
+.c2 { --bg: #000000; --ink: #ffffff; }
