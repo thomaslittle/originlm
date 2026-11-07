@@ -57,6 +57,9 @@ export function SceneLayer() {
       if (layer) layer.style.opacity = (anchors.stage?.alpha ?? 1).toFixed(3);
       for (const [key, el] of Object.entries(labels.current)) {
         if (!el) continue;
+        // In the hero the display type owns the left half; the node labels would print
+        // through the headline, so they wait until the story begins.
+        if (key.startsWith("node") && sceneState.heroOut < 0.1) { el.style.opacity = "0"; continue; }
         const anchor = anchors[key];
         if (!anchor || anchor.alpha < 0.02) { el.style.opacity = "0"; continue; }
         let x = anchor.x;

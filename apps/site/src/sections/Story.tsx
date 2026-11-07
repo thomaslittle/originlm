@@ -1,19 +1,22 @@
 /* One request, four calls, scrubbed by scroll. Two renderings of the same content:
 
-   .story-static  four steps, fully filled in, with stills of the scene. What reduced
-                  motion, no WebGL and no JavaScript get; visually hidden but readable by
-                  screen readers when the stage runs.
+   .story-static  four chapters, each with the call it makes and only the evidence that
+                  belongs to it: the snapshot table (Discover), the chosen route (Select),
+                  the host approval (Grant), the event stream and reply (Run). This is what
+                  reduced motion, no WebGL and no JavaScript get; it is also the page's
+                  accessible, deterministic presentation.
    .story-stage   the pinned viewport (CSS sticky, so React keeps its DOM). The step word
                   rolls, the quickstart types itself, and one snapshot table morphs with
                   the scene as each client is found, selected, granted and run.
 
    The stage is aria-hidden: it repeats the static content as motion. */
-import { memo, useSyncExternalStore, type CSSProperties } from "react";
+import { memo, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { highlight, highlightTyped } from "../lib/highlight";
 import { CODE, EVENTS, REPLY, STEPS, STORY_NODES, phase, rowFoundAt, type Reading, type StepId } from "../data/story";
 import { storyStore } from "../scene/state";
 
 const ORDER: StepId[] = ["discover", "select", "grant", "run"];
+const PICK = STORY_NODES[0];
 
 function ReadingCell({ reading, window, shown }: { reading: Reading; window: string | null; shown: boolean }) {
   if (!shown) return <td className="reading" data-state="pending"><span className="scan" /></td>;
@@ -31,6 +34,47 @@ function ReadingCell({ reading, window, shown }: { reading: Reading; window: str
       <span className="state">{reading.state}</span>
       <span className="why">{reading.reason}</span>
     </td>
+  );
+}
+
+/** The host approval card. Shared by the live Grant step and the static Grant chapter. */
+function Approval({ approved }: { approved: boolean }) {
+  return (
+    <div className="approval" role="group" aria-label="Host approval, an example of your app's own UI">
+      <p className="approval-kicker">Your host decides</p>
+      <p className="approval-title"><b>notes-app</b> wants to run turns</p>
+      <dl className="approval-grid">
+        <div><dt>Connection</dt><dd>Claude Code, Personal</dd></div>
+        <div><dt>Workspace</dt><dd>~/notes</dd></div>
+        <div><dt>Billing</dt><dd>subscription only</dd></div>
+        <div><dt>Paid routes</dt><dd>off</dd></div>
+      </dl>
+      <p className="approval-state">{approved ? "Approved in the host’s own UI" : "Waiting for the host"}</p>
+    </div>
+  );
+}
+
+/** The event stream and the reply. Shared by the live Run step and the static Run chapter. */
+function RunView({ typed, events }: { typed: number; events: number }) {
+  return (
+    <>
+      <ol className="events" aria-label="Session events">
+        {EVENTS.map((event, index) => {
+          const shown = index < events;
+          return (
+            <li key={event.type} data-shown={shown || undefined}>
+              <span className="seq num">{index + 1}</span>
+              <span className="type">{event.type}</span>
+              <span className="detail">{event.detail(typed)}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="reply">
+        <span className="reply-ghost" aria-hidden="true">{REPLY}</span>
+        <span className="reply-text">{typed > 0 ? REPLY.slice(0, typed) : ""}{typed > 0 && typed < REPLY.length ? <span className="caret" /> : null}</span>
+      </p>
+    </>
   );
 }
 
@@ -106,36 +150,11 @@ const DataView = memo(function DataView({ found: foundCount, step, selecting, ap
 
       <div className="grant-sheet" data-open={asking || undefined}>
         <code className="grant-status">{approved ? "{ grant: approved by the host }" : "{ status: \"requires_host_approval\" }"}</code>
-        <div className="approval" role="group" aria-label="Host approval, an example of your app's own UI">
-          <p className="approval-kicker">Your host decides</p>
-          <p className="approval-title"><b>notes-app</b> wants to run turns</p>
-          <dl className="approval-grid">
-            <div><dt>Connection</dt><dd>Claude Code, Personal</dd></div>
-            <div><dt>Workspace</dt><dd>~/notes</dd></div>
-            <div><dt>Billing</dt><dd>subscription only</dd></div>
-            <div><dt>Paid routes</dt><dd>off</dd></div>
-          </dl>
-          <p className="approval-state">{approved ? "Approved in the host’s own UI" : "Waiting for the host"}</p>
-        </div>
+        <Approval approved={approved} />
       </div>
 
       <div className="run-pane" data-open={running || undefined}>
-        <ol className="events" aria-label="Session events">
-          {EVENTS.map((event, index) => {
-            const shown = index < events;
-            return (
-              <li key={event.type} data-shown={shown || undefined}>
-                <span className="seq num">{index + 1}</span>
-                <span className="type">{event.type}</span>
-                <span className="detail">{event.detail(typed)}</span>
-              </li>
-            );
-          })}
-        </ol>
-        <p className="reply">
-          <span className="reply-ghost" aria-hidden="true">{REPLY}</span>
-          <span className="reply-text">{running ? REPLY.slice(0, typed) : ""}{running && typed < REPLY.length ? <span className="caret" /> : null}</span>
-        </p>
+        <RunView typed={typed} events={events} />
       </div>
     </div>
   );
@@ -205,43 +224,83 @@ function Stage() {
   );
 }
 
+/** One static chapter: number, label, caption, the call, and only its own evidence. */
+function Chapter({
+  step,
+  children,
+  wide,
+}: {
+  step: (typeof STEPS)[number];
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const index = STEPS.findIndex((item) => item.id === step.id) + 1;
+  return (
+    <article className="chapter" data-chapter={step.id} data-wide={wide || undefined}>
+      <div className="chapter-copy">
+        <header className="chapter-head">
+          <span className="chapter-n num">{String(index).padStart(2, "0")}</span>
+          <h3>{step.label}</h3>
+        </header>
+        <p className="chapter-caption">{step.caption}</p>
+        <pre className="step-code"><code>{highlight(CODE[step.id])}</code></pre>
+      </div>
+      <figure className="chapter-figure">
+        <img
+          src={`/scene/still-${step.id}.webp`}
+          alt={STILL_ALT[step.id]}
+          width={920}
+          height={576}
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+      <div className="chapter-evidence">{children}</div>
+    </article>
+  );
+}
+
 export function Story() {
   return (
     <section className="story" id="story" aria-labelledby="story-title">
       <div className="story-static">
-        <div className="container">
+        <div className="container story-intro">
+          <p className="eyebrow"><span className="eyebrow-n">01–04</span> One request, four calls</p>
           <h2 id="story-title" className="story-title">Discover, select, grant, run.</h2>
           <p className="lead">One request through the real API, step by step. Method names and fields match the TypeScript SDK; the values are example data.</p>
-          <ol className="steps">
-            {STEPS.map((item, index) => (
-              <li key={item.id} className="step">
-                <div className="step-copy">
-                  <h3><span className="n num">{index + 1}</span> {item.label}</h3>
-                  <p>{item.caption}</p>
-                  <pre className="step-code"><code>{highlight(CODE[item.id])}</code></pre>
-                </div>
-                <img
-                  className="step-still"
-                  src={`/scene/still-${item.id}.webp`}
-                  alt={STILL_ALT[item.id]}
-                  width={920}
-                  height={576}
-                  loading="lazy"
-                  decoding="async"
-                />
-                <DataPanel progress={STATIC_AT[item.id]} />
-              </li>
-            ))}
-          </ol>
+        </div>
+        <div className="container story-chapters">
+          <Chapter step={STEPS[0]} wide>
+            <DataPanel progress={0.2} />
+          </Chapter>
+          <Chapter step={STEPS[1]}>
+            <div className="static-result">
+              <p className="static-result-head"><code>selection.resolve</code><span className="tag">example data</span></p>
+              <dl>
+                <div><dt>connection</dt><dd>{PICK.provider} · {PICK.account}</dd></div>
+                <div><dt>route</dt><dd>{PICK.route}</dd></div>
+                <div><dt>state</dt><dd>eligible · subscription, signed in</dd></div>
+                <div><dt>not chosen</dt><dd>gemini_cli: sign-in not verified; cursor: no route</dd></div>
+              </dl>
+            </div>
+          </Chapter>
+          <Chapter step={STEPS[2]}>
+            <div className="static-approval">
+              <code className="grant-status">{`{ status: "requires_host_approval" }`}</code>
+              <Approval approved={false} />
+            </div>
+          </Chapter>
+          <Chapter step={STEPS[3]} wide>
+            <div className="static-run">
+              <RunView typed={REPLY.length} events={EVENTS.length} />
+            </div>
+          </Chapter>
         </div>
       </div>
       <Stage />
     </section>
   );
 }
-
-/* Each static step shows the table as that step leaves it; the grant waits for the host. */
-const STATIC_AT: Record<StepId, number> = { discover: 0.245, select: 0.49, grant: 0.64, run: 0.999 };
 
 const STILL_ALT: Record<StepId, string> = {
   discover: "The OriginLM eye with five points of light around it, Claude Code, Codex, Cursor, Gemini CLI and Ollama, each joined to it by a thread.",
