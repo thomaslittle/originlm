@@ -20,14 +20,21 @@ const out = args.find((a) => a.startsWith('--out='))?.split('=')[1] ?? 'concept-
 await mkdir(out, { recursive: true });
 
 const PAGES = ['c1', 'c2', 'c3', 'c4', 'c5', 'concepts'].filter((id) => !only || only.includes(id));
+/* Hero shots use SwiftShader ANGLE so WebGL concepts render live. Its 8192px texture
+   limit makes Chromium repeat the top of any taller full-page capture, so full pages use
+   a second browser with the default backend (WebGL still falls back to software). */
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_PATH, headless: true,
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--force-color-profile=srgb', '--hide-scrollbars'],
 });
+const tallBrowser = await chromium.launch({
+  executablePath: process.env.CHROME_PATH, headless: true,
+  args: ['--enable-unsafe-swiftshader', '--force-color-profile=srgb', '--hide-scrollbars'],
+});
 
 let overflow = 0;
 async function shot(id, { width, height, scale = 1, still = false, full = false, name, settle = 2600 }) {
-  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: still ? 'reduce' : 'no-preference' });
+  const page = await (full ? tallBrowser : browser).newPage({ viewport: { width, height }, deviceScaleFactor: scale, reducedMotion: still ? 'reduce' : 'no-preference' });
   await page.goto(`${base}/${id}${still ? '?still' : ''}`, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(settle);
@@ -56,4 +63,5 @@ for (const id of PAGES) {
   await shot(id, { width: 390, height: 844, still: true, full: true, name: `${id}-390-full`, settle: 900 });
 }
 await browser.close();
+await tallBrowser.close();
 process.exit(overflow ? 1 : 0);
