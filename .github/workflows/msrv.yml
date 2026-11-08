@@ -30,13 +30,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install declared MSRV toolchain
-        run: rustup toolchain install 1.88.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal
       - name: Verify declared MSRV and record evidence
-        run: python scripts/verify_msrv.py --toolchain 1.88.0 --out .verification/msrv-1.88.json
+        run: python scripts/verify_msrv.py --toolchain 1.89.0 --out .verification/msrv-1.89.json
       - name: Preserve MSRV evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: msrv-1.88-evidence
-          path: .verification/msrv-1.88.json
+          name: msrv-1.89-evidence
+          path: .verification/msrv-1.89.json
           if-no-files-found: error
