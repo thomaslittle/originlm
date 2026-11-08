@@ -4,6 +4,7 @@ import json
 import pathlib
 import sys
 import tempfile
+import tomllib
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -110,7 +111,8 @@ class PublisherWorkflows(unittest.TestCase):
         self.assertIn('cargo fetch --locked', workflow)
         self.assertLess(workflow.index('cargo fetch --locked'), workflow.index('--package-dir crates-release'))
         self.assertIn('verify_packaged_closure.py', workflow)
-        self.assertIn('--toolchain 1.88.0', workflow)
+        msrv = tomllib.loads((ROOT / 'Cargo.toml').read_text(encoding='utf-8'))['workspace']['package']['rust-version']
+        self.assertIn(f'--toolchain {msrv}.0', workflow)
         self.assertIn('crates-release/evidence/packaged-closure.json', workflow)
 
     def test_crate_publisher_fetches_and_revalidates_published_bytes(self):
@@ -119,6 +121,8 @@ class PublisherWorkflows(unittest.TestCase):
         self.assertLess(workflow.index('cargo fetch --locked'), workflow.index('publish_order.py'))
         self.assertIn('repacked crate payload hashes match', workflow)
         self.assertIn('verify_packaged_closure.py', workflow)
+        msrv = tomllib.loads((ROOT / 'Cargo.toml').read_text(encoding='utf-8'))['workspace']['package']['rust-version']
+        self.assertIn(f'--toolchain {msrv}.0', workflow)
         self.assertIn('crate-packaged-closure', workflow)
         self.assertIn('verify_published_crates.py', workflow)
         self.assertLess(workflow.index('cargo publish --package'), workflow.index('verify_published_crates.py'))
