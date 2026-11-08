@@ -139,9 +139,11 @@ pub fn chip(label: impl Into<SharedString>, tone: Tone, theme: &Theme) -> Div {
         .border_color(if neutral {
             theme.border
         } else {
-            color.opacity(0.4)
+            color.opacity(0.55)
         })
-        .when(!neutral, |this| this.bg(color.opacity(0.08)))
+        // A tint strong enough to read as a filled state in both themes. At
+        // 8% the light theme lost the fill entirely.
+        .when(!neutral, |this| this.bg(color.opacity(0.14)))
         .text_size(px(ty::CAPTION))
         .font_weight(FontWeight::MEDIUM)
         .text_color(if neutral {
@@ -179,7 +181,9 @@ pub fn remaining_tone(remaining: f32) -> Tone {
 }
 
 /// Segmented meter that fills with what remains. `None` draws the unknown
-/// state: hollow cells, never an empty "zero" meter.
+/// state as a hollow capsule, never an empty "zero" meter: a single soft
+/// outline reads as "no reading", where twenty outlined cells read as a
+/// measurement.
 pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
     let filled = remaining
         .map(|value| (value.clamp(0.0, 1.0) * METER_CELLS as f32).round() as usize)
@@ -192,23 +196,35 @@ pub fn meter(remaining: Option<f32>, theme: &Theme) -> Div {
         Some(value) if value < 0.50 => theme.warning,
         _ => theme.success,
     };
-    let track = theme.foreground.opacity(0.08);
+    // Empty cells are meaningful state, so their outline must clear the
+    // 3:1 non-text minimum against both page and panel surfaces. The cells
+    // are shorter and more rounded than pass 2's blocky square outlines, but
+    // the outline colour (and therefore the measured ratio) is unchanged.
+    let outline: Hsla = rgb(crate::brand_tokens::METER_OUTLINE).into();
     // Full width and a fixed height in both flex directions: `flex_1` would
     // collapse the height to zero inside a column.
+    if remaining.is_none() {
+        return div().h_flex().w_full().min_w(px(0.)).h(px(8.)).child(
+            div()
+                .w_full()
+                .h_full()
+                .rounded(px(4.))
+                .border_1()
+                .border_color(outline),
+        );
+    }
     div()
         .h_flex()
         .w_full()
         .min_w(px(0.))
-        .h(px(10.))
+        .h(px(8.))
         .gap(px(2.))
         .children((0..METER_CELLS).map(move |index| {
-            let cell = div().flex_1().h_full().rounded(px(1.));
-            if remaining.is_none() {
-                cell.border_1().border_color(track.opacity(1.6))
-            } else if index < filled {
-                cell.bg(fill)
-            } else {
-                cell.bg(track)
+            let cell = div().flex_1().h_full().rounded(px(2.5));
+            match remaining {
+                None => cell,
+                Some(_) if index < filled => cell.bg(fill),
+                Some(_) => cell.border_1().border_color(outline),
             }
         }))
 }
@@ -558,7 +574,8 @@ pub fn select_row(id: impl Into<ElementId>, selected: bool, theme: &Theme) -> St
             this.bg(theme.list_active).child(
                 div()
                     .absolute()
-                    .left(px(-2.))
+                    // Keep the selection edge inside the panel's clipped bounds.
+                    .left(px(0.))
                     .top(px(8.))
                     .bottom(px(8.))
                     .w(px(2.))

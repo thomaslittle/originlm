@@ -64,7 +64,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                 // ages/reset intervals. Real provider evidence is never rebased.
                 rebase_example_times(
                     &mut fixture,
-                    chrono::Utc::now().signed_duration_since(anchor),
+                    crate::clock::utc_now().signed_duration_since(anchor),
                 );
                 let snapshot: Snapshot =
                     serde_json::from_value(fixture).expect("rebased example snapshot");
@@ -101,7 +101,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                             costs: None,
                             cost_error: None,
                             intelligence: IntelligenceCatalog::default(),
-                            fetched_at: chrono::Utc::now().timestamp(),
+                            fetched_at: crate::clock::timestamp(),
                             error: None,
                         });
                         let _ = command_rx.recv();
@@ -126,7 +126,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                                     cost_error: None,
                                     intelligence: IntelligenceCatalog::default(),
                                     // Pretend the last good read was 7 minutes ago.
-                                    fetched_at: chrono::Utc::now().timestamp() - 420,
+                                    fetched_at: crate::clock::timestamp() - 420,
                                     error: None,
                                 }
                             } else {
@@ -161,7 +161,7 @@ pub fn spawn(credential: Credential, refresh: Duration, example: bool) -> Broker
                             costs: Some(costs.clone()),
                             cost_error: None,
                             intelligence: IntelligenceCatalog::default(),
-                            fetched_at: chrono::Utc::now().timestamp(),
+                            fetched_at: crate::clock::timestamp(),
                             error: None,
                         })
                         .is_err()
@@ -224,7 +224,7 @@ fn offline_bundle(error: &str) -> Bundle {
         cost_error: Some("Runtime is offline".into()),
         intelligence: IntelligenceCatalog::default(),
         history: Vec::new(),
-        fetched_at: chrono::Utc::now().timestamp(),
+        fetched_at: crate::clock::timestamp(),
         error: Some(error.to_string()),
     }
 }
@@ -304,7 +304,7 @@ fn fetch(client: &mut BrokerClient, history: &mut History) -> Result<Bundle, Str
         .ok()
         .and_then(|value| serde_json::from_value(value).ok())
         .unwrap_or_default();
-    let now = chrono::Utc::now().timestamp();
+    let now = crate::clock::timestamp();
     history.observe(&snapshot, now);
     Ok(Bundle {
         snapshot,
@@ -374,7 +374,7 @@ fn worker(
                             cost_error: Some("Runtime is offline".into()),
                             intelligence: IntelligenceCatalog::default(),
                             history: history.samples.clone(),
-                            fetched_at: chrono::Utc::now().timestamp(),
+                            fetched_at: crate::clock::timestamp(),
                             error: Some(error.clone()),
                         });
                         last_error = Some(error);
@@ -413,7 +413,7 @@ fn worker(
                                 cost_error: Some("Runtime is offline".into()),
                                 intelligence: IntelligenceCatalog::default(),
                                 history: history.samples.clone(),
-                                fetched_at: chrono::Utc::now().timestamp(),
+                                fetched_at: crate::clock::timestamp(),
                                 error: Some(error),
                             });
                             client = None;
@@ -620,7 +620,7 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                     json!({
                         "sessionId": session_id,
                         "prompt": prompt,
-                        "requestId": format!("desktop-{}", chrono::Utc::now().timestamp_millis()),
+                        "requestId": format!("desktop-{}", crate::clock::timestamp_millis()),
                     }),
                 );
                 let turn_id = match started {
