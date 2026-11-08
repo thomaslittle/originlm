@@ -1,0 +1,52 @@
+/* OriginLM brand primitives, from brand/tokens.css + tokens.json. */
+/* Static instances of Red Hat Display Variable (brand/fonts), because the
+   renderer's text stack does not load the variable woff2. */
+@font-face {
+  font-family: "Red Hat Display Variable";
+  font-weight: 400;
+  font-style: normal;
+  src: url("/media/fonts/RedHatDisplay-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Red Hat Display Variable";
+  font-weight: 500;
+  font-style: normal;
+  src: url("/media/fonts/RedHatDisplay-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Red Hat Display Variable";
+  font-weight: 700;
+  font-style: normal;
+  src: url("/media/fonts/RedHatDisplay-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Red Hat Display Variable";
+  font-weight: 800;
+  font-style: normal;
+  src: url("/media/fonts/RedHatDisplay-800.woff2") format("woff2");
+}
+
+:root {
+  --brand-background: #1e1a1b;
+  --brand-surface: #262122;
+  --brand-raised: #2e2829;
+  --brand-border: #3b3334;
+  --brand-text: #faf9f5;
+  --brand-muted: #b0a8a1;
+  --brand-accent: #eba31a;
+  --brand-accent-hover: #f7bd4b;
+  --brand-ink: #231f20;
+  --brand-success: #7cc08f;
+  --brand-warning: #d9a441;
+  --brand-danger: #e0776b;
+  --brand-paper: #faf9f5;
+  --brand-light-border: #e5dfd4;
+  --brand-light-muted: #6b635c;
+  --brand-light-success: #4c6f58;
+  --brand-light-warning: #876012;
+  --brand-scene-terracotta: #c97e5a;
+  --brand-scene-sage: #a9b29f;
+  --brand-font: "Red Hat Display Variable", "Segoe UI", sans-serif;
+  --brand-font-heading: "Red Hat Display Variable", "Segoe UI", sans-serif;
+  --brand-mono: "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
