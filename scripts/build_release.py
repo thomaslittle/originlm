@@ -65,7 +65,7 @@ def build(profile):
         for binary in ('originlm','originlm-native-host','originlm-auth-blocker','originlm-control'):
             filename=binary+('.exe' if os.name=='nt' else '');shutil.copy2(binaries/filename,stage/'bin'/filename)
         shutil.copytree(ROOT/'apps/demo/dist',stage/'demo');shutil.copytree(ROOT/'dist/browser-extension',stage/'browser-extension')
-        for path in ('LICENSE','THIRD_PARTY_NOTICES.md','SECURITY.md'):shutil.copy2(ROOT/path,stage/path)
+        for path in ('LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','SECURITY.md'):shutil.copy2(ROOT/path,stage/path)
         shutil.copytree(ROOT/'protocol',stage/'protocol')
         (stage/'packages').mkdir()
         for package in PACKAGES:
