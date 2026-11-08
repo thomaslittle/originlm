@@ -64,7 +64,9 @@ jobs:
           VERSION: ${{ inputs.tag_version }}
           DIST_TAG: ${{ inputs.dist_tag }}
         run: |
-          npx --yes npm@11.21.0 dist-tag add "originlm@$VERSION" "$DIST_TAG"
+          if [ "${{ inputs.dry_run }}" = "false" ]; then
+            npx --yes npm@11.21.0 dist-tag add "originlm@$VERSION" "$DIST_TAG"
+          fi
           npx --yes npm@11.21.0 view originlm dist-tags --json
   publish:
     if: ${{ !inputs.tag_only }}
