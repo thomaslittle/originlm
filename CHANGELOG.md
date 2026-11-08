@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.1.0-alpha.26 — 2026-11-08
+## 0.1.0-alpha.26 - 2026-11-08
 
 - Release the integrated changes since alpha.25: desktop council improvements, NSH diagnostics spike, landing concepts, in-process desktop tests, and updated provider/runtime behavior.
 
