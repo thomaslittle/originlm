@@ -12,6 +12,10 @@ path = "src/main.rs"
 
 [dependencies]
 gpui-kit = { version = "0.9.0", features = ["gpui-fast"] }
+# SPIKE: Longbridge NSH's GPUI backend. `js` only (no webview/video) so the
+# spike does not drag wry/GTK/GStreamer into the desktop build.
+nsh-platform-gpui = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fababe6b575f24dd1a344ad81e9044f", default-features = false, features = ["js"] }
+
 originlm-control = { version = "0.1.0-alpha.25", path = "../originlm-control", default-features = false }
 originlm-platform = { version = "0.1.0-alpha.25", path = "../originlm-platform" }
 originlm-contracts = { version = "0.1.0-alpha.25", path = "../originlm-contracts" }
@@ -26,6 +30,10 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[build-dependencies]
+# SPIKE: compiles nsh/ProviderCard.tsx to JS, as `nsh build` does.
+nsh-bundler = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fababe6b575f24dd1a344ad81e9044f", features = ["bundle"] }
 
 [dev-dependencies]
 # `test-support` provides the headless TestAppContext used by the in-process

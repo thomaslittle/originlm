@@ -7,7 +7,7 @@ version = "0.1.0-alpha.25"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/thomaslittle/originlm"
-rust-version = "1.88"
+rust-version = "1.89"
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
