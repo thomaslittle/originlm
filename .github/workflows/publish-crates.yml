@@ -60,7 +60,7 @@ jobs:
       - name: Install pinned Rust and declared MSRV
         run: |
           rustup toolchain install 1.98.1 --profile minimal
-          rustup toolchain install 1.88.0 --profile minimal
+          rustup toolchain install 1.89.0 --profile minimal
       - name: Verify the artifact came from integrated main at this commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -114,7 +114,7 @@ jobs:
           SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           python scripts/verify_packaged_closure.py --release-dir crates-release \
-            --toolchain 1.88.0 --source-commit "$SOURCE_COMMIT" \
+            --toolchain 1.89.0 --source-commit "$SOURCE_COMMIT" \
             --out crates-release/evidence/packaged-closure.json
       - name: Preserve packaged-closure evidence
         if: always()

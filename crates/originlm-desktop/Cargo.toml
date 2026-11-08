@@ -16,12 +16,12 @@ gpui-kit = { version = "0.9.0", features = ["gpui-fast"] }
 # spike does not drag wry/GTK/GStreamer into the desktop build.
 nsh-platform-gpui = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fababe6b575f24dd1a344ad81e9044f", default-features = false, features = ["js"] }
 
-originlm-control = { version = "0.1.0-alpha.25", path = "../originlm-control", default-features = false }
-originlm-platform = { version = "0.1.0-alpha.25", path = "../originlm-platform" }
-originlm-contracts = { version = "0.1.0-alpha.25", path = "../originlm-contracts" }
-originlm-discovery = { version = "0.1.0-alpha.25", path = "../originlm-discovery" }
-originlm-kit = { version = "0.1.0-alpha.25", path = "../originlm-kit" }
-originlm-transports = { version = "0.1.0-alpha.25", path = "../originlm-transports" }
+originlm-control = { version = "0.1.0-alpha.26", path = "../originlm-control", default-features = false }
+originlm-platform = { version = "0.1.0-alpha.26", path = "../originlm-platform" }
+originlm-contracts = { version = "0.1.0-alpha.26", path = "../originlm-contracts" }
+originlm-discovery = { version = "0.1.0-alpha.26", path = "../originlm-discovery" }
+originlm-kit = { version = "0.1.0-alpha.26", path = "../originlm-kit" }
+originlm-transports = { version = "0.1.0-alpha.26", path = "../originlm-transports" }
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -39,6 +39,6 @@ nsh-bundler = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fabab
 # `test-support` provides the headless TestAppContext used by the in-process
 # GPUI view tests. It is enabled only for test targets.
 gpui-kit = { version = "0.9.0", features = ["gpui-fast", "test-support"] }
-originlm-runtime = { version = "0.1.0-alpha.25", path = "../originlm-runtime" }
-originlm-service = { version = "0.1.0-alpha.25", path = "../originlm-service" }
+originlm-runtime = { version = "0.1.0-alpha.26", path = "../originlm-runtime" }
+originlm-service = { version = "0.1.0-alpha.26", path = "../originlm-service" }
 tempfile = "3"
