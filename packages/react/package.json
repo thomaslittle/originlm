@@ -3,7 +3,7 @@
   "version": "0.1.0-alpha.26",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "LICENSE",
+    "NOTICE",
     "THIRD_PARTY_NOTICES.md"
   ],
   "sideEffects": false,

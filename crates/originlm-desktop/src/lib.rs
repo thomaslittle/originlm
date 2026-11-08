@@ -9,6 +9,7 @@ mod data;
 mod ds;
 #[cfg(test)]
 mod e2e_tests;
+mod feeds;
 mod history;
 mod human;
 mod icons;
@@ -65,6 +66,7 @@ pub fn run() {
     } else {
         bootstrap::Credential::acquire(token_path)
     };
+    let _feed_worker = feeds::start(example);
     let application = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
     application.run(move |cx| {
         let _ = cx

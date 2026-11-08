@@ -203,6 +203,8 @@ struct Prefs {
     /// Third-party/default catalog opt-in. Off unless the user chooses it.
     #[serde(default)]
     apps_default_intelligence_order: bool,
+    #[serde(default = "default_true")]
+    show_attribution: bool,
 }
 
 impl Default for Prefs {
@@ -218,6 +220,7 @@ impl Default for Prefs {
             sidebar_collapsed: false,
             models_sort_by_intelligence: true,
             apps_default_intelligence_order: false,
+            show_attribution: true,
         }
     }
 }
@@ -278,6 +281,7 @@ pub struct Desktop {
     pub models_sort_by_intelligence: bool,
     /// The local runtime defaults user-facing catalogs to Index order.
     pub apps_default_intelligence_order: bool,
+    pub show_attribution: bool,
     pub sessions: Vec<UiSession>,
     pub transcript: Vec<TranscriptLine>,
     pub running: bool,
@@ -440,6 +444,7 @@ impl Desktop {
             favorites_only: false,
             models_sort_by_intelligence: prefs.models_sort_by_intelligence,
             apps_default_intelligence_order: prefs.apps_default_intelligence_order,
+            show_attribution: prefs.show_attribution,
             sessions: Vec::new(),
             transcript: Vec::new(),
             running: false,
@@ -796,6 +801,7 @@ impl Desktop {
             providers_inspector: self.providers_inspector,
             models_sort_by_intelligence: self.models_sort_by_intelligence,
             apps_default_intelligence_order: self.apps_default_intelligence_order,
+            show_attribution: self.show_attribution,
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&prefs) {
             let Some(path) = prefs_path() else {

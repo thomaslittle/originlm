@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Move owned code and package metadata to Apache-2.0, distribute NOTICE, and clarify trademark/endorsement wording.
+- Add default-on, hideable kit credits metadata and a reusable source-only GPUI credit component, consumed by desktop About.
+- Add optional periodic release/catalog metadata feeds with configurable hosting, DO_NOT_TRACK/config opt-out, app identification and static JSON schemas. Document the future Adoption view without implementing it.
+
 ## 0.1.0-alpha.26 - 2026-11-08
 
 - Release the integrated changes since alpha.25: desktop council improvements, NSH diagnostics spike, landing concepts, in-process desktop tests, and updated provider/runtime behavior.

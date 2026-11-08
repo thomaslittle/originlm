@@ -332,7 +332,8 @@ class StagingTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.tmp.name)
-        (self.root / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+        (self.root / 'LICENSE').write_text('Apache-2.0\n', encoding='utf-8')
+        (self.root / 'NOTICE').write_text('OriginLM notice\n', encoding='utf-8')
         self.binary = self.root / 'originlm'
         self.binary.write_bytes(b'#!/bin/sh\nexit 0\n')
 
@@ -342,7 +343,8 @@ class StagingTests(unittest.TestCase):
     def metadata(self, target=TARGET):
         directory = self.root / 'metadata'
         (directory / 'licenses' / 'fixture-1.0').mkdir(parents=True)
-        (directory / 'LICENSE').write_text('MIT\n', encoding='utf-8')
+        (directory / 'LICENSE').write_text('Apache-2.0\n', encoding='utf-8')
+        (directory / 'NOTICE').write_text('OriginLM notice\n', encoding='utf-8')
         (directory / 'THIRD_PARTY_NOTICES.md').write_text('notices\n', encoding='utf-8')
         (directory / 'sbom.cdx.json').write_text('{"components":[]}', encoding='utf-8')
         (directory / 'licenses' / 'fixture-1.0' / 'LICENSE').write_text(
@@ -351,7 +353,7 @@ class StagingTests(unittest.TestCase):
         (directory / 'manifest.json').write_text(json.dumps({
             'schemaVersion': 1, 'kind': 'originlm-helper-archive',
             'name': 'originlm', 'version': NATIVE_VERSION, 'target': target,
-            'license': {'spdx': 'MIT'},
+            'license': {'spdx': 'Apache-2.0'},
             'dependencies': {'count': 1, 'licenseTextsComplete': True},
         }), encoding='utf-8')
         return directory
@@ -383,7 +385,7 @@ class StagingTests(unittest.TestCase):
         manifest = (staged / 'pyproject.toml').read_text('utf-8')
         self.assertNotIn(stage_module.CLASSIFIER, manifest)
         self.assertTrue(result['release'])
-        for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json',
+        for name in ('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json',
                      'manifest.json', 'PROVENANCE.json',
                      'licenses/fixture-1.0/LICENSE'):
             self.assertTrue((staged / 'src/originlm' / name).is_file(), name)

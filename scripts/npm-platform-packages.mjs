@@ -64,8 +64,8 @@ const manifest = {
   os: [spec.os],
   cpu: [spec.cpu],
   bin: { 'originlm': `bin/${executable}` },
-  files: ['bin', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'sbom.cdx.json', 'licenses'],
-  license: 'MIT',
+  files: ['bin', 'README.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'sbom.cdx.json', 'licenses'],
+  license: 'Apache-2.0',
   repository: 'https://github.com/thomaslittle/originlm',
 };
 writeFileSync(join(directory, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -76,6 +76,7 @@ writeFileSync(
     `it contains one binary and runs no install scripts.\n`,
 );
 copyFileSync(new URL('../LICENSE', import.meta.url), join(directory, 'LICENSE'));
+copyFileSync(new URL('../NOTICE', import.meta.url), join(directory, 'NOTICE'));
 if (metadata) {
   if (!existsSync(join(metadata, 'manifest.json')) || !existsSync(join(metadata, 'sbom.cdx.json')) || !existsSync(join(metadata, 'THIRD_PARTY_NOTICES.md'))) {
     console.error(`Incomplete release metadata: ${metadata}`);
