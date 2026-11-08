@@ -1,0 +1,39 @@
+{
+  "palette": {
+    "primary": "#231f20",
+    "accent": "#eba31a",
+    "surface": "#1e1a1b",
+    "text_on_surface": "#faf9f5",
+    "text_on_accent": "#231f20"
+  },
+  "colors": [
+    { "name": "amber", "hex": "#eba31a", "css": "--brand-accent" },
+    { "name": "amberHover", "hex": "#f7bd4b", "css": "--brand-accent-hover" },
+    { "name": "paper", "hex": "#faf9f5", "css": "--brand-text" },
+    { "name": "graphite", "hex": "#231f20", "css": "--brand-ink" },
+    { "name": "darkBackground", "hex": "#1e1a1b", "css": "--brand-background" },
+    { "name": "darkCard", "hex": "#262122", "css": "--brand-surface" },
+    { "name": "darkRaised", "hex": "#2e2829", "css": "--brand-raised" },
+    { "name": "darkBorder", "hex": "#3b3334", "css": "--brand-border" },
+    { "name": "darkMuted", "hex": "#b0a8a1", "css": "--brand-muted" },
+    { "name": "darkSuccess", "hex": "#7cc08f", "css": "--brand-success" },
+    { "name": "darkDanger", "hex": "#e0776b", "css": "--brand-danger" }
+  ],
+  "fonts": {
+    "heading": "Red Hat Display Variable",
+    "body": "Red Hat Display Variable",
+    "mono": "DejaVu Sans Mono"
+  },
+  "logos": [
+    { "file": "media/brand/originlm-horizontal-dark.svg", "type": "wordmark", "on": "dark" },
+    { "file": "media/brand/originlm-horizontal-light.svg", "type": "wordmark", "on": "light" },
+    { "file": "media/brand/originlm-mark-amber.svg", "type": "mark", "on": "dark" },
+    { "file": "media/brand/originlm-mark-white.svg", "type": "mark", "on": "dark" }
+  ],
+  "source": {
+    "by_hand": {
+      "palette": "repo brand/tokens.json and brand/tokens.css",
+      "logos": "repo brand/logos, copied byte-for-byte"
+    }
+  }
+}
