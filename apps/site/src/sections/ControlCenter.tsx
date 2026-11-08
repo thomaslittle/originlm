@@ -21,20 +21,6 @@ export function ControlCenter() {
           </p>
         </div>
 
-        <figure className="cc-shot">
-          <img
-            src="/screens/desktop-overview.webp"
-            srcSet="/screens/desktop-overview-800.webp 800w, /screens/desktop-overview.webp 1440w"
-            sizes="(max-width: 60rem) 100vw, min(1312px, 100vw)"
-            alt="The OriginLM control center overview in example mode: a runtime summary, eight account cards with per-window allowance meters, percent left and reset times, unknown readings marked “Not reported”, and needs-attention and developer panels."
-            width={1440}
-            height={920}
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>Control center, overview. Example mode: synthetic data, no accounts read.</figcaption>
-        </figure>
-
         <div className="cc-grid">
           <dl className="cc-points">
             {POINTS.map(([term, text]) => (
@@ -43,6 +29,22 @@ export function ControlCenter() {
           </dl>
           <UsagePanel />
         </div>
+
+        <figure className="cc-shot">
+          <a className="cc-shot-link" href="/screens/desktop-overview.webp" target="_blank" rel="noreferrer" aria-label="Open the control center overview at full size">
+            <img
+              src="/screens/desktop-overview.webp"
+              srcSet="/screens/desktop-overview-800.webp 800w, /screens/desktop-overview.webp 1440w"
+              sizes="(max-width: 60rem) 100vw, min(1312px, 100vw)"
+              alt="The OriginLM control center overview in example mode: a runtime summary, eight account cards with per-window allowance meters, percent left and reset times, unknown readings marked “Not reported”, and needs-attention and developer panels."
+              width={1440}
+              height={920}
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+          <figcaption>Control center, overview. Example mode: synthetic data, no accounts read. Open the image at full size to inspect the window; the readable meter list is above.</figcaption>
+        </figure>
       </div>
     </section>
   );

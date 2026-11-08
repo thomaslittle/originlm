@@ -67,6 +67,7 @@ export function UsagePanel() {
         <span><b>originlm</b> usage</span>
         <span className="usage-tag">example data</span>
       </figcaption>
+      <p className="usage-legend">Percent used in each window · reset countdown</p>
 
       <ul className="usage-rows">
         {ROWS.map((row) => (

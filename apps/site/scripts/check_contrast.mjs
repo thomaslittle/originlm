@@ -7,6 +7,14 @@
  */
 import { readFile } from 'node:fs/promises';
 
+/* Design-exploration concepts carry their own tokens: `check_contrast.mjs c1` (… c5,
+   index, all). With no argument this checks the published landing page, as before. */
+const concept = process.argv[2];
+if (concept) {
+  const { run } = await import('./check_contrast_concepts.mjs');
+  process.exit((await run(concept)) ? 1 : 0);
+}
+
 const css = await readFile(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const brand = await readFile(new URL('../../../brand/tokens.css', import.meta.url), 'utf8');
 const vars = {};
