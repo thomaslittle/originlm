@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0-alpha.26 — 2026-11-08
+
+- Release the integrated changes since alpha.25: desktop council improvements, NSH diagnostics spike, landing concepts, in-process desktop tests, and updated provider/runtime behavior.
+
 - test(desktop): add headless in-process GPUI shell tests for navigation and the command palette, a Linux/Windows desktop CI job, a nextest slow-timeout profile, and `TESTING.md`. The real-install detection soak now runs nightly or on detection paths instead of every PR.
 - test(desktop): add a native GPUI end-to-end test for the provider list and model plans. It renders the production Overview and Models pages in GPUI's deterministic test window, injects a synthetic bundle, clicks a provider row with GPUI pointer input, and asserts the cleaned account label, the `5 hr`/`Weekly` Codex windows, and the `Free`/`Zen`/`Go`/`Local` OpenCode plan labels. The desktop is now a library plus a thin binary so the production views are testable; no Windows UI Automation, SendKeys or focus stealing is involved.
 - fix(codex): name allowance windows from `windowDurationMins` instead of the raw `primary`/`secondary` JSON keys. The 300-minute window reads as "5 hr" and the 10,080-minute window as "Weekly"; the raw names remain only as a fallback when no duration is reported.
