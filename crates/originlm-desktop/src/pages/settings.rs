@@ -320,6 +320,10 @@ impl Desktop {
 
         let about = ds::panel(&theme)
             .child(ds::panel_head("About", None, &theme))
+            .children(originlm_kit_gpui::credits(
+                originlm_kit::CreditsConfig { show_attribution: self.show_attribution }.credits(),
+                theme.muted_foreground,
+            ).map(|credit| div().px(px(sp::LG)).py(px(sp::SM)).child(credit)))
             .child(
                 div()
                     .h_flex()
@@ -359,7 +363,7 @@ impl Desktop {
             )
             .child(
                 div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::caption(
-                    "Reads the runtime through its public authenticated API. With no shared broker running it hosts a private runtime for this window that runs passive discovery and read-only metadata probes. It never opens the broker database or reads provider credentials. No telemetry.",
+                    "Reads the runtime through its public authenticated API. With no shared broker running it hosts a private runtime for this window that runs passive discovery and read-only metadata probes. It never opens the broker database or reads provider credentials. No account or device identifiers are sent. Optional update and catalog checks respect DO_NOT_TRACK and the configured opt-out.",
                     &theme,
                 )),
             );

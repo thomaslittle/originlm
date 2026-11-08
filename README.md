@@ -8,7 +8,7 @@ operation-specific.
 
 [![CI](https://github.com/thomaslittle/originlm/actions/workflows/ci.yml/badge.svg)](https://github.com/thomaslittle/originlm/actions/workflows/ci.yml)
 [![React Doctor](https://github.com/thomaslittle/originlm/actions/workflows/react-doctor.yml/badge.svg)](https://github.com/thomaslittle/originlm/actions/workflows/react-doctor.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
@@ -220,8 +220,19 @@ python scripts/verify.py --profile all
 
 Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-OriginLM is released under the [MIT License](LICENSE). It builds on and credits several open-source projects; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Provider and product names are trademarks of their owners; their use here does not imply affiliation or endorsement.
+OriginLM is released under the [Apache License 2.0](LICENSE). It builds on and credits several open-source projects; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Provider and product names are trademarks of their owners; their use here does not imply affiliation or endorsement.
 
 ## Distribution status
 
 Names are provisional until reservation and registry access are confirmed. Source packages remain private/unpublishable. See [migration and package identities](docs/integration/migration.md). The user-supplied replacement artwork is recorded in [logo provenance](brand/PROVENANCE.md).
+
+
+## License and trademarks
+
+OriginLM code is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
+The OriginLM name and logo are trademarks; the code license does not grant permission
+to use them to imply endorsement.
+
+### Optional updates, catalogs and credits
+
+Desktop checks the public release and model catalog feeds at `https://originlm.livestreaming.tools` on startup and daily. Override with `ORIGINLM_FEED_BASE_URL`, or set `ORIGINLM_FEED_CONFIG` to a JSON config file. **`DO_NOT_TRACK=1` or `{"enabled":false}` disables all feed requests.** Requests carry no account/device identifiers or telemetry events; desktop identifies only its app name/version. Checks do not install updates. See [feed schemas, configuration and privacy](docs/feeds/README.md), including headless kit credits and the reusable GPUI attribution component. Credits are default-on and hideable.

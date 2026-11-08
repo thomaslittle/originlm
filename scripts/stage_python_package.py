@@ -236,7 +236,7 @@ def _copy_metadata(metadata, package_root, target):
     metadata = pathlib.Path(metadata).resolve()
     if metadata.is_symlink() or not metadata.is_dir():
         raise StageError(f'metadata directory is unavailable: {metadata}')
-    required = ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json', 'manifest.json')
+    required = ('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json', 'manifest.json')
     for name in required:
         _require_regular(metadata / name, name)
     licenses = metadata / 'licenses'
@@ -311,7 +311,7 @@ def stage(binary, target, out, root, *, plat_name=None, metadata=None,
     shutil.copytree(
         source, staged,
         ignore=shutil.ignore_patterns('tests', '__pycache__', '*.egg-info', '_bin',
-                                      'LICENSE', 'THIRD_PARTY_NOTICES.md',
+                                      'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md',
                                       'sbom.cdx.json', 'manifest.json', 'PROVENANCE.json',
                                       'licenses'),
     )
@@ -320,7 +320,7 @@ def stage(binary, target, out, root, *, plat_name=None, metadata=None,
     manifest_text = apply_upload_guard(manifest_text, release)
     manifest_text = manifest_text.replace(
         'originlm = ["py.typed", "*.pyi"]',
-        'originlm = ["py.typed", "*.pyi", "_bin/*", "LICENSE", '
+        'originlm = ["py.typed", "*.pyi", "_bin/*", "LICENSE", "NOTICE", '
         '"THIRD_PARTY_NOTICES.md", "sbom.cdx.json", "manifest.json", '
         '"PROVENANCE.json", "licenses/*/*"]',
     )
@@ -347,6 +347,8 @@ def stage(binary, target, out, root, *, plat_name=None, metadata=None,
         license_source = root / 'LICENSE'
         _require_regular(license_source, 'repository LICENSE')
         shutil.copyfile(license_source, package_root / 'LICENSE')
+
+    shutil.copyfile(root / 'NOTICE', package_root / 'NOTICE')
 
     provenance = {
         'schemaVersion': 1,

@@ -1,4 +1,5 @@
 {
+  "license": "Apache-2.0",
   "name": "originlm-workspace",
   "private": true,
   "version": "0.1.0-alpha.26",

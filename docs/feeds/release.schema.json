@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:originlm:feed:release:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "channel",
+    "publishedAt",
+    "notes"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "SemVer 2.0 version, including prerelease identifiers."
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.:/-]+$"
+    },
+    "publishedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 65536
+    }
+  }
+}

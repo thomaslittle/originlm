@@ -28,7 +28,7 @@ EXPECTED = [
     "originlm",
     "originlm-cli",
 ]
-EXCLUDED = {"originlm-desktop", "originlm-update"}
+EXCLUDED = {"originlm-desktop", "originlm-update", "originlm-kit-gpui"}
 
 
 class PublishOrder(unittest.TestCase):
