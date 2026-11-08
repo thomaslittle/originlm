@@ -1,0 +1,27 @@
+# GPU and render path — OriginLM promo
+
+Machine: Windows 11 + WSL2 Ubuntu 24.04, RTX 3080 (WSLg), raea 0.1.0-canary.2.
+
+## What the final render used
+
+- `raea render edit.tsx --at 0..799 -o frames/ --lite` (800 PNG frames), default Mesa
+  loader with no `VK_ICD_FILENAMES` override.
+- The raea log on this path says `WARNING: dzn is not a conformant Vulkan implementation,
+  testing use only.` and `[INFO wgpu_hal::vulkan::adapter] Found 2 cooperative matrix
+  configurations supported by wgpu`. The Dozen ICD is being enumerated by the loader.
+- 200-frame sample render with the same path, sampled with `nvidia-smi` every 0.5 s:
+  utilisation min 4 %, median 22 %, max 64 %; about 4.5 GiB device memory in use.
+  Idle sample over 8 s: min 4 %, median 15 %, max 46 %.
+- Encoding: x86-64 libx264 (CPU), CRF 14, yuv420p. OpenH264/NVENC is not used.
+
+## What was refused
+
+- `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/dzn_icd.json` forced: raea wrote a valid
+  21 KB MP4 whose every frame is solid green. Rejected.
+- `VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json` forced: same green output. Rejected.
+- The direct `raea render -o file.mp4` path on the default loader produced trailing/stale
+  pixels around moving elements in this build; the PNG-frame path rendered clean frames,
+  so the final master is those frames encoded with ffmpeg.
+
+No NVIDIA Linux driver was installed, no Windows reboot, and no native Windows raea was
+looked for. The film is honest about what ran: a WSL render, not a Windows product feature.

@@ -1,0 +1,358 @@
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+  configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'originlm-promo.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf60.16.100
+  Duration: 00:00:26.67, start: 0.000000, bitrate: 2586 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1920x1080, 2583 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc60.31.102 libx264
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> wrapped_avframe (native))
+Press [q] to stop, [?] for help
+[Parsed_metadata_1 @ 0x623731699f40] frame:0    pts:0       pts_time:0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=27
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.09
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.289
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.382
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.34816
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=120
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.622
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+Output #0, null, to 'pipe:':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf60.16.100
+  Stream #0:0(und): Video: wrapped_avframe, yuv420p(tv, bt709, progressive), 1920x1080, q=2-31, 200 kb/s, 30 fps, 30 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc60.31.102 wrapped_avframe
+frame=    0 fps=0.0 q=-0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=   0x    [Parsed_metadata_1 @ 0x623731699f40] frame:1    pts:512     pts_time:0.0333333
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=27
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.109
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=50
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.292
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.388
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.3484
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=89
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=123
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.728
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.107845
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0090162
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0105613
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:2    pts:1024    pts_time:0.0666667
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=27
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.098
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=50
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.287
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.385
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35271
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=4
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=89
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=119
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.637
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.101581
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.012853
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0127836
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:3    pts:1536    pts_time:0.1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=27
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.123
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.291
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.387
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35117
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=120
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.691
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.0956747
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0123804
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.00939043
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:4    pts:2048    pts_time:0.133333
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=26
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.08
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=239
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.288
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.382
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35006
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=118
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.6
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.146572
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.018615
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0147647
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:5    pts:2560    pts_time:0.166667
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=27
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.119
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.292
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=98
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.385
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.34991
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=120
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.704
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.156942
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0106617
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.00649113
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:6    pts:3072    pts_time:0.2
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=25
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.096
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.288
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=98
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.384
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35283
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=4
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=118
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.636
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.0952194
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0125058
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0109761
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:7    pts:3584    pts_time:0.233333
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=25
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.099
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.288
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=98
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.384
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35176
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=119
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.635
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.0988744
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.00999807
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.00780864
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:8    pts:4096    pts_time:0.266667
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=25
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.097
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=239
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.293
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=98
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.389
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35252
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=122
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.792
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.184041
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0196566
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0184221
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:9    pts:4608    pts_time:0.3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=25
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.075
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=51
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.29
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=98
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.382
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=173
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.34889
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=3
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=88
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=119
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.634
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.149782
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0173206
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0170486
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] frame:10   pts:6144    pts_time:0.4
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMIN=25
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YLOW=34
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YAVG=137.135
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YHIGH=230
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YMAX=238
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMIN=52
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.ULOW=125
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UAVG=126.283
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UHIGH=128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UMAX=131
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMIN=99
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VLOW=129
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VAVG=129.383
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VHIGH=130
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VMAX=174
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMIN=0
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATLOW=1
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATAVG=2.35469
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATHIGH=4
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.SATMAX=87
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEMED=119
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.HUEAVG=140.551
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YDIF=0.349128
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UDIF=0.0270293
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VDIF=0.0227739
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.YBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.UBITDEPTH=8
+[Parsed_metadata_1 @ 0x623731699f40] lavfi.signalstats.VBITDEPTH=8
+[out#0/null @ 0x623730e50800] video:0kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+frame=    1 fps=0.0 q=-0.0 Lsize=N/A time=00:00:00.00 bitrate=N/A speed=   0x    
