@@ -3,7 +3,7 @@
 
 use crate::app::{Desktop, Page};
 use crate::data;
-use crate::ds::{self, sp, ty};
+use crate::ds::{self, Focusable as _, sp, ty};
 use crate::ui::{self, Tone};
 use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{ActiveTheme, IconName, Theme};
@@ -131,7 +131,10 @@ fn compact_tokens(value: u64) -> String {
     }
 }
 
-/// One allowance window on a single line: label, meter, percent, reset.
+/// One allowance window: label, figure and reset on one line, meter beneath.
+/// Same shape as the quota list on Usage history. Nothing is fixed-width, so
+/// "Example session window" and "17 requests used" stay readable instead of
+/// being cut mid-word by a 78px label column and a 72px figure column.
 fn window_line(window: &WindowView, theme: &Theme) -> Div {
     let (meter_value, figure, figure_color) = match &window.reading {
         Reading::Fraction(value) => (
@@ -147,30 +150,44 @@ fn window_line(window: &WindowView, theme: &Theme) -> Div {
         Reading::Fraction(_) => ui::format_countdown(window.reset.as_deref()),
         _ => None,
     };
+    let label = if matches!(window.reading, Reading::Count(_)) {
+        "Count only"
+    } else {
+        window.label.as_str()
+    };
     div()
-        .h_flex()
-        .items_center()
-        .gap(px(sp::SM))
-        .child(
-            ds::caption(window.label.clone(), theme)
-                .w(px(68.))
-                .truncate(),
-        )
+        .v_flex()
+        .gap(px(4.))
         .child(
             div()
-                .w(px(96.))
-                .flex_shrink_0()
-                .child(ds::meter(meter_value, theme)),
+                .h_flex()
+                .items_center()
+                .gap(px(sp::SM))
+                .child(ds::caption(label, theme).flex_1().min_w(px(0.)).truncate())
+                .child(ds::mono(figure, ty::CAPTION, figure_color, theme).flex_shrink_0())
+                .when_some(reset, |this, reset| {
+                    this.child(ds::caption(reset, theme).flex_shrink_0())
+                })
+                .when(window.stale, |this| this.child(ds::caption("Stale", theme))),
         )
-        .child(
-            ds::mono(figure, ty::CAPTION, figure_color, theme)
-                .w(px(42.))
-                .truncate(),
-        )
-        .when_some(reset, |this, reset| {
-            this.child(ds::caption(reset, theme).flex_1().truncate())
-        })
-        .when(window.stale, |this| this.child(ds::caption("stale", theme)))
+        .child(ds::meter(meter_value, theme))
+}
+
+/// A compact count/label pair for the Routes strip. Four of these sit on one
+/// row so the rail does not grow when the prose would wrap.
+fn route_stat(count: usize, label: &'static str, theme: &Theme) -> Div {
+    div()
+        .h_flex()
+        .items_end()
+        .flex_none()
+        .gap(px(4.))
+        .child(ds::mono(
+            count.to_string(),
+            ty::SMALL,
+            theme.foreground,
+            theme,
+        ))
+        .child(ds::caption(label, theme))
 }
 
 /// A usage read that failed is different from a client that publishes no
@@ -325,9 +342,12 @@ fn provider_row(
             .h_flex()
             .items_center()
             .gap(px(sp::MD))
-            .min_h(px(44.))
+            // 36px keeps the two-line identity readable while recovering the
+            // ~32px that the right-rail wrap cost the Overview fold. Still
+            // above the 28px minimum hit target.
+            .min_h(px(36.))
             .px(px(sp::LG))
-            .py(px(2.))
+            .py(px(0.))
             .border_b_1()
             .border_color(theme.border.opacity(0.7))
             .child(identity)
@@ -348,6 +368,8 @@ fn provider_row(
     let row_id = SharedString::from(format!("provider-row-{}", view.connection_id));
     let row = body
         .id(row_id)
+        .role(gpui::Role::Button)
+        .focus_ring(theme)
         .aria_label(if window_summary.is_empty() {
             format!("{}, {}", view.provider, view.account)
         } else {
@@ -606,7 +628,11 @@ impl Desktop {
                                 ui::tone_color(tone, &theme),
                             ))
                             .child(
+                                // Let long alerts wrap inside the 320px rail
+                                // instead of being clipped mid-word.
                                 div()
+                                    .flex_1()
+                                    .min_w(px(0.))
                                     .text_size(px(ty::SMALL))
                                     .text_color(theme.foreground)
                                     .child(text),
@@ -642,23 +668,21 @@ impl Desktop {
                     .v_flex()
                     .px(px(sp::LG))
                     .py(px(sp::SM))
-                    .child(ds::kv(
-                        "Routes",
-                        ds::mono(
-                            format!(
-                                "{subscription} subscription · {metered} metered · {local} local{}",
-                                if other > 0 {
-                                    format!(" · {other} unknown")
-                                } else {
-                                    String::new()
-                                }
-                            ),
-                            ty::SMALL,
-                            theme.foreground,
-                            &theme,
-                        ),
-                        &theme,
-                    ))
+                    .child(
+                        div()
+                            .h_flex()
+                            .items_center()
+                            .gap(px(sp::SM))
+                            .min_h(px(28.))
+                            .child(ds::caption("Routes", &theme))
+                            .child(div().flex_1())
+                            .child(route_stat(subscription as usize, "subs", &theme))
+                            .child(route_stat(metered as usize, "metered", &theme))
+                            .child(route_stat(local as usize, "local", &theme))
+                            .when(other > 0, |this| {
+                                this.child(route_stat(other as usize, "unknown", &theme))
+                            }),
+                    )
                     .child(ds::kv(
                         "Connected apps",
                         div().text_size(px(ty::SMALL)).child(apps_value),

@@ -29,5 +29,6 @@ export const brand = {
   "sceneRaised": "#1b1e24",
   "darkInput": "#807975",
   "lightInput": "#6b635c",
-  "lightAmberText": "#8f5d00"
+  "lightAmberText": "#8f5d00",
+  "meterOutline": "#7c746e"
 } as const;

@@ -4,7 +4,7 @@
 //! the protocol fabricates a time series, so the desktop client keeps the
 //! observations it actually saw, and labels them as locally collected.
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration};
 use originlm_contracts::{Observation, Snapshot, UsageReading};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -50,7 +50,7 @@ impl History {
     pub fn load() -> Self {
         let path = state_dir().map(|path| path.join("usage-history.jsonl"));
         let mut samples = Vec::new();
-        let cutoff = Utc::now() - Duration::days(30);
+        let cutoff = crate::clock::utc_now() - Duration::days(30);
         if let Some(file) = path.as_ref().and_then(|path| fs::File::open(path).ok()) {
             for line in BufReader::new(file.take(16 * 1024 * 1024))
                 .lines()
@@ -165,7 +165,9 @@ impl History {
         let temporary = parent.join(format!(
             ".usage-history-{}-{}.tmp",
             std::process::id(),
-            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+            crate::clock::utc_now()
+                .timestamp_nanos_opt()
+                .unwrap_or_default()
         ));
         let mut options = fs::OpenOptions::new();
         options.write(true).create_new(true);
@@ -262,7 +264,7 @@ mod tests {
             samples: Vec::new(),
             path: None,
         };
-        history.observe(&snapshot, Utc::now().timestamp());
+        history.observe(&snapshot, crate::clock::timestamp());
         assert!(history.samples.is_empty());
     }
 }

@@ -77,7 +77,7 @@ pub fn format_age(seconds: i64) -> String {
 pub fn format_countdown(resets_at: Option<&str>) -> Option<String> {
     let value = resets_at?;
     let reset = chrono::DateTime::parse_from_rfc3339(value).ok()?;
-    let seconds = (reset.with_timezone(&chrono::Utc) - chrono::Utc::now()).num_seconds();
+    let seconds = (reset.with_timezone(&chrono::Utc) - crate::clock::utc_now()).num_seconds();
     if seconds <= 0 {
         return Some("reset due".into());
     }
@@ -100,15 +100,15 @@ pub fn billing_label(route: &originlm_contracts::AccessRoute) -> &'static str {
             value, freshness, ..
         } => {
             let label = match value {
-                BillingMode::Subscription => "subscription",
-                BillingMode::ApiMetered => "metered API",
-                BillingMode::PrepaidCredits => "prepaid credits",
-                BillingMode::Local => "local",
-                BillingMode::Mixed => "mixed",
-                BillingMode::Unknown => "billing unknown",
+                BillingMode::Subscription => "Subscription",
+                BillingMode::ApiMetered => "Metered API",
+                BillingMode::PrepaidCredits => "Prepaid credits",
+                BillingMode::Local => "Local",
+                BillingMode::Mixed => "Mixed",
+                BillingMode::Unknown => "Billing unknown",
             };
             if matches!(freshness, originlm_contracts::Freshness::Stale) {
-                "stale billing"
+                "Stale billing"
             } else {
                 label
             }
