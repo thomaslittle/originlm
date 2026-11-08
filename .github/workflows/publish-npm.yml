@@ -7,6 +7,14 @@ name: Publish npm packages
 on:
   workflow_dispatch:
     inputs:
+      tag_only:
+        description: Update the universal SDK dist-tag without publishing
+        type: boolean
+        default: false
+      tag_version:
+        description: Existing universal SDK version for tag-only mode
+        type: string
+        default: 0.1.0-alpha.25
       artifact_run_id:
         description: 'Prepare release artifacts run ID containing npm-release'
         required: true
@@ -39,7 +47,29 @@ concurrency:
   group: publish-npm
   cancel-in-progress: false
 jobs:
+  promote:
+    if: ${{ inputs.tag_only }}
+    runs-on: ubuntu-24.04
+    environment: release-npm
+    steps:
+      - name: Require explicit promotion confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: test "$CONFIRM" = PUBLISH
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Promote existing SDK version through trusted publishing
+        env:
+          VERSION: ${{ inputs.tag_version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "false" ]; then
+            npx --yes npm@11.21.0 dist-tag add "originlm@$VERSION" "$DIST_TAG"
+          fi
+          npx --yes npm@11.21.0 view originlm dist-tags --json
   publish:
+    if: ${{ !inputs.tag_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release-npm
