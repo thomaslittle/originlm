@@ -1,0 +1,56 @@
+/* @contrast
+   ink on bg 4.5
+   muted on bg 4.5
+   muted on card 4.5
+   ink on card 4.5
+   focus on bg 3
+*/
+@font-face {
+  font-family: "Red Hat Display Variable";
+  src: url("../../../../../brand/fonts/RedHatDisplay-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Martian Code";
+  src: url("../../assets/fonts/MartianMono-Code.woff2") format("woff2");
+  font-weight: 100 800;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+}
+.cx-index {
+  --bg: #f2f1ee; --card: #ffffff; --ink: #151514; --muted: #5d5b57; --rule: #d9d6cf; --focus: #1f5fd1;
+  min-height: 100vh; background: var(--bg); color: var(--ink);
+  font-family: "Red Hat Display Variable", system-ui, sans-serif; line-height: 1.5;
+}
+body.cx-index-body { margin: 0; background: #f2f1ee; overflow-x: clip; }
+.cx-index *, .cx-index *::before, .cx-index *::after { box-sizing: border-box; }
+.cx-index :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+.cx-skip { position: absolute; left: 16px; top: -60px; background: var(--ink); color: var(--bg); padding: 8px 12px; z-index: 10; }
+.cx-skip:focus { top: 16px; }
+.cx-head, .cx-index main, .cx-foot { max-width: 1240px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 48px); }
+.cx-head { padding-block: clamp(48px, 9vw, 112px) 40px; }
+.cx-kicker { font: 500 12px/1.4 "Martian Code", monospace; font-stretch: 87.5%; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 20px; }
+.cx-head h1 { font-size: clamp(44px, 8vw, 104px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.92; margin: 0; }
+.cx-lead { max-width: 60ch; font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); margin: 24px 0 0; }
+.cx-lead strong { color: var(--ink); font-weight: 650; }
+.cx-lead a { color: var(--ink); }
+.cx-grid { list-style: none; margin: 0; padding: 0 0 64px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 28px; }
+.cx-card { min-width: 0; }
+.cx-link { display: block; text-decoration: none; color: inherit; background: var(--card); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.cx-link:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -24px rgb(0 0 0 / 35%); }
+.cx-shot { display: block; aspect-ratio: 16 / 10; background: #1b1b1a; border-bottom: 1px solid var(--rule); overflow: hidden; }
+.cx-shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.cx-shot-empty { display: grid; place-items: center; height: 100%; color: #cfcac0; font: 600 28px "Martian Code", monospace; }
+.cx-meta { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; padding: 20px 22px 22px; align-items: start; }
+.cx-n { font: 600 14px "Martian Code", monospace; color: var(--muted); padding-top: 4px; }
+.cx-text { display: grid; gap: 4px; min-width: 0; }
+.cx-name { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; }
+.cx-idea { font: 500 12px "Martian Code", monospace; font-stretch: 87.5%; color: var(--muted); }
+.cx-pitch { color: var(--muted); margin-top: 6px; }
+.cx-swatches { display: flex; gap: 4px; padding-top: 6px; }
+.cx-swatches span { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 18%); }
+.cx-foot { padding-block: 0 56px; color: var(--muted); font-size: 14px; }
+.cx-foot p { margin: 0; max-width: 70ch; border-top: 1px solid var(--rule); padding-top: 20px; }
+@media (max-width: 520px) { .cx-meta { grid-template-columns: 1fr; } .cx-n, .cx-swatches { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cx-link { transition: none; } .cx-link:hover { transform: none; } }
