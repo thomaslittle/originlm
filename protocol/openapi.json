@@ -1513,6 +1513,188 @@
         ],
         "type": "object"
       },
+      "IntelligenceCatalog": {
+        "additionalProperties": false,
+        "description": "A snapshot of the durable cache. `models` may be empty when the first sync\nhas not completed.",
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "configured": {
+            "description": "True when the cache has a configured source. RankLLMs needs no key.",
+            "type": "boolean"
+          },
+          "defaultSortForApps": {
+            "description": "User opt-in: when true, `models.list`/`models.page` default to\nIntelligence Index order for clients that do not pass `sort`.",
+            "type": "boolean"
+          },
+          "fetchedAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "indexVersion": {
+            "description": "RankLLMs does not publish an index version today. Present so another\nsource can report one without changing the wire shape.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceModel"
+            },
+            "type": "array"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stale": {
+            "description": "True when the cached fetch is older than the documented refresher.",
+            "type": "boolean"
+          },
+          "tier": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "attribution",
+          "models",
+          "configured",
+          "stale",
+          "defaultSortForApps"
+        ],
+        "type": "object"
+      },
+      "IntelligenceConfigureParams": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultSortForApps": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "defaultSortForApps"
+        ],
+        "type": "object"
+      },
+      "IntelligenceModel": {
+        "additionalProperties": false,
+        "description": "One model in the RankLLMs leaderboard.",
+        "properties": {
+          "agenticIndex": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "capabilityIndexes": {
+            "additionalProperties": {
+              "format": "double",
+              "type": "number"
+            },
+            "description": "RankLLMs capability indices, when present in a future response shape.",
+            "type": "object"
+          },
+          "codingIndex": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "creator": {
+            "type": "string"
+          },
+          "id": {
+            "description": "RankLLMs' stable numeric model id.",
+            "type": "string"
+          },
+          "inputPriceUsdPerMillion": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "intelligenceIndex": {
+            "description": "Null means the model has no published Intelligence Index yet.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "medianOutputTokensPerSecond": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "medianTimeToFirstTokenSeconds": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "openrouterId": {
+            "default": null,
+            "description": "OpenRouter model id when RankLLMs has one. This is the best matching\nkey for provider-native catalogs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputPriceUsdPerMillion": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "releaseDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "description": "Stable RankLLMs slug. This is the cache key.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "creator",
+          "capabilityIndexes"
+        ],
+        "type": "object"
+      },
       "InventoryChange": {
         "additionalProperties": false,
         "properties": {
@@ -1993,6 +2175,15 @@
           "inputs.put": {
             "$ref": "#/components/schemas/InputPutParams"
           },
+          "intelligence.catalog": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
+          "intelligence.configure": {
+            "$ref": "#/components/schemas/IntelligenceConfigureParams"
+          },
+          "intelligence.refresh": {
+            "$ref": "#/components/schemas/EmptyParams"
+          },
           "issues.acknowledge": {
             "$ref": "#/components/schemas/IssueUpdateParams"
           },
@@ -2050,6 +2241,9 @@
           "sessions.suspend": {
             "$ref": "#/components/schemas/SessionParams"
           },
+          "sessions.switchModel": {
+            "$ref": "#/components/schemas/SessionSwitchModelParams"
+          },
           "sessions.updateOptions": {
             "$ref": "#/components/schemas/SessionOptionsParams"
           },
@@ -2085,6 +2279,9 @@
           "connections.probe",
           "models.list",
           "models.page",
+          "intelligence.catalog",
+          "intelligence.refresh",
+          "intelligence.configure",
           "usage.read",
           "usage.history",
           "models.local",
@@ -2098,6 +2295,7 @@
           "grants.list",
           "grants.revoke",
           "sessions.create",
+          "sessions.switchModel",
           "sessions.get",
           "sessions.suspend",
           "sessions.resume",
@@ -2191,6 +2389,15 @@
           "inputs.put": {
             "$ref": "#/components/schemas/InputPutResult"
           },
+          "intelligence.catalog": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
+          "intelligence.configure": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
+          "intelligence.refresh": {
+            "$ref": "#/components/schemas/IntelligenceCatalog"
+          },
           "issues.acknowledge": {
             "$ref": "#/components/schemas/IssueUpdateResult"
           },
@@ -2257,6 +2464,9 @@
           "sessions.suspend": {
             "$ref": "#/components/schemas/SessionSuspendResult"
           },
+          "sessions.switchModel": {
+            "$ref": "#/components/schemas/Session"
+          },
           "sessions.updateOptions": {
             "$ref": "#/components/schemas/Session"
           },
@@ -2293,6 +2503,9 @@
           "connections.probe",
           "models.list",
           "models.page",
+          "intelligence.catalog",
+          "intelligence.refresh",
+          "intelligence.configure",
           "usage.read",
           "usage.history",
           "models.local",
@@ -2306,6 +2519,7 @@
           "grants.list",
           "grants.revoke",
           "sessions.create",
+          "sessions.switchModel",
           "sessions.get",
           "sessions.suspend",
           "sessions.resume",
@@ -2433,6 +2647,14 @@
               "string",
               "null"
             ]
+          },
+          "sort": {
+            "default": null,
+            "description": "`catalog` (default) or `intelligence`.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -2518,6 +2740,14 @@
         "properties": {
           "routeId": {
             "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sort": {
+            "default": null,
+            "description": "`catalog` (default) or `intelligence` (highest cached Intelligence\nIndex first, unknown scores last).",
             "type": [
               "string",
               "null"
@@ -3783,8 +4013,26 @@
           "connectionId": {
             "type": "string"
           },
+          "conversationId": {
+            "description": "Stable host-facing conversation identity. Sessions created with the\nsame id share OriginLM's canonical transcript, so a different model can\ncontinue the conversation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "createdAt": {
             "$ref": "#/components/schemas/Timestamp"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionHistory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What prior conversation was seeded into this session, including any\ndeterministic trimming. Absent when nothing was carried forward."
           },
           "id": {
             "type": "string"
@@ -3816,12 +4064,26 @@
             "default": false,
             "type": "boolean"
           },
+          "conversationId": {
+            "description": "Host-owned conversation identity. Sessions created with the same id\nshare OriginLM's canonical transcript, so a new model can continue the\nconversation. Omit for a new conversation; the returned session carries\nthe generated id. Never put credentials in this value.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "hostMcpServers": {
             "description": "Host-owned loopback MCP servers attached to a native-client session.\nIn the default read-only mode, only these listed tools may be called.\nThe separately granted `native_policy` mode also enables the native\nclient's own tools and policy.",
             "items": {
               "$ref": "#/components/schemas/HostMcpServer"
             },
             "type": "array"
+          },
+          "instructions": {
+            "description": "Application instructions for this conversation (for example a compact\nhome or workspace summary). This is kept out of the trimmed transcript\nand is sent once, when the new provider session starts.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "permissionMode": {
             "default": null,
@@ -3848,6 +4110,46 @@
         "required": [
           "selection",
           "workspaceId"
+        ],
+        "type": "object"
+      },
+      "SessionHistory": {
+        "additionalProperties": false,
+        "description": "How much prior conversation OriginLM seeded into a newly opened session.\nTrimming is reported, never silent.",
+        "properties": {
+          "estimatedTokens": {
+            "description": "Conservative byte-based estimate of the seeded conversation.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "folded": {
+            "default": false,
+            "description": "True when the old model summarized the prior conversation before this\nsession was opened. The summary is part of the seed, not the transcript.",
+            "type": "boolean"
+          },
+          "omittedTurns": {
+            "description": "Older turns dropped to fit the target model's context budget.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trimmed": {
+            "description": "True when any turn, stored or target-budget trimming, was omitted.",
+            "type": "boolean"
+          },
+          "turns": {
+            "description": "Turns carried forward verbatim.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "turns",
+          "omittedTurns",
+          "estimatedTokens",
+          "trimmed"
         ],
         "type": "object"
       },
@@ -3921,6 +4223,52 @@
         },
         "required": [
           "resumeToken"
+        ],
+        "type": "object"
+      },
+      "SessionSwitchModelParams": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPaid": {
+            "description": "Accept a paid target route. Omitted inherits the previous session.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "fold": {
+            "description": "When the prior transcript exceeds the target model's budget, ask the\nprevious model for a compact summary before seeding the new session.\nDefaults to true. If the old model cannot summarize, OriginLM falls\nback to deterministic oldest-turn trimming.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "instructions": {
+            "description": "Replace the application instructions. Omitted keeps the current ones.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "persistent": {
+            "description": "Keep the new provider conversation resumable after a helper restart.\nOmitted inherits the previous session when the target route supports it.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "selection": {
+            "$ref": "#/components/schemas/Selection",
+            "description": "Target route, model, revision and provider options."
+          },
+          "sessionId": {
+            "description": "The session whose canonical transcript is carried forward. It must be\nidle or completed; it is closed after the replacement session opens.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "selection"
         ],
         "type": "object"
       },
@@ -5309,6 +5657,84 @@
                         "const": "2.0"
                       },
                       "method": {
+                        "const": "intelligence.catalog"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "intelligence.configure"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/IntelligenceConfigureParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "intelligence.refresh"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/EmptyParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
                         "const": "issues.acknowledge"
                       },
                       "params": {
@@ -5781,6 +6207,32 @@
                       },
                       "params": {
                         "$ref": "#/components/schemas/SessionParams"
+                      }
+                    },
+                    "required": [
+                      "jsonrpc",
+                      "id",
+                      "method"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "jsonrpc": {
+                        "const": "2.0"
+                      },
+                      "method": {
+                        "const": "sessions.switchModel"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/SessionSwitchModelParams"
                       }
                     },
                     "required": [

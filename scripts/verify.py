@@ -22,8 +22,9 @@ def js_package(name):
     run(['node','--experimental-strip-types','--test',*tests])
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--profile',choices=['core','adapters','selectors','sdk-typescript','sdk','javascript','react','generation','integration','ui','release','all'],default='core');p.add_argument('--adapter');a=p.parse_args();full=a.profile in ('all','release')
+    p=argparse.ArgumentParser();p.add_argument('--profile',choices=['core','desktop','adapters','selectors','sdk-typescript','sdk','javascript','react','generation','integration','ui','release','all'],default='core');p.add_argument('--adapter');a=p.parse_args();full=a.profile in ('all','release')
     if a.profile=='core' or full:run(['cargo','test','--workspace','--all-targets','--locked','--no-fail-fast'],'Cargo.toml')
+    if a.profile=='desktop':run(['cargo','test','-p','originlm-desktop','--locked'],'crates/originlm-desktop/Cargo.toml')
     if a.profile=='adapters':run([sys.executable,'scripts/adapter_conformance.py',*(['--adapter',a.adapter] if a.adapter else ['--all'])])
     if a.profile in ('selectors','javascript') or full:js_package('selector-core')
     if a.profile in ('sdk-typescript','sdk','javascript') or full:

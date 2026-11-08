@@ -186,7 +186,8 @@ async fn handshake_advertises_image_input_and_put_method() {
         json!([
             "turn.input.image",
             "session.host_mcp",
-            "session.host_mcp.native_tools"
+            "session.host_mcp.native_tools",
+            "session.conversation.handoff"
         ])
     );
 }

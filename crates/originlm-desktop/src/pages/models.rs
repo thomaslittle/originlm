@@ -11,12 +11,22 @@ use gpui_kit::component::{
     ActiveTheme, IconName, Theme,
     button::{Button, ButtonVariants},
     input::Input,
+    tooltip::Tooltip,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 #[cfg(test)]
 use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
-use originlm_contracts::{Model, OptionControl, Snapshot, Support};
+use originlm_contracts::{
+    IntelligenceCatalog, IntelligenceScores, Model, OptionControl, Snapshot, Support,
+    intelligence_order,
+};
+
+fn index_label(score: Option<f64>) -> String {
+    score
+        .map(|score| format!("{score:.1}"))
+        .unwrap_or_else(|| "\u{2014}".into())
+}
 
 impl Desktop {
     pub fn page_models(&mut self, cx: &mut Context<Self>) -> AnyElement {
@@ -42,7 +52,13 @@ impl Desktop {
 
         let query = self.query.to_lowercase();
         let favorites_only = self.favorites_only;
-        let models: Vec<&Model> = snapshot
+        let intelligence = self
+            .bundle
+            .as_ref()
+            .map(|bundle| bundle.intelligence.clone())
+            .unwrap_or_default();
+        let scores = IntelligenceScores::from_catalog(&intelligence);
+        let mut models: Vec<&Model> = snapshot
             .models
             .iter()
             .filter(|model| {
@@ -52,6 +68,9 @@ impl Desktop {
             })
             .filter(|model| !favorites_only || self.favorites.contains(&model.id))
             .collect();
+        if self.models_sort_by_intelligence {
+            models.sort_by(|left, right| intelligence_order(&scores, left, right));
+        }
         let selected = self
             .selected_model
             .clone()
@@ -77,10 +96,25 @@ impl Desktop {
             },
         );
 
+        let sort = ds::tabs(
+            "models-sort",
+            ["Index", "Catalog"],
+            usize::from(!self.models_sort_by_intelligence),
+            &theme,
+            {
+                let entity = entity.clone();
+                move |index, _, cx| {
+                    entity.update(cx, |this, cx| {
+                        this.set_models_sort_by_intelligence(index == 0, cx);
+                    })
+                }
+            },
+        );
+
         let rows: Vec<AnyElement> = models
             .iter()
             .take(300)
-            .map(|model| self.model_row(&snapshot, model, selected.as_deref(), &theme, cx))
+            .map(|model| self.model_row(&snapshot, model, &scores, selected.as_deref(), &theme, cx))
             .collect();
         let list_body: AnyElement = if rows.is_empty() {
             ds::state(
@@ -118,7 +152,8 @@ impl Desktop {
                     .border_b_1()
                     .border_color(theme.border)
                     .child(div().flex_1().min_w(px(0.)).child(Input::new(&self.search)))
-                    .child(filter),
+                    .child(filter)
+                    .child(sort),
             )
             .child(
                 ds::table_head(&theme)
@@ -126,6 +161,7 @@ impl Desktop {
                     .child(div().w(px(32.)).flex_shrink_0())
                     .child(ds::th("Model", None, &theme))
                     .child(ds::th("Billing", Some(130.), &theme))
+                    .child(ds::th("Index", Some(96.), &theme))
                     .child(ds::th("Options", Some(64.), &theme)),
             )
             .child(list_body);
@@ -133,7 +169,7 @@ impl Desktop {
         let inspector = selected
             .as_ref()
             .and_then(|id| snapshot.models.iter().find(|m| &m.id == id))
-            .map(|model| self.model_inspector(&snapshot, model, &theme, cx))
+            .map(|model| self.model_inspector(&snapshot, model, &scores, &intelligence, &theme, cx))
             .unwrap_or_else(|| div().into_any_element());
 
         let wide = self.content_width() >= 1000.;
@@ -166,6 +202,7 @@ impl Desktop {
         &self,
         snapshot: &Snapshot,
         model: &Model,
+        scores: &IntelligenceScores,
         selected: Option<&str>,
         theme: &Theme,
         cx: &mut Context<Self>,
@@ -276,6 +313,27 @@ impl Desktop {
             Tone::Neutral,
             theme,
         )))
+        .child({
+            let score = scores.score(&model.native_id, &model.name);
+            let tip = "Intelligence Index via RankLLMs; scores originate from Artificial Analysis where applicable. Cached locally.";
+            div()
+                .id(SharedString::from(format!("aa-index-{}", model.id)))
+                .tooltip(move |window, cx| Tooltip::new(tip).build(window, cx))
+                .h_flex()
+                .w(px(96.))
+                .flex_shrink_0()
+                .child(ds::mono(
+                    index_label(score),
+                    ty::SMALL,
+                    if score.is_some() {
+                        theme.foreground
+                    } else {
+                        theme.muted_foreground
+                    },
+                    theme,
+                ))
+                .into_any_element()
+        })
         .child(div().w(px(64.)).flex_shrink_0().child(ds::mono(
             model.options.len().to_string(),
             ty::SMALL,
@@ -297,6 +355,8 @@ impl Desktop {
         &self,
         snapshot: &Snapshot,
         model: &Model,
+        scores: &IntelligenceScores,
+        intelligence: &IntelligenceCatalog,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -402,7 +462,42 @@ impl Desktop {
                                 ds::chip(capability_name(&cap.id), Tone::Neutral, theme)
                             })),
                         theme,
-                    )),
+                    ))
+                    .child(ds::kv(
+                        "Intelligence Index",
+                        {
+                            let score = scores.score(&model.native_id, &model.name);
+                            div()
+                                .h_flex()
+                                .items_center()
+                                .gap(px(sp::SM))
+                                .child(ds::mono(
+                                    index_label(score),
+                                    ty::BODY,
+                                    if score.is_some() {
+                                        theme.foreground
+                                    } else {
+                                        theme.muted_foreground
+                                    },
+                                    theme,
+                                ))
+                                .child(ds::caption(
+                                    match intelligence.index_version {
+                                        Some(version) => format!("RankLLMs · v{version}"),
+                                        None => "via RankLLMs".into(),
+                                    },
+                                    theme,
+                                ))
+                                .into_any_element()
+                        },
+                        theme,
+                    ))
+                    .child(div().px(px(sp::LG)).pb(px(sp::SM)).child(ds::link(
+                        "aa-attribution",
+                        "Scores: RankLLMs · Artificial Analysis source",
+                        theme,
+                        |_, _, cx| cx.open_url("https://rankllms.com/"),
+                    ))),
             )
             .child(
                 div()

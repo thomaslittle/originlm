@@ -14,6 +14,7 @@ mod events;
 mod evidence;
 mod health;
 mod identity;
+mod intelligence;
 mod local_models;
 mod metadata;
 mod options;
@@ -25,6 +26,7 @@ pub use events::*;
 pub use evidence::*;
 pub use health::*;
 pub use identity::*;
+pub use intelligence::*;
 pub use local_models::*;
 pub use metadata::*;
 pub use options::*;
@@ -39,6 +41,8 @@ pub struct PublicContracts {
     connection: Connection,
     route: AccessRoute,
     model: Model,
+    intelligence: IntelligenceCatalog,
+    intelligence_model: IntelligenceModel,
     option: OptionDescriptor,
     pool: QuotaPool,
     session: Session,

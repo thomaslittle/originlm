@@ -13,6 +13,7 @@ originlm-contracts = { version = "0.1.0-alpha.25", path = "../originlm-contracts
 originlm-core = { version = "0.1.0-alpha.25", path = "../originlm-core" }
 originlm-service = { version = "0.1.0-alpha.25", path = "../originlm-service" }
 originlm-adapters = { version = "0.1.0-alpha.25", path = "../originlm-adapters" }
+originlm-runtime = { version = "0.1.0-alpha.25", path = "../originlm-runtime" }
 originlm-discovery = { version = "0.1.0-alpha.25", path = "../originlm-discovery" }
 originlm-platform = { version = "0.1.0-alpha.25", path = "../originlm-platform" }
 originlm-chatgpt-auth = { version = "0.1.0-alpha.25", path = "../originlm-chatgpt-auth" }

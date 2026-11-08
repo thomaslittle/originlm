@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Headless only. Run from the repository root after building originlm-desktop.
+# Manual design capture, not a PR gate: it needs Xvfb, ImageMagick and a real
+# desktop process. See TESTING.md.
 set -euo pipefail
 mkdir -p docs/review/screens/desktop .verification
 export XDG_SESSION_TYPE=x11

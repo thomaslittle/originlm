@@ -3,7 +3,10 @@ use crate::{NativeService, denied, params, unsupported};
 use originlm_contracts::*;
 use originlm_core::{project_snapshot, validate_selection};
 use originlm_discovery::LocatedClient;
-use originlm_runtime::{Agent, BoxFuture, Runtime};
+use originlm_runtime::{
+    Agent, BoxFuture, Runtime,
+    transcript::{PriorHistory, build_prior, build_prior_with_summary},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -53,6 +56,9 @@ pub struct ExecutionInput {
     /// Keep the native conversation in the client's history (non-ephemeral)
     /// so it can be resumed after a helper restart.
     pub persistent: bool,
+    /// Canonical prior conversation rendered for this target model, present
+    /// only when a fresh provider session must be seeded.
+    pub prior_history: Option<PriorHistory>,
 }
 /// Which execution routes can resume a conversation after a helper restart.
 #[derive(Clone, Default)]
@@ -82,6 +88,8 @@ struct SessionContext {
     host_mcp_servers: Vec<HostMcpServer>,
     persistent: bool,
     billing: Option<BillingMode>,
+    conversation_id: String,
+    instructions: Option<String>,
 }
 #[derive(Clone)]
 struct ResumeRecord {
@@ -249,6 +257,69 @@ fn now_seconds() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+
+/// Fold-before-switch asks the previous model for this compact handoff note.
+const FOLD_PROMPT: &str = "Summarize the conversation so far in a compact handoff note for another AI model. \
+Preserve the user's goals, decisions, constraints, important facts, tool results, and open \
+questions. Do not include credentials, tokens, or secrets. Reply with the summary only.";
+
+fn valid_conversation_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_CONVERSATION_ID_BYTES
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b':'))
+}
+
+fn new_conversation_id() -> Result<String> {
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).map_err(|_| {
+        DomainError::new(
+            ErrorCode::ProviderUnavailable,
+            "Secure conversation id generation failed",
+        )
+    })?;
+    Ok(format!(
+        "conv-{}",
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    ))
+}
+
+fn conversation_id(request: &SessionCreateParams) -> Result<String> {
+    match &request.conversation_id {
+        Some(id) if !valid_conversation_id(id) => Err(params::invalid()),
+        Some(id) => Ok(id.clone()),
+        None => new_conversation_id(),
+    }
+}
+
+fn conversation_instructions(instructions: Option<&str>) -> Result<Option<String>> {
+    let Some(instructions) = instructions else {
+        return Ok(None);
+    };
+    if instructions.len() > MAX_SESSION_INSTRUCTIONS_BYTES
+        || instructions.contains('\0')
+        || instructions.trim().is_empty()
+    {
+        return Err(params::invalid());
+    }
+    Ok(Some(originlm_contracts::redact_conversation_text(
+        instructions,
+    )))
+}
+
+fn route_can_persist(route: &AccessRoute) -> bool {
+    route.capabilities.iter().any(|capability| {
+        capability.id == PERSISTENT_RESUME
+            && matches!(
+                capability.support,
+                Support::Supported | Support::Conditional
+            )
+    })
+}
 impl NativeService {
     /// Enables durable resume tokens. `state_dir` holds the per-install
     /// `resume.key`; it is created only when a token is first issued.
@@ -324,6 +395,7 @@ impl NativeService {
             vec![
                 "artifacts.read",
                 "sessions.create",
+                "sessions.switchModel",
                 "sessions.get",
                 "sessions.suspend",
                 "sessions.resume",
@@ -348,6 +420,7 @@ impl NativeService {
                 "turn.input.image",
                 "session.host_mcp",
                 "session.host_mcp.native_tools",
+                "session.conversation.handoff",
             ];
             if self.execution_state.persistent.store.is_some() {
                 capabilities.push(PERSISTENT_RESUME);
@@ -393,6 +466,7 @@ impl NativeService {
         request: Create,
         native_resume: Option<String>,
         expected_lifetime: Option<Arc<()>>,
+        fold_from: Option<String>,
     ) -> Result<Session> {
         let lifetime = self
             .execution_state
@@ -408,6 +482,8 @@ impl NativeService {
         {
             return Err(denied());
         }
+        let conversation_id = conversation_id(&request)?;
+        let instructions = conversation_instructions(request.instructions.as_deref())?;
         let grant = self.execution_grant(client)?;
         if !validate_host_mcp_servers(&request.host_mcp_servers) {
             return Err(params::invalid());
@@ -482,6 +558,54 @@ impl NativeService {
             ));
         }
         let located = self.cache.probe_input(&connection.id)?.located;
+        let context_window = model
+            .context_window
+            .value()
+            .and_then(|value| value.parse::<u64>().ok());
+        let mut folded = false;
+        let prior_history = if native_resume.is_none() {
+            let transcript = self
+                .execution_state
+                .runtime
+                .transcript(client, &conversation_id);
+            let mut prior = build_prior(&transcript, instructions.as_deref(), context_window);
+            // Fold before switch: only when the normal seed would already have
+            // to drop turns. The old model sees its own history, so the prompt
+            // is just the summarization instruction.
+            if let Some(old_session) = fold_from.as_deref()
+                && prior.as_ref().is_some_and(|prior| prior.trimmed)
+            {
+                match self
+                    .execution_state
+                    .runtime
+                    .summarize(client, old_session, FOLD_PROMPT.to_owned())
+                    .await
+                {
+                    Ok(summary) if !summary.trim().is_empty() => {
+                        if let Some(next) = build_prior_with_summary(
+                            &transcript,
+                            instructions.as_deref(),
+                            context_window,
+                            Some(&summary),
+                        ) {
+                            prior = Some(next);
+                            folded = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            prior
+        } else {
+            None
+        };
+        let history = prior_history.as_ref().map(|prior| SessionHistory {
+            turns: prior.turns.len() as u32,
+            omitted_turns: prior.omitted_turns,
+            estimated_tokens: prior.estimated_tokens,
+            trimmed: prior.trimmed,
+            folded,
+        });
         let input = ExecutionInput {
             located,
             connection_id: connection.id.clone(),
@@ -495,6 +619,7 @@ impl NativeService {
             native_resume,
             host_mcp_servers: request.host_mcp_servers.clone(),
             persistent: request.persistent,
+            prior_history,
         };
         let clients = self.clients.clone();
         let grants = self.execution_state.grants.clone();
@@ -627,10 +752,14 @@ impl NativeService {
                 host_mcp_servers: request.host_mcp_servers.clone(),
                 persistent: request.persistent,
                 billing: route.billing.value().cloned(),
+                conversation_id: conversation_id.clone(),
+                instructions: instructions.clone(),
             };
-            let session = self.execution_state.runtime.insert(
+            let session = self.execution_state.runtime.insert_with_conversation(
                 client,
                 connection.id.clone(),
+                Some(conversation_id.clone()),
+                history.clone(),
                 request.selection.clone(),
                 unpublished.take().ok_or_else(denied)?,
                 guard,
@@ -687,8 +816,75 @@ impl NativeService {
             }
             "sessions.create" => {
                 let request: Create = decode(p)?;
-                serde_json::to_value(self.open_session(client, request, None, None).await?)
+                serde_json::to_value(self.open_session(client, request, None, None, None).await?)
                     .map_err(|_| params::invalid())
+            }
+            "sessions.switchModel" => {
+                let request: SessionSwitchModelParams = decode(p)?;
+                let previous = self.check_session(client, &request.session_id)?;
+                if !matches!(
+                    previous.state,
+                    SessionState::Ready | SessionState::Completed
+                ) {
+                    return Err(DomainError::new(
+                        ErrorCode::Conflict,
+                        "A conversation can only switch models while idle",
+                    ));
+                }
+                let context = self
+                    .execution_state
+                    .session_context
+                    .read()
+                    .map_err(|_| denied())?
+                    .get(&request.session_id)
+                    .filter(|context| context.owner == client)
+                    .cloned()
+                    .ok_or_else(denied)?;
+                let instructions = match request.instructions {
+                    Some(text) => conversation_instructions(Some(&text))?,
+                    None => context.instructions.clone(),
+                };
+                let snapshot = self.projected(client)?;
+                let target_persistent = match request.persistent {
+                    Some(persistent) => persistent,
+                    None => {
+                        context.persistent
+                            && snapshot
+                                .routes
+                                .iter()
+                                .find(|route| route.id == request.selection.route_id)
+                                .is_some_and(route_can_persist)
+                    }
+                };
+                let create = SessionCreateParams {
+                    selection: request.selection,
+                    workspace_id: context.workspace_id.clone(),
+                    permission_mode: context.permission_mode.clone(),
+                    review_requests: context.review_requests,
+                    allow_paid: request.allow_paid.unwrap_or(context.allow_paid),
+                    host_mcp_servers: context.host_mcp_servers.clone(),
+                    persistent: target_persistent,
+                    conversation_id: Some(context.conversation_id.clone()),
+                    instructions,
+                };
+                let fold_from = request
+                    .fold
+                    .unwrap_or(true)
+                    .then(|| request.session_id.clone());
+                let session = self
+                    .open_session(
+                        client,
+                        create,
+                        None,
+                        Some(context.lifetime.clone()),
+                        fold_from,
+                    )
+                    .await?;
+                // The replacement owns the canonical transcript now. The old
+                // provider session is closed only after the new one opens.
+                let _ = runtime.close(client, &request.session_id).await;
+                self.forget_session(client, &request.session_id);
+                serde_json::to_value(session).map_err(|_| params::invalid())
             }
             "sessions.get" => {
                 params::allow(&p, &["sessionId"])?;
@@ -737,6 +933,8 @@ impl NativeService {
                         billing: context.billing.clone(),
                         native_session_id,
                         issued_at: now_seconds(),
+                        conversation_id: Some(context.conversation_id.clone()),
+                        instructions: context.instructions.clone(),
                     })?;
                     self.forget_session(client, &request.session_id);
                     return serde_json::to_value(SessionSuspendResult {
@@ -841,6 +1039,8 @@ impl NativeService {
                         request.host_mcp_servers.clone()
                     },
                     persistent: record.context.persistent,
+                    conversation_id: Some(record.context.conversation_id.clone()),
+                    instructions: record.context.instructions.clone(),
                 };
                 let snapshot = self.projected(client)?;
                 let grant = self.execution_grant(client)?;
@@ -892,6 +1092,7 @@ impl NativeService {
                         create,
                         Some(record.native_session_id),
                         Some(record.context.lifetime),
+                        None,
                     )
                     .await?;
                 if session.connection_id != record.connection_id || !session.native_resumption {
@@ -1110,6 +1311,10 @@ impl NativeService {
                 "This conversation is already open",
             ));
         }
+        let conversation_id = match &token.conversation_id {
+            Some(id) if valid_conversation_id(id) => id.clone(),
+            _ => new_conversation_id()?,
+        };
         let create = SessionCreateParams {
             selection: Selection {
                 route_id: route.id.clone(),
@@ -1123,9 +1328,17 @@ impl NativeService {
             allow_paid: token.allow_paid,
             host_mcp_servers: request.host_mcp_servers,
             persistent: true,
+            conversation_id: Some(conversation_id),
+            instructions: token.instructions.clone(),
         };
         let session = self
-            .open_session(client, create, Some(token.native_session_id.clone()), None)
+            .open_session(
+                client,
+                create,
+                Some(token.native_session_id.clone()),
+                None,
+                None,
+            )
             .await
             .map_err(|error| match error.code {
                 ErrorCode::NotFound
@@ -1258,6 +1471,8 @@ mod lifecycle_tests {
                 host_mcp_servers: vec![],
                 persistent: false,
                 billing: Some(BillingMode::Local),
+                conversation_id: "conv-test".into(),
+                instructions: None,
             },
         }
     }

@@ -197,6 +197,12 @@ struct Prefs {
     models_inspector: f32,
     #[serde(default = "default_inspector_width")]
     providers_inspector: f32,
+    /// OriginLM's own model list. Index-first is the discovery default.
+    #[serde(default = "default_true")]
+    models_sort_by_intelligence: bool,
+    /// Third-party/default catalog opt-in. Off unless the user chooses it.
+    #[serde(default)]
+    apps_default_intelligence_order: bool,
 }
 
 impl Default for Prefs {
@@ -210,8 +216,14 @@ impl Default for Prefs {
             models_inspector: default_inspector_width(),
             providers_inspector: default_inspector_width(),
             sidebar_collapsed: false,
+            models_sort_by_intelligence: true,
+            apps_default_intelligence_order: false,
         }
     }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn prefs_path() -> Option<PathBuf> {
@@ -219,6 +231,10 @@ fn prefs_path() -> Option<PathBuf> {
 }
 
 fn load_prefs() -> Prefs {
+    // Tests must not depend on the developer's real desktop preferences.
+    if cfg!(test) {
+        return Prefs::default();
+    }
     prefs_path()
         .and_then(|path| std::fs::read(path).ok())
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -253,6 +269,10 @@ pub struct Desktop {
     pub favorites: BTreeSet<String>,
     /// Models page shows favorites only.
     pub favorites_only: bool,
+    /// Models page orders by the cached Intelligence Index.
+    pub models_sort_by_intelligence: bool,
+    /// The local runtime defaults user-facing catalogs to Index order.
+    pub apps_default_intelligence_order: bool,
     pub sessions: Vec<UiSession>,
     pub transcript: Vec<TranscriptLine>,
     pub running: bool,
@@ -379,11 +399,15 @@ impl Desktop {
 
         let mut this = Self {
             example,
-            page: std::env::var("LAI_DESKTOP_PAGE")
-                .ok()
-                .and_then(|name| Page::from_name(&name))
-                .or_else(|| prefs.page.as_deref().and_then(Page::from_name))
-                .unwrap_or(Page::Overview),
+            page: if cfg!(test) {
+                Page::Overview
+            } else {
+                std::env::var("LAI_DESKTOP_PAGE")
+                    .ok()
+                    .and_then(|name| Page::from_name(&name))
+                    .or_else(|| prefs.page.as_deref().and_then(Page::from_name))
+                    .unwrap_or(Page::Overview)
+            },
             brand_marks,
             bundle: None,
             dark,
@@ -407,6 +431,8 @@ impl Desktop {
             usage_table: false,
             favorites: prefs.favorites.into_iter().collect(),
             favorites_only: false,
+            models_sort_by_intelligence: prefs.models_sort_by_intelligence,
+            apps_default_intelligence_order: prefs.apps_default_intelligence_order,
             sessions: Vec::new(),
             transcript: Vec::new(),
             running: false,
@@ -439,6 +465,12 @@ impl Desktop {
             _subscriptions: subscriptions,
         };
         window.focus(&this.focus, cx);
+        let _ = this
+            .broker
+            .commands
+            .send(broker::Command::SetIntelligenceDefault(
+                this.apps_default_intelligence_order,
+            ));
         this.poll_task = Some(cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -742,6 +774,10 @@ impl Desktop {
     }
 
     pub fn save_prefs(&self) {
+        // Tests must not write to the developer's real desktop preferences.
+        if cfg!(test) {
+            return;
+        }
         let prefs = Prefs {
             dark: self.dark,
             refresh_seconds: self.refresh_seconds,
@@ -751,6 +787,8 @@ impl Desktop {
             sidebar_collapsed: self.sidebar_collapsed,
             models_inspector: self.models_inspector,
             providers_inspector: self.providers_inspector,
+            models_sort_by_intelligence: self.models_sort_by_intelligence,
+            apps_default_intelligence_order: self.apps_default_intelligence_order,
         };
         if let Ok(bytes) = serde_json::to_vec_pretty(&prefs) {
             let Some(path) = prefs_path() else {
@@ -765,6 +803,35 @@ impl Desktop {
 
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
         let _ = self.broker.commands.send(broker::Command::Refresh);
+        cx.notify();
+    }
+
+    /// Persist OriginLM's own list order. Third-party catalogs keep their
+    /// explicit `sort` choice; this setting is only the app's default.
+    pub fn set_models_sort_by_intelligence(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.models_sort_by_intelligence = enabled;
+        self.save_prefs();
+        cx.notify();
+    }
+
+    /// Persist the user's opt-in and tell the local service to default
+    /// catalogs served to other applications to Intelligence Index order.
+    pub fn set_apps_default_intelligence_order(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.apps_default_intelligence_order = enabled;
+        self.save_prefs();
+        let _ = self
+            .broker
+            .commands
+            .send(broker::Command::SetIntelligenceDefault(enabled));
+        cx.notify();
+    }
+
+    pub fn refresh_intelligence(&mut self, cx: &mut Context<Self>) {
+        let _ = self
+            .broker
+            .commands
+            .send(broker::Command::RefreshIntelligence);
+        self.toast("Refreshing RankLLMs Intelligence Index scores");
         cx.notify();
     }
 
@@ -1146,6 +1213,7 @@ impl Render for Desktop {
                             .flex_1()
                             .min_h(px(0.))
                             .overflow_y_scroll()
+                            .test_support()
                             .child(page_body),
                     );
                 div().flex_1().min_h(px(0.)).child(
@@ -1418,6 +1486,7 @@ impl Desktop {
                                 window.refresh();
                             });
                         })
+                        .test_support()
                         .into_any_element()
                 }))
         };
@@ -1609,6 +1678,7 @@ impl Desktop {
                             .on_click(move |_, window, cx| {
                                 e.update(cx, |this, cx| this.open_palette(window, cx));
                             })
+                            .test_support()
                     }),
             )
             .into_any_element()
@@ -2220,4 +2290,86 @@ fn default_sidebar_width() -> f32 {
 
 fn default_inspector_width() -> f32 {
     430.0
+}
+
+#[cfg(test)]
+mod view_tests {
+    //! In-process view tests. They render the real desktop shell in a headless
+    //! window, then click production navigation and header controls. They never
+    //! open an OS window, send input, or read a real account.
+
+    use super::{Desktop, Page};
+    use crate::bootstrap::Credential;
+    use gpui_kit::test::TestWindowExt as _;
+    use gpui_kit::{
+        AppContext as _, Bounds, TestAppContext, WindowBounds, WindowOptions, point, px, size,
+    };
+
+    fn open_desktop(
+        cx: &mut TestAppContext,
+    ) -> (
+        gpui_kit::WindowHandle<gpui_kit::base::Root>,
+        gpui_kit::Entity<Desktop>,
+    ) {
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            let (window, desktop) = gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds {
+                        origin: point(px(0.), px(0.)),
+                        size: size(px(1280.), px(800.)),
+                    })),
+                    ..Default::default()
+                },
+                cx,
+                |window, cx| {
+                    cx.new(|cx| {
+                        Desktop::new(
+                            window,
+                            cx,
+                            Credential::Unavailable("in-process view test".into()),
+                            30,
+                            true,
+                        )
+                    })
+                },
+            )
+            .expect("open the desktop test window");
+            (
+                window
+                    .downcast::<gpui_kit::base::Root>()
+                    .expect("Base Root"),
+                desktop,
+            )
+        })
+    }
+
+    #[gpui_kit::test]
+    fn desktop_shell_renders_navigation_and_opens_the_palette(cx: &mut TestAppContext) {
+        let (window, desktop) = open_desktop(cx);
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+
+            // The real shell, not a stand-in, renders every page target.
+            for page in Page::ALL {
+                assert!(
+                    window.try_find(("nav", page as usize)).is_some(),
+                    "missing navigation target for {}",
+                    page.title()
+                );
+            }
+            assert!(window.try_find("page-scroll").is_some());
+            assert!(window.try_find("palette-button").is_some());
+
+            // Production navigation still switches the page in-process.
+            assert_eq!(desktop.read(cx).page, Page::Overview);
+            window.click(("nav", Page::Settings as usize), cx);
+            assert_eq!(desktop.read(cx).page, Page::Settings);
+
+            // The header control opens the real command-palette overlay.
+            window.click("palette-button", cx);
+            assert!(desktop.read(cx).palette_open);
+        })
+        .unwrap();
+    }
 }

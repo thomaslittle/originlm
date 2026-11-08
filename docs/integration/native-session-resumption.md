@@ -4,6 +4,11 @@ Completed turns remain suspendable. The demo continues the resumed session when 
 
 OriginLM resumes only conversations the native client itself keeps. There is no transcript import or toolkit-owned conversation database disguised as provider resumption. A session resumes when its adapter reports `session.nativeResumption === true`:
 
+> Switching models or providers is different from resuming. Use
+> [`sessions.switchModel`](conversation-handoff.md); it opens a fresh provider
+> session and seeds OriginLM's canonical transcript. `sessions.resume` never
+> seeds history because the native conversation already has it.
+
 | Integration | How the conversation is kept | How it is reattached |
 | --- | --- | --- |
 | Codex app-server | `sessions.create({ persistent: true })` starts a non-ephemeral thread (`ephemeral: false`) in the profile's `CODEX_HOME` | `thread/resume` by thread id, with the same read-only sandbox, approval policy and thread config. A missing or different thread is `RESUME_UNAVAILABLE`. |

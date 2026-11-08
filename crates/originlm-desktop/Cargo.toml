@@ -28,4 +28,9 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 unsafe_code = "forbid"
 
 [dev-dependencies]
+# `test-support` provides the headless TestAppContext used by the in-process
+# GPUI view tests. It is enabled only for test targets.
 gpui-kit = { version = "0.9.0", features = ["gpui-fast", "test-support"] }
+originlm-runtime = { version = "0.1.0-alpha.25", path = "../originlm-runtime" }
+originlm-service = { version = "0.1.0-alpha.25", path = "../originlm-service" }
+tempfile = "3"

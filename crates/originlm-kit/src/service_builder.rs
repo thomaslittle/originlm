@@ -11,6 +11,7 @@ use originlm_adapters::{
 };
 use originlm_chatgpt_auth::AuthManager;
 use originlm_contracts::{DomainError, ErrorCode};
+use originlm_runtime::{Agent, PriorHistory, prelude_agent};
 use originlm_service::{InventorySource, NativeService};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -158,6 +159,7 @@ pub fn build_service_with_cursor_usage(
         }));
     if let Some(directory) = &state_dir {
         service = service.with_cost_prices(directory.clone());
+        service = service.with_intelligence_cache(directory.clone());
     }
     if let Some((auth, _)) = &chatgpt {
         service = service.with_chatgpt_auth(auth.clone());
@@ -386,6 +388,13 @@ fn build_execution(
                 );
                 let native_browser = execution_native.browser_blocker.clone();
                 Box::pin(async move {
+                    // A resumed native conversation already has its history. Only a
+                    // fresh provider session receives the handoff.
+                    let prior = if input.native_resume.is_none() {
+                        input.prior_history.clone()
+                    } else {
+                        None
+                    };
                     input.located.validate_executable()?;
                     if input.located.provider_id == "codex_managed" {
                         let (auth, app_name) = chatgpt.ok_or_else(|| DomainError::new(
@@ -429,7 +438,7 @@ fn build_execution(
                                 email: credentials.email,
                             },
                             source,
-                        ).await;
+                        ).await.map(|agent| seed_native(agent, prior.clone()));
                     }
                     if let Some(profile) = native_profile {
                         if input.writable || input.native_policy {
@@ -455,6 +464,7 @@ fn build_execution(
                                     native_session_id,
                                 )
                                 .await
+                                .map(|agent| seed_native(agent, prior.clone()))
                             }
                             None => {
                                 originlm_adapters::native_clients::client::open(
@@ -465,6 +475,7 @@ fn build_execution(
                                     request,
                                 )
                                 .await
+                                .map(|agent| seed_native(agent, prior.clone()))
                             }
                         };
                     }
@@ -494,7 +505,8 @@ fn build_execution(
                                 input.persistent,
                                 input.native_resume,
                             )
-                            .await;
+                            .await
+                            .map(|agent| seed_native(agent, prior.clone()));
                         }
                         if input.native_resume.is_some() {
                             return Err(DomainError::new(
@@ -502,7 +514,12 @@ fn build_execution(
                                 "Selected integration does not support native session resumption",
                             ));
                         }
-                        return Ok(http_provider::executor(config.kind, client, input.model));
+                        return Ok(http_provider::executor_with_history(
+                            config.kind,
+                            client,
+                            input.model,
+                            prior,
+                        ));
                     }
                     if input.located.provider_id == "opencode" {
                         let executable = input.located.executable.clone().ok_or_else(|| {
@@ -522,7 +539,8 @@ fn build_execution(
                             &input.host_mcp_servers,
                             input.writable || input.native_policy,
                         )
-                        .await;
+                        .await
+                        .map(|agent| seed_native(agent, prior.clone()));
                     }
                     if input.located.provider_id == "muse" {
                         let executable = input.located.executable.clone().ok_or_else(|| {
@@ -559,7 +577,8 @@ fn build_execution(
                                 routing: originlm_adapters::muse::Routing::Meta,
                             },
                         )
-                        .await;
+                        .await
+                        .map(|agent| seed_native(agent, prior.clone()));
                     }
                     if input.located.provider_id == "claude_code" {
                         if input.writable || (input.review_requests && !input.native_policy) {
@@ -577,14 +596,17 @@ fn build_execution(
                         let host =
                             originlm_adapters::host_mcp::HostTools::new(&input.host_mcp_servers);
                         if !input.persistent {
-                            return Ok(claude::client::host_executor_policy(
-                                launch,
-                                host,
-                                input.model,
-                                input.connection_id,
-                                input.route_id,
-                                input.native_policy,
-                                input.review_requests,
+                            return Ok(seed_native(
+                                claude::client::host_executor_policy(
+                                    launch,
+                                    host,
+                                    input.model,
+                                    input.connection_id,
+                                    input.route_id,
+                                    input.native_policy,
+                                    input.review_requests,
+                                ),
+                                prior.clone(),
                             ));
                         }
                         let resumed = input.native_resume.is_some();
@@ -604,16 +626,19 @@ fn build_execution(
                             None => claude::launch::new_session_id()?,
                         };
                         claude::launch::persist(&mut launch.spec, &session_id, resumed)?;
-                        return Ok(claude::client::persistent_executor_policy(
-                            launch,
-                            host,
-                            input.model,
-                            input.connection_id,
-                            input.route_id,
-                            session_id,
-                            resumed,
-                            input.native_policy,
-                            input.review_requests,
+                        return Ok(seed_native(
+                            claude::client::persistent_executor_policy(
+                                launch,
+                                host,
+                                input.model,
+                                input.connection_id,
+                                input.route_id,
+                                session_id,
+                                resumed,
+                                input.native_policy,
+                                input.review_requests,
+                            ),
+                            prior.clone(),
                         ));
                     }
                     if input.located.provider_id != "codex" {
@@ -663,10 +688,18 @@ fn build_execution(
                         },
                     )
                     .await
+                    .map(|agent| seed_native(agent, prior))
                 })
             }),
         ),
     )
+}
+
+fn seed_native(agent: Box<dyn Agent>, prior: Option<PriorHistory>) -> Box<dyn Agent> {
+    match prior {
+        Some(prior) => prelude_agent(agent, prior),
+        None => agent,
+    }
 }
 
 fn auth_failure(_: originlm_chatgpt_auth::AuthError) -> DomainError {

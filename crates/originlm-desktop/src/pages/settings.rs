@@ -7,7 +7,9 @@ use gpui_kit::base::StyledExt as _;
 use gpui_kit::component::{
     ActiveTheme, Theme,
     button::{Button, ButtonVariants},
+    switch::Switch,
 };
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 const REFRESH: [u64; 3] = [15, 30, 60];
@@ -168,6 +170,134 @@ impl Desktop {
                 &theme,
             ));
 
+        let intelligence = self
+            .bundle
+            .as_ref()
+            .map(|bundle| bundle.intelligence.clone())
+            .unwrap_or_default();
+        let updated = intelligence.fetched_at.as_ref().and_then(|stamp| {
+            let at = chrono::DateTime::parse_from_rfc3339(stamp.as_str()).ok()?;
+            let minutes = (chrono::Utc::now() - at.with_timezone(&chrono::Utc))
+                .num_minutes()
+                .max(0);
+            Some(if minutes < 60 {
+                format!("{minutes}m ago")
+            } else {
+                format!("{}h ago", minutes / 60)
+            })
+        });
+        let index_status = if !intelligence.configured {
+            "The durable Intelligence Index cache is not enabled in this runtime.".to_string()
+        } else if intelligence.models.is_empty() {
+            "No scores cached yet. RankLLMs sync runs on the runtime's background lane.".to_string()
+        } else {
+            format!(
+                "{} models · updated {}{}",
+                intelligence.models.len(),
+                updated.unwrap_or_else(|| "unknown".into()),
+                if intelligence.stale { " · stale" } else { "" },
+            )
+        };
+        let intelligence_panel = ds::panel(&theme)
+            .child(ds::panel_head(
+                "Intelligence Index (RankLLMs)",
+                Some(ds::caption("No key required · cached", &theme).into_any_element()),
+                &theme,
+            ))
+            .child(setting(
+                "Model order in OriginLM",
+                "Index puts the highest Intelligence Index first. Models without a published score sort last.",
+                ds::tabs(
+                    "models-sort-setting",
+                    ["Index", "Catalog"],
+                    usize::from(!self.models_sort_by_intelligence),
+                    &theme,
+                    {
+                        let entity = entity.clone();
+                        move |index, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                this.set_models_sort_by_intelligence(index == 0, cx);
+                            })
+                        }
+                    },
+                ),
+                &theme,
+            ))
+            .child(setting(
+                "Default order for your apps",
+                "Off by default. When enabled, clients that call models.list or models.page without a sort parameter get Index order. A client can always pass sort=intelligence or sort=catalog explicitly.",
+                Switch::new("apps-index-default")
+                    .checked(self.apps_default_intelligence_order)
+                    .on_change({
+                        let entity = entity.clone();
+                        move |enabled, _, cx| {
+                            entity.update(cx, |this, cx| {
+                                this.set_apps_default_intelligence_order(*enabled, cx);
+                            })
+                        }
+                    }),
+                &theme,
+            ))
+            .child(
+                div()
+                    .h_flex()
+                    .items_center()
+                    .flex_wrap()
+                    .gap(px(sp::MD))
+                    .px(px(sp::LG))
+                    .py(px(sp::MD))
+                    .border_t_1()
+                    .border_color(theme.border)
+                    .child(div().flex_1().min_w(px(240.)).child(ds::caption(index_status, &theme)))
+                    .child(
+                        Button::new("refresh-intelligence")
+                            .secondary()
+                            .label("Refresh now")
+                            .on_click({
+                                let entity = entity.clone();
+                                move |_, _, cx| {
+                                    entity.update(cx, |this, cx| {
+                                        this.refresh_intelligence(cx);
+                                    })
+                                }
+                            }),
+                    ),
+            )
+            .when_some(intelligence.last_error.clone(), |this, error| {
+                this.child(div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::banner(
+                    crate::ui::Tone::Amber,
+                    "Intelligence Index sync",
+                    Some(error.into()),
+                    &theme,
+                )))
+            })
+            .child(
+                div()
+                    .h_flex()
+                    .flex_wrap()
+                    .gap(px(sp::SM))
+                    .px(px(sp::LG))
+                    .pb(px(sp::MD))
+                    .child(ds::link(
+                        "settings-rankllms-attribution",
+                        "Scores: RankLLMs",
+                        &theme,
+                        |_, _, cx| cx.open_url("https://rankllms.com/"),
+                    ))
+                    .child(ds::link(
+                        "settings-aa-source",
+                        "Artificial Analysis source",
+                        &theme,
+                        |_, _, cx| cx.open_url("https://artificialanalysis.ai/"),
+                    )),
+            )
+            .child(
+                div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::caption(
+                    "The runtime syncs RankLLMs' leaderboard at most every six hours (one request per sync) and never calls it from a window read. Index scores originate from Artificial Analysis where applicable.",
+                    &theme,
+                )),
+            );
+
         let layout = ds::panel(&theme)
             .child(ds::panel_head("Layout", None, &theme))
             .child(setting(
@@ -239,6 +369,7 @@ impl Desktop {
             .child(appearance)
             .child(source)
             .child(refresh)
+            .child(intelligence_panel)
             .child(layout)
             .child(self.price_settings(cx))
             .child(about)

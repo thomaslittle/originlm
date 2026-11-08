@@ -57,7 +57,7 @@ jobs:
       - name: Install pinned Rust
         run: rustup toolchain install 1.98.1 --profile minimal
       - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: release-${{ matrix.target }}
           cache-workspace-crates: true
@@ -181,7 +181,7 @@ jobs:
           version="$(python -c "import json; print(json.load(open('package.json'))['version'])")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Download all target npm artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: prepared-*
@@ -227,7 +227,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Download the canonical npm release set
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: npm-release
           path: npm-release

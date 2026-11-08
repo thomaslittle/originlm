@@ -14,6 +14,12 @@ jobs:
   update_release_draft:
     runs-on: ubuntu-24.04
     steps:
-      - uses: release-drafter/release-drafter@v6
+      # v7 split the Autolabeler out of the drafter action. Keep the existing
+      # title/path label rules working by running both entrypoints.
+      - uses: release-drafter/release-drafter/autolabeler@v7
+        if: github.event_name == 'pull_request_target'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: release-drafter/release-drafter@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

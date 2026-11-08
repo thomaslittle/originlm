@@ -40,6 +40,108 @@ async fn server() -> (Endpoint, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
     )
 }
 #[tokio::test]
+async fn seeded_http_history_is_role_tagged_not_one_prompt_block() {
+    let bodies: Arc<std::sync::Mutex<Vec<Value>>> = Arc::default();
+    let seen = bodies.clone();
+    let app = Router::new().route("/api/chat", post(move |Json(v): Json<Value>| {
+        let seen = seen.clone();
+        async move {
+            seen.lock().unwrap().push(v.clone());
+            let count = v["messages"].as_array().unwrap().len();
+            Json(format!(
+                "{{\"message\":{{\"content\":\"reply {count}\"}},\"done\":false}}\n{{\"message\":{{\"content\":\"\"}},\"done\":true}}\n"
+            ))
+        }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let endpoint = Endpoint::new(
+        &format!("http://127.0.0.1:{port}/"),
+        Authentication::None,
+        true,
+    )
+    .unwrap();
+    let model = Model {
+        id: "m".into(),
+        route_id: "r".into(),
+        native_id: "native".into(),
+        name: "M".into(),
+        revision: "1".into(),
+        is_default: true,
+        capabilities: vec![],
+        options: vec![],
+        context_window: Observation::unknown("NOT_REPORTED"),
+    };
+    let prior = originlm_runtime::PriorHistory {
+        instructions: Some("app instructions".into()),
+        folded_summary: None,
+        turns: vec![
+            originlm_runtime::PriorTurn {
+                user: "first question".into(),
+                assistant: "first answer".into(),
+            },
+            originlm_runtime::PriorTurn {
+                user: "second question".into(),
+                assistant: "second answer".into(),
+            },
+        ],
+        omitted_turns: 1,
+        estimated_tokens: 10,
+        trimmed: true,
+    };
+    let runtime = Runtime::new();
+    let session = runtime
+        .insert(
+            "app",
+            "c".into(),
+            Selection {
+                route_id: "r".into(),
+                model_id: "m".into(),
+                revision: "1".into(),
+                options: BTreeMap::new(),
+            },
+            executor_with_history(HttpKind::Ollama, endpoint, model, Some(prior)),
+            Arc::new(|| Ok(())),
+        )
+        .unwrap();
+    runtime
+        .start("app", &session.id, "current question".into(), "1".into())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while runtime.get("app", &session.id).unwrap().state == SessionState::Running {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let request = bodies.lock().unwrap().last().unwrap().clone();
+    let messages = request["messages"].as_array().unwrap();
+    assert_eq!(messages[0]["role"], "system");
+    assert!(
+        messages[0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("app instructions")
+    );
+    assert!(
+        messages[0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("omitted to fit")
+    );
+    assert_eq!(messages[1]["role"], "user");
+    assert_eq!(messages[1]["content"], "first question");
+    assert_eq!(messages[2]["role"], "assistant");
+    assert_eq!(messages[3]["role"], "user");
+    assert_eq!(messages[4]["role"], "assistant");
+    assert_eq!(messages[5]["role"], "user");
+    assert_eq!(messages[5]["content"], "current question");
+    task.abort();
+}
+
+#[tokio::test]
 async fn probing_never_runs_generation_and_catalog_does_not_claim_paid_access() {
     let (endpoint, calls, task) = server().await;
     let metadata = probe(HttpKind::Ollama, endpoint, "c".into(), "r".into(), vec![])

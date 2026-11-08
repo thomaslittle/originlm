@@ -10,6 +10,9 @@ pub struct ModelPageParams {
     pub cursor: Option<String>,
     #[serde(default)]
     pub limit: Option<u16>,
+    /// `catalog` (default) or `intelligence`.
+    #[serde(default)]
+    pub sort: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -19,6 +19,7 @@ and [current architecture](design/architecture.md). The support matrix distingui
 | Generated protocol, OpenAPI, JSON Schema | [generated-api.md](integration/generated-api.md), [protocol-preview.md](integration/protocol-preview.md) |
 | Sessions: artifacts, host MCP tools, native resumption | [artifacts.md](integration/artifacts.md), [host-mcp.md](integration/host-mcp.md), [native-session-resumption.md](integration/native-session-resumption.md) |
 | Incremental metadata, refresh, local change watching | [incremental-metadata.md](integration/incremental-metadata.md), [local-change-watching.md](integration/local-change-watching.md), [catalog-pages.md](integration/catalog-pages.md) |
+| Order models by cached Intelligence Index (RankLLMs) | [intelligence-index.md](integration/intelligence-index.md) |
 | Running the showcase against your own machine | [live-demo.md](integration/live-demo.md) |
 | Something is wrong | [troubleshooting.md](troubleshooting.md) |
 
@@ -41,6 +42,11 @@ and [current architecture](design/architecture.md). The support matrix distingui
 - [Desktop control center audit](design/desktop-audit.md): findings, the `ds.rs` design system, every page in both themes with before/after captures, accessibility and contrast results, and the decision log.
 - [Landing page audit](design/landing-audit.md): the developer-first rebuild of `apps/site`, compiled code samples, motion and performance measurements, accessibility and SEO checks, and the decision log.
 - [Detection lab](design/detection-lab.md) (proposal, not built): how to catch vendor client changes that break what OriginLM reads, before users do.
+
+## Testing
+
+See [TESTING.md](../TESTING.md) for the test pyramid, desktop in-process view
+tests, nextest settings, and the OS-level checks that are not PR gates.
 
 ## Contributing
 

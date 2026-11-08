@@ -373,7 +373,7 @@ The version-one protocol exposes these families, with the same domain types acro
 | Selection | `selection.resolve`, `selection.validate` |
 | Authorization | `grants.request`, `grants.list`, `grants.revoke` |
 | Setup | `connections.setupInstructions`, `connections.authenticate` (explicit action) |
-| Sessions | `sessions.create`, `sessions.get`, `sessions.updateOptions`, `sessions.close` |
+| Sessions | `sessions.create`, `sessions.switchModel`, `sessions.get`, `sessions.resume`, `sessions.suspend`, `sessions.updateOptions`, `sessions.close` |
 | Turns | `turns.start`, `turns.cancel` |
 | Approvals | `approvals.respond` |
 | Results/events | `artifacts.read`, `events.subscribe`, `events.unsubscribe` |

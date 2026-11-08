@@ -63,6 +63,15 @@ pub struct SnapshotParams {
 pub struct ModelsParams {
     #[serde(default)]
     pub route_id: Option<String>,
+    /// `catalog` (default) or `intelligence` (highest cached Intelligence
+    /// Index first, unknown scores last).
+    #[serde(default)]
+    pub sort: Option<String>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IntelligenceConfigureParams {
+    pub default_sort_for_apps: bool,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -146,6 +155,47 @@ pub struct SessionCreateParams {
     /// Requires the route capability `session.resume.persistent`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub persistent: bool,
+    /// Host-owned conversation identity. Sessions created with the same id
+    /// share OriginLM's canonical transcript, so a new model can continue the
+    /// conversation. Omit for a new conversation; the returned session carries
+    /// the generated id. Never put credentials in this value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
+    /// Application instructions for this conversation (for example a compact
+    /// home or workspace summary). This is kept out of the trimmed transcript
+    /// and is sent once, when the new provider session starts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+}
+/// Largest host conversation id accepted by `sessions.create` and
+/// `sessions.switchModel`.
+pub const MAX_CONVERSATION_ID_BYTES: usize = 128;
+/// Largest application instruction block carried across a model switch.
+pub const MAX_SESSION_INSTRUCTIONS_BYTES: usize = 64 * 1024;
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SessionSwitchModelParams {
+    /// The session whose canonical transcript is carried forward. It must be
+    /// idle or completed; it is closed after the replacement session opens.
+    pub session_id: String,
+    /// Target route, model, revision and provider options.
+    pub selection: Selection,
+    /// Replace the application instructions. Omitted keeps the current ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    /// Keep the new provider conversation resumable after a helper restart.
+    /// Omitted inherits the previous session when the target route supports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persistent: Option<bool>,
+    /// Accept a paid target route. Omitted inherits the previous session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_paid: Option<bool>,
+    /// When the prior transcript exceeds the target model's budget, ask the
+    /// previous model for a compact summary before seeding the new session.
+    /// Defaults to true. If the old model cannot summarize, OriginLM falls
+    /// back to deterministic oldest-turn trimming.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<bool>,
 }
 /// Most host MCP servers a single session may attach.
 pub const MAX_HOST_MCP_SERVERS: usize = 2;
@@ -435,6 +485,12 @@ pub struct MethodInputs {
     models: ModelsParams,
     #[serde(rename = "models.page")]
     model_page: ModelPageParams,
+    #[serde(rename = "intelligence.catalog")]
+    intelligence_catalog: EmptyParams,
+    #[serde(rename = "intelligence.refresh")]
+    intelligence_refresh: EmptyParams,
+    #[serde(rename = "intelligence.configure")]
+    intelligence_configure: IntelligenceConfigureParams,
     #[serde(rename = "usage.read")]
     usage: EmptyParams,
     #[serde(rename = "usage.history")]
@@ -461,6 +517,8 @@ pub struct MethodInputs {
     revoke: EmptyParams,
     #[serde(rename = "sessions.create")]
     create: SessionCreateParams,
+    #[serde(rename = "sessions.switchModel")]
+    switch_model: SessionSwitchModelParams,
     #[serde(rename = "sessions.get")]
     session: SessionParams,
     #[serde(rename = "sessions.suspend")]
@@ -542,6 +600,12 @@ pub struct MethodOutputs {
     models: Vec<Model>,
     #[serde(rename = "models.page")]
     model_page: ModelPage,
+    #[serde(rename = "intelligence.catalog")]
+    intelligence_catalog: IntelligenceCatalog,
+    #[serde(rename = "intelligence.refresh")]
+    intelligence_refresh: IntelligenceCatalog,
+    #[serde(rename = "intelligence.configure")]
+    intelligence_configure: IntelligenceCatalog,
     #[serde(rename = "usage.read")]
     usage: Vec<QuotaPool>,
     #[serde(rename = "usage.history")]
@@ -568,6 +632,8 @@ pub struct MethodOutputs {
     revoke: Value,
     #[serde(rename = "sessions.create")]
     create: Session,
+    #[serde(rename = "sessions.switchModel")]
+    switch_model: Session,
     #[serde(rename = "sessions.get")]
     session: Session,
     #[serde(rename = "sessions.suspend")]

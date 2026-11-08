@@ -103,7 +103,7 @@ impl Store {
                 .write(true)
                 .open(root.join("chatgpt-refresh.lock"))
                 .map_err(|_| storage_error())?;
-            fs4::fs_std::FileExt::lock_exclusive(&file).map_err(|_| storage_error())?;
+            fs4::FileExt::lock(&file).map_err(|_| storage_error())?;
             Ok(file)
         })
         .await

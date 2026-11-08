@@ -1,4 +1,5 @@
 # Capture the desktop control center in example mode on Windows.
+# Manual design capture, not a PR gate. See TESTING.md.
 # Run from the repository root after `cargo build -p originlm-desktop`.
 # Example mode reads no accounts. PrintWindow captures only the OriginLM window's
 # own pixels, so other windows never end up in the images; a capture whose
