@@ -874,6 +874,13 @@ async fn native_playground_ask_renders_trusted_generated_image(cx: &mut TestAppC
                 .unwrap_or_default()
                 .contains("mock-image")
         );
+        for (id, label) in [
+            ("save-generated-image-1", "Save image…"),
+            ("open-generated-image-1", "Open image"),
+            ("reveal-generated-image-1", "Show in folder"),
+        ] {
+            assert_eq!(window.find(id).label(), Some(label));
+        }
         let desktop = desktop.read(cx);
         assert!(desktop.transcript[1].image.as_ref().unwrap().path.is_file());
         assert!(desktop.transcript[1].text.contains("160×90"));

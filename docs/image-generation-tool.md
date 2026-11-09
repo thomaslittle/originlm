@@ -119,3 +119,18 @@ For repeatable testing without OS mouse/keyboard automation, set `ORIGINLM_DESKT
 ### Generated-image file actions
 
 Each inline result offers **Save image…** (native save dialog; copies the original PNG), **Open image** (system default viewer), and **Show in folder** (system file manager). Cancelling Save leaves the original untouched; dialog/copy failures show a toast. The native GPUI test clicks Save, chooses a temporary destination, verifies byte-for-byte equality with the generated asset and exercises cancellation. Latest desktop build and all 25 desktop tests pass. The updated running app completed the self-driving Codex/local-mock flow again with one 1920×1080 image and no error.
+
+
+## Subscription-first correction — owner follow-up 2026-11-09
+
+The desktop now defaults to the installed Codex client's native image generation using its existing login. No image API key is needed for this route. The conversation model remains independent: a Claude conversation can call the host image tool backed by Codex. This does not claim a separate native Claude image engine. An explicit `ORIGINLM_IMAGE_ROUTE` still selects the BYOK adapters above; failure on that explicit route never falls back to another provider.
+
+`NativeCodexProvider::new(executable, codex_home)` is available to other hosts. It launches the trusted native Codex executable with image generation enabled and shell/exec/browser/computer/apps/plugins/hooks/multi-agent tools disabled, in a temporary workspace. It uses the specified Codex profile's own credentials, never extracts OAuth tokens, and imports only the PNG bound to the emitted native thread ID. The desktop selects `CODEX_HOME` or the default `.codex` profile, never an arbitrary discovered secondary profile. The native backend model ID is not exposed by this CLI path, so metadata explicitly says `codex-native-image-generation` rather than inventing an API model ID.
+
+A Windows EOF bug in the existing bounded subprocess capture helper was fixed: stdin must be dropped, not merely flushed, so `codex exec` does not wait indefinitely for piped input. A Python child regression test verifies EOF before output; the 14 host MCP tests still pass.
+
+Live evidence is now **real subscription generation**, not only the earlier mock: `docs/evidence/image-generation/subscription-result.json` records the actual desktop ask → host tool → native Codex generation → normalized 1920×1080 image → assistant response, with no API route or key. `subscription-backdrop.png` shows the blue mountains, valley mist and amber horizon. A direct native CLI probe and the actual app generation both succeeded. Earlier mock artifacts remain explicitly labeled test fixtures and are not representative generated artwork.
+
+The running app has compact icon-only Save, Open and Show in folder controls with tooltips and accessible names. Provider/model implementation text is hidden from the visual image footer; only dimensions remain. All 25 desktop tests pass, including native icon/action labels and save-copy behavior; all 8 image tests pass (7 adapter/tool tests plus native artifact binding). The app was relaunched without mock configuration and only one test instance is left open.
+
+Remaining native limitations: the CLI capture operation is bounded to 60 seconds per image; native quota/auth failures currently use a generic provider-failure message rather than a dedicated native error classification. Real subscription reference-edit and count>1 qualification remain unproven.

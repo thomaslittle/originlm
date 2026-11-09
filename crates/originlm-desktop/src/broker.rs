@@ -641,7 +641,7 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                         "reviewRequests": false,
                         "allowPaid": allow_paid,
                         "hostMcpServers": host_servers,
-                        "instructions": "For requested imagery, call generate_image if available. Include scene purpose and collection art direction. Present the image inline and offer variations. Image generation uses a separately configured paid route. If unavailable, explain that image generation needs a configured image route, paid-operation approval and a conversation integration supporting host tools; never pretend to have generated an image.",
+                        "instructions": "For requested imagery, call generate_image if available. Include scene purpose and collection art direction. Present the image inline and offer variations. Image generation uses the installed Codex subscription by default, independently of your selected conversation model; an explicitly configured API route overrides that. If unavailable, explain that image generation needs a configured image route, paid-operation approval and a conversation integration supporting host tools; never pretend to have generated an image.",
                     }),
                 );
                 let session_id = match created {
@@ -855,7 +855,34 @@ fn start_image_server(
             Err(error) if error.kind == ErrorKind::NoProvider => None,
             Err(error) => return Err(error),
         },
-        None => None,
+        None => {
+            let inventory =
+                originlm_kit::inventory_source(None)(&std::sync::atomic::AtomicBool::new(false))
+                    .map_err(|_| ImageError::new(ErrorKind::NoProvider))?;
+            // Never select an arbitrary discovered secondary account/profile.
+            let profile = std::env::var_os("CODEX_HOME")
+                .map(std::path::PathBuf::from)
+                .or_else(|| {
+                    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+                        .map(|home| std::path::PathBuf::from(home).join(".codex"))
+                })
+                .ok_or_else(|| ImageError::new(ErrorKind::NoProvider))?;
+            let located = inventory.locations.values().find(|client| {
+                client.provider_id == "codex"
+                    && client.executable.is_some()
+                    && client.profile_home == profile
+            });
+            match located {
+                Some(client) => Some(std::sync::Arc::new(
+                    originlm_kit::images::NativeCodexProvider::new(
+                        client.executable.clone().unwrap(),
+                        client.profile_home.clone(),
+                    )?,
+                )
+                    as std::sync::Arc<dyn originlm_kit::images::ImageProvider>),
+                None => None,
+            }
+        }
     };
     let assets = originlm_platform::default_state_dir(None)
         .ok_or_else(|| ImageError::new(ErrorKind::AssetFailure))?

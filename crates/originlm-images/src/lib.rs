@@ -1,8 +1,10 @@
 //! Host-agnostic image tool. Construction is inert; hosts own billing consent,
 //! provider selection, canvas, reference scope and the output directory.
 pub mod mcp;
+mod native_codex;
 mod provider;
 use image::{ImageFormat, ImageReader};
+pub use native_codex::NativeCodexProvider;
 pub use provider::{ApiProvider, ProviderKind, RouteConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -14,7 +16,7 @@ use std::{
     sync::Arc,
 };
 
-pub const DESCRIPTION: &str = "Generate real imagery when the user asks for scene backdrops, overlays, thumbnails or other pictures. Include the scene name and purpose, canvas aspect, and collection art direction in prompt. Use reference_image for edits/variations of an existing asset. The host supplies the default canvas and asset directory. After success present the image inline, describe it briefly and offer variations. The host decides placement; never claim the image was added to a scene unless the host confirms it. Generation uses the user's configured paid image provider, independently of the conversation model. Never substitute a different provider after an error.";
+pub const DESCRIPTION: &str = "Generate real imagery when the user asks for scene backdrops, overlays, thumbnails or other pictures. Include the scene name and purpose, canvas aspect, and collection art direction in prompt. Use reference_image for edits/variations of an existing asset. The host supplies the default canvas and asset directory. After success present the image inline, describe it briefly and offer variations. The host decides placement; never claim the image was added to a scene unless the host confirms it. Generation uses the host-selected native Codex subscription or explicit API route, independently of the conversation model. Never substitute a different provider after an error.";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorKind {

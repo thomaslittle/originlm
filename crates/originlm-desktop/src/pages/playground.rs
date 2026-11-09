@@ -290,9 +290,11 @@ impl Desktop {
             let message = if let Some(image) = &line.image {
                 let source = image.path.clone();
                 let save_entity = entity.clone();
-                let save = ds::link(
+                let save = ds::icon_button(
                     SharedString::from(format!("save-generated-image-{index}")),
+                    IconName::ArrowDown,
                     "Save image…",
+                    theme.muted_foreground,
                     &theme,
                     move |_, _, cx| {
                         save_entity
@@ -301,17 +303,21 @@ impl Desktop {
                 )
                 .aria_label("Save image…");
                 let source = image.path.clone();
-                let open = ds::link(
+                let open = ds::icon_button(
                     SharedString::from(format!("open-generated-image-{index}")),
+                    IconName::ExternalLink,
                     "Open image",
+                    theme.muted_foreground,
                     &theme,
                     move |_, _, cx| cx.open_with_system(&source),
                 )
                 .aria_label("Open image");
                 let source = image.path.clone();
-                let reveal = ds::link(
+                let reveal = ds::icon_button(
                     SharedString::from(format!("reveal-generated-image-{index}")),
+                    IconName::FolderOpen,
                     "Show in folder",
+                    theme.muted_foreground,
                     &theme,
                     move |_, _, cx| cx.reveal_path(&source),
                 )
@@ -334,14 +340,23 @@ impl Desktop {
                             .h(px(260.))
                             .object_fit(ObjectFit::Contain),
                     )
-                    .child(ds::caption(line.text.clone(), &theme))
                     .child(
                         div()
                             .h_flex()
-                            .gap(px(8.))
-                            .child(save)
-                            .child(open)
-                            .child(reveal),
+                            .items_center()
+                            .justify_between()
+                            .child(ds::caption(
+                                format!("{} × {}", image.width, image.height),
+                                &theme,
+                            ))
+                            .child(
+                                div()
+                                    .h_flex()
+                                    .gap(px(2.))
+                                    .child(save)
+                                    .child(open)
+                                    .child(reveal),
+                            ),
                     );
                 #[cfg(test)]
                 let image_message = image_message.test_support();
