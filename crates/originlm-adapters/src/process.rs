@@ -653,15 +653,20 @@ mod service_start_tests {
         std::fs::write(
             &child_script,
             format!(
-                "Start-Sleep -Milliseconds 500\nSet-Content -LiteralPath '{}' -Value alive",
+                "[Threading.Thread]::Sleep(500)\n[IO.File]::WriteAllText('{}', 'alive')",
                 marker.display()
             ),
         )
         .unwrap();
         let powershell = PathBuf::from(std::env::var_os("SystemRoot").unwrap())
             .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        // .NET calls only: under the scrubbed environment, the first cmdlet on a
+        // clean machine costs ~19s of module discovery and outlasts the deadline.
+        // UseShellExecute=false keeps the daemon a real child, inside any job.
         let script = format!(
-            "Start-Process -WindowStyle Hidden -FilePath '{}' -ArgumentList @('-NoProfile','-File','{}')",
+            "$start = [Diagnostics.ProcessStartInfo]::new('{}', '-NoProfile -ExecutionPolicy Bypass -File \"{}\"'); \
+             $start.UseShellExecute = $false; $start.CreateNoWindow = $true; \
+             $null = [Diagnostics.Process]::Start($start)",
             powershell.display(),
             child_script.display()
         );
