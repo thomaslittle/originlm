@@ -883,5 +883,30 @@ async fn native_playground_ask_renders_trusted_generated_image(cx: &mut TestAppC
         );
     })
     .unwrap();
+    let saved = assets.path().join("saved-backdrop.png");
+    cx.update_window(handle, |_, window, cx| {
+        window.click("save-generated-image-1", cx);
+    })
+    .unwrap();
+    cx.simulate_new_path_selection(|_| Some(saved.clone()));
+    cx.wait_for(handle, Duration::from_secs(3), |_, _| saved.is_file())
+        .await;
+    let original = cx.update(|cx| {
+        desktop.read(cx).transcript[1]
+            .image
+            .as_ref()
+            .unwrap()
+            .path
+            .clone()
+    });
+    assert_eq!(
+        std::fs::read(&saved).unwrap(),
+        std::fs::read(original).unwrap()
+    );
+    cx.update_window(handle, |_, window, cx| {
+        window.click("save-generated-image-1", cx);
+    })
+    .unwrap();
+    cx.simulate_new_path_selection(|_| None);
     worker.join().unwrap();
 }
