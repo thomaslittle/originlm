@@ -82,7 +82,11 @@ fn validate(spec: &LaunchSpec) -> Result<()> {
 }
 /// A validated, env-scrubbed, tree-killing command. `stdio` pipes all three
 /// streams for protocol peers; otherwise every stream is closed.
-fn wrapped_command(spec: LaunchSpec, stdio: bool) -> Result<process_wrap::tokio::CommandWrap> {
+fn wrapped_command(
+    spec: LaunchSpec,
+    stdio: bool,
+    owned_tree: bool,
+) -> Result<process_wrap::tokio::CommandWrap> {
     validate(&spec)?;
     #[cfg(unix)]
     let identity = originlm_discovery::resolve_executable(&spec.executable)?;
@@ -131,20 +135,45 @@ fn wrapped_command(spec: LaunchSpec, stdio: bool) -> Result<process_wrap::tokio:
     command.wrap(process_wrap::tokio::KillOnDrop);
     #[cfg(windows)]
     {
-        command
-            .wrap(process_wrap::tokio::CreationFlags(
-                windows::Win32::System::Threading::CREATE_NO_WINDOW,
-            ))
-            .wrap(process_wrap::tokio::JobObject);
+        command.wrap(process_wrap::tokio::CreationFlags(
+            windows::Win32::System::Threading::CREATE_NO_WINDOW,
+        ));
+        if owned_tree {
+            command.wrap(process_wrap::tokio::JobObject);
+        }
     }
     #[cfg(unix)]
     {
-        command.wrap(process_wrap::tokio::ProcessGroup::leader());
+        if owned_tree {
+            command.wrap(process_wrap::tokio::ProcessGroup::leader());
+        }
     }
     #[cfg(unix)]
     identity.validate()?;
     Ok(command)
 }
+/// Run an installed client's idempotent service-start command. Its daemon is
+/// provider-owned: unlike a probe/session, it must survive successful exit.
+/// Close stdio so a daemon cannot hold a capture pipe open. Timeout/cancellation
+/// still kills the startup process; this narrowly avoids a tree-killing job.
+pub(crate) async fn start_service(spec: LaunchSpec, deadline: Duration) -> Result<()> {
+    if deadline.is_zero() || deadline > Duration::from_secs(60) {
+        return Err(error(ErrorCode::InvalidRequest));
+    }
+    let mut child = wrapped_command(spec, false, false)?
+        .spawn()
+        .map_err(|_| error(ErrorCode::RuntimeMissing))?;
+    match tokio::time::timeout(deadline, child.wait()).await {
+        Ok(Ok(status)) if status.success() => Ok(()),
+        Ok(_) => Err(error(ErrorCode::ProviderUnavailable)),
+        Err(_) => {
+            let _ = child.start_kill();
+            let _ = child.wait().await;
+            Err(error(ErrorCode::Timeout))
+        }
+    }
+}
+
 /// Stable identity of a Codex `account/read` account: the auth kind and the
 /// account email, as T3 Code keys its Codex account. Volatile fields (plan
 /// type, routing, managed-credential flags, anything a token refresh can
@@ -169,7 +198,7 @@ pub(crate) fn account_update_signs_out(params: &Value) -> bool {
 pub(crate) struct ManagedChild(Box<dyn process_wrap::tokio::ChildWrapper>);
 impl ManagedChild {
     pub(crate) fn spawn(spec: LaunchSpec) -> Result<Self> {
-        wrapped_command(spec, false)?
+        wrapped_command(spec, false, true)?
             .spawn()
             .map(Self)
             .map_err(|_| error(ErrorCode::RuntimeMissing))
@@ -184,7 +213,7 @@ impl ManagedChild {
 }
 impl Peer {
     pub(crate) async fn spawn(spec: LaunchSpec) -> Result<Self> {
-        let mut command = wrapped_command(spec, true)?;
+        let mut command = wrapped_command(spec, true, true)?;
         let mut child = command
             .spawn()
             .map_err(|_| error(ErrorCode::RuntimeMissing))?;
@@ -609,6 +638,49 @@ mod account_identity_tests {
             &json!({"authMode":"chatgpt","planType":"pro"})
         ));
         assert!(!account_update_signs_out(&json!({"planType":"plus"})));
+    }
+}
+
+#[cfg(all(test, windows))]
+mod service_start_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn service_start_keeps_provider_owned_daemon_alive() {
+        let root = tempfile::tempdir().unwrap();
+        let marker = root.path().join("daemon-alive");
+        let child_script = root.path().join("daemon.ps1");
+        std::fs::write(
+            &child_script,
+            format!(
+                "Start-Sleep -Milliseconds 500\nSet-Content -LiteralPath '{}' -Value alive",
+                marker.display()
+            ),
+        )
+        .unwrap();
+        let powershell = PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let script = format!(
+            "Start-Process -WindowStyle Hidden -FilePath '{}' -ArgumentList @('-NoProfile','-File','{}')",
+            powershell.display(),
+            child_script.display()
+        );
+        start_service(
+            LaunchSpec {
+                executable: powershell,
+                args: vec!["-NoProfile".into(), "-Command".into(), script.into()],
+                cwd: root.path().into(),
+                env: BTreeMap::new(),
+            },
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        assert!(
+            marker.exists(),
+            "successful service start must not kill the daemon with its probe job"
+        );
     }
 }
 

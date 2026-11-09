@@ -410,8 +410,8 @@ async fn idle_usage_expiry_publishes_a_stale_event_without_inventing_zero() {
 }
 
 #[tokio::test]
-async fn metadata_uses_slow_cadence_and_interest_expires_on_an_idle_open_socket() {
-    // Neither fixed 5s probing nor treating every registered socket as active is valid.
+async fn idle_metadata_refresh_is_bounded_by_auth_expiry_without_usage() {
+    // Idle providers without quota windows still re-read when authentication expires.
     let calls = Arc::new(AtomicUsize::new(0));
     let c = calls.clone();
     let s = ready(Arc::new(move |_, id, route| {
@@ -422,18 +422,24 @@ async fn metadata_uses_slow_cadence_and_interest_expires_on_an_idle_open_socket(
         })
     }))
     .await;
-    advance(910).await;
+    advance(890).await;
     assert_eq!(
         calls.load(Ordering::SeqCst),
         2,
-        "an idle socket must use the reduced cadence"
+        "do not probe on every tick"
+    );
+    advance(20).await;
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        4,
+        "idle auth expiry must request a re-read"
     );
     snapshot(&s).await; // Real renewed read interest, no refresh/probe request.
     advance(5).await;
     assert_eq!(
         calls.load(Ordering::SeqCst),
         4,
-        "active interest must recheck expired metadata"
+        "renewed interest must not duplicate the just-completed re-read"
     );
     s.stop_background_tasks();
 }
@@ -1145,4 +1151,48 @@ async fn stopping_background_inventory_does_not_cancel_a_foreground_joiners_shar
         named(&snapshot(&s).await, "connections", "personal")["displayName"],
         "scan-1"
     );
+}
+
+#[tokio::test]
+async fn unsupported_metadata_is_discovery_only_and_does_not_retry_forever() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let s = ready(Arc::new(move |_, _, _| {
+        counter.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async {
+            Err(DomainError::new(
+                ErrorCode::CapabilityUnsupported,
+                "No metadata adapter registered",
+            ))
+        })
+    }))
+    .await;
+    advance(120).await;
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        2,
+        "an absent adapter cannot heal by respawning every five seconds"
+    );
+    for _ in 0..3 {
+        let value = snapshot(&s).await;
+        let c = named(&value, "connections", "personal");
+        assert_eq!(c["status"], "metadata_unsupported");
+        assert_eq!(
+            c["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|v| *v == "METADATA_ADAPTER_NOT_IMPLEMENTED")
+                .count(),
+            1
+        );
+        assert!(
+            !value["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["kind"] == "adapter_failure")
+        );
+    }
+    s.stop_background_tasks();
 }

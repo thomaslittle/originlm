@@ -80,7 +80,11 @@ fn browser_command_any(path: &Path) -> Result<OsString> {
     Ok(format!("\"{text}\" %s").into())
 }
 fn browser_command(path: &Path) -> Result<OsString> {
-    if !file(path) || !name(path).starts_with("originlm-auth-blocker") {
+    let desktop = matches!(
+        name(path).as_str(),
+        "originlm-desktop" | "originlm-desktop.exe"
+    );
+    if !file(path) || (!name(path).starts_with("originlm-auth-blocker") && !desktop) {
         return Err(error(ErrorCode::IntegrationRestricted));
     }
     let text = path
@@ -92,7 +96,12 @@ fn browser_command(path: &Path) -> Result<OsString> {
     {
         return Err(error(ErrorCode::IntegrationRestricted));
     }
-    Ok(format!("\"{text}\" %s").into())
+    let mode = if desktop {
+        " --originlm-auth-blocker"
+    } else {
+        ""
+    };
+    Ok(format!("\"{text}\"{mode} %s").into())
 }
 fn node() -> Result<PathBuf> {
     let path = std::env::var_os("PATH").ok_or_else(|| error(ErrorCode::RuntimeMissing))?;

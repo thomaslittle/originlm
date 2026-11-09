@@ -18,6 +18,32 @@ pub fn diagnostic(code: &str) -> Option<&'static str> {
         "NO_SUBSCRIPTION_TOKEN_OR_PRIVATE_ENDPOINT_USED" => {
             "No subscription token or private endpoint was used."
         }
+        "METADATA_ADAPTER_NOT_IMPLEMENTED" => {
+            "OriginLM detects this installed client or configuration but has no metadata adapter for it. Sign-in, plan and models were not read; this is not a provider service failure."
+        }
+        "PLAN_FROM_ROUTE_BILLING" => {
+            "The account plan category comes from route billing. A specific plan tier or entitlement is not inferred."
+        }
+        "PLAN_NOT_REPORTED_BY_PROVIDER" => {
+            "The client's metadata supplies no plan or route billing category, so its plan tier cannot be determined from this reading."
+        }
+        "METADATA_READ_TIMEOUT" => {
+            "Service unreachable: the metadata read timed out. Retrying automatically."
+        }
+        "METADATA_SERVICE_UNREACHABLE" => {
+            "Service unreachable: the local provider service did not answer. Retrying automatically."
+        }
+        "METADATA_RUNTIME_MISSING" => {
+            "Provider executable or required runtime is missing. Refresh after restoring it."
+        }
+        "METADATA_LAUNCH_RESTRICTED" => {
+            "Provider launch is restricted: profile or browser-blocking helper is unavailable."
+        }
+        "METADATA_PROTOCOL_INCOMPATIBLE" => "Provider returned an incompatible metadata response.",
+        "METADATA_ACCESS_DENIED" => "Provider metadata access was denied.",
+        "METADATA_READ_FAILED" => {
+            "The last metadata read failed. Retrying automatically; saved readings are stale."
+        }
         "OPENCODE_2_METADATA_FROM_LOCAL_SERVICE" => "Read from OpenCode's running local service.",
         "OPENCODE_2_EXECUTION_NOT_WIRED" => {
             "OpenCode 2 is catalogued here; text execution is not available yet."

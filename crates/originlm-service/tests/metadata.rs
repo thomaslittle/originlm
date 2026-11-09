@@ -678,3 +678,202 @@ async fn a_corrupt_or_foreign_cache_file_is_preserved_and_rebuilt() {
             .any(|entry| entry.file_name().to_string_lossy().contains("corrupt"))
     );
 }
+
+#[tokio::test]
+async fn explicit_refresh_bypasses_success_cache_and_failure_backoff() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let source: MetadataSource = Arc::new(move |_, id, route| {
+        let attempt = counter.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move {
+            if attempt == 1 {
+                return Err(DomainError::new(
+                    ErrorCode::ProviderUnavailable,
+                    "private adapter details",
+                )
+                .retryable());
+            }
+            Ok(report(&id, &route))
+        })
+    });
+    let s = NativeService::new(Arc::new(|_| Ok(inventory())), Duration::ZERO).with_metadata(source);
+    s.register_client("app", probe_policy()).unwrap();
+    s.handle("app", "discovery.refresh", json!({}))
+        .await
+        .unwrap();
+    s.handle(
+        "app",
+        "connections.probe",
+        json!({"connectionId":"personal"}),
+    )
+    .await
+    .unwrap();
+    let failed = s
+        .handle(
+            "app",
+            "connections.probe",
+            json!({"connectionId":"personal", "force":true}),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(failed.code, ErrorCode::ProviderUnavailable);
+    let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+    let connection = snapshot["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "personal")
+        .unwrap();
+    assert_eq!(connection["status"], "metadata_unavailable");
+    assert!(!snapshot.to_string().contains("private adapter details"));
+    s.handle(
+        "app",
+        "connections.probe",
+        json!({"connectionId":"personal", "force":true}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+    let connection = snapshot["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "personal")
+        .unwrap();
+    assert_eq!(connection["status"], "metadata_ready");
+    assert_eq!(connection["auth"]["freshness"], "fresh");
+}
+
+#[tokio::test]
+async fn account_plan_uses_route_subscription_and_preserves_native_tiers() {
+    for native_plan in [false, true] {
+        let source: MetadataSource = Arc::new(move |_, id, route| {
+            Box::pin(async move {
+                let mut r = report(&id, &route);
+                if !native_plan {
+                    r.plan = Observation::unknown("PLAN_NOT_REPORTED");
+                }
+                r.billing = Observation::unknown("GATEWAY_BILLING_IS_ROUTE_SPECIFIC");
+                r.providers.push(Provider {
+                    id: "gateway-go".into(),
+                    name: "Gateway Go".into(),
+                    kind: "gateway".into(),
+                });
+                r.additional_routes.push(AccessRoute {
+                    id: stable_id("route", &[&route, "gateway-go"]),
+                    connection_id: id,
+                    provider_id: "gateway-go".into(),
+                    display_name: "Gateway / Gateway Go".into(),
+                    billing: Observation::reported(
+                        BillingMode::Subscription,
+                        EvidenceSource::new(EvidenceKind::Synthetic, "test", "route billing"),
+                    ),
+                    capabilities: vec![],
+                    catalog_revision: "1".into(),
+                });
+                Ok(r)
+            })
+        });
+        let s =
+            NativeService::new(Arc::new(|_| Ok(inventory())), Duration::ZERO).with_metadata(source);
+        s.register_client("app", probe_policy()).unwrap();
+        s.handle("app", "discovery.refresh", json!({}))
+            .await
+            .unwrap();
+        s.handle(
+            "app",
+            "connections.probe",
+            json!({"connectionId":"personal"}),
+        )
+        .await
+        .unwrap();
+        let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+        let c = snapshot["connections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["id"] == "personal")
+            .unwrap();
+        assert_eq!(
+            c["plan"]["value"]["label"],
+            if native_plan {
+                "Synthetic plan"
+            } else {
+                "Gateway Go Subscription"
+            }
+        );
+        assert_eq!(c["plan"]["freshness"], "fresh");
+        if !native_plan {
+            assert_eq!(c["plan"]["verification"], "inferred");
+        }
+    }
+}
+
+#[tokio::test]
+async fn authenticated_clients_without_plan_or_billing_do_not_get_invented_subscriptions() {
+    let source: MetadataSource = Arc::new(move |_, id, route| {
+        Box::pin(async move {
+            let mut r = report(&id, &route);
+            r.plan = Observation::unknown("PLAN_NOT_REPORTED");
+            r.billing = Observation::unknown("BILLING_NOT_REPORTED");
+            Ok(r)
+        })
+    });
+    let s = NativeService::new(Arc::new(|_| Ok(inventory())), Duration::ZERO).with_metadata(source);
+    s.register_client("app", probe_policy()).unwrap();
+    s.handle("app", "discovery.refresh", json!({}))
+        .await
+        .unwrap();
+    s.handle(
+        "app",
+        "connections.probe",
+        json!({"connectionId":"personal"}),
+    )
+    .await
+    .unwrap();
+    let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+    let c = snapshot["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "personal")
+        .unwrap();
+    assert_eq!(c["auth"]["value"], "authenticated");
+    assert_eq!(c["plan"]["state"], "unknown");
+    assert!(
+        c["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d == "PLAN_NOT_REPORTED_BY_PROVIDER")
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn slow_successful_metadata_is_not_cut_off_by_the_generic_probe_deadline() {
+    let source: MetadataSource = Arc::new(|_, id, route| {
+        Box::pin(async move {
+            tokio::time::sleep(Duration::from_secs(40)).await;
+            Ok(report(&id, &route))
+        })
+    });
+    let s = NativeService::new(Arc::new(|_| Ok(inventory())), Duration::ZERO)
+        .with_metadata(source)
+        .with_metadata_timeout(Duration::from_secs(60));
+    s.register_client("app", probe_policy()).unwrap();
+    s.handle("app", "discovery.refresh", json!({}))
+        .await
+        .unwrap();
+    let value = s
+        .handle(
+            "app",
+            "connections.probe",
+            json!({"connectionId":"personal", "force":true}),
+        )
+        .await;
+    assert!(
+        value.is_ok(),
+        "a valid native cold start must be allowed to complete: {value:?}"
+    );
+}

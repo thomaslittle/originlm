@@ -52,6 +52,7 @@ pub struct NativeService {
     cache: Arc<InventoryCache>,
     intelligence: Arc<intelligence::IntelligenceCache>,
     metadata_source: Option<MetadataSource>,
+    metadata_timeout: Duration,
     metadata_locks: std::sync::Mutex<BTreeMap<String, Arc<tokio::sync::Mutex<()>>>>,
     watchers: std::sync::Mutex<BTreeMap<String, DebouncedMetadataWatcher>>,
     /// Providers whose metadata the host authorized for the autonomous lane.
@@ -84,6 +85,7 @@ impl NativeService {
             adapters: Vec::new(),
             execution_state: Default::default(),
             metadata_source: None,
+            metadata_timeout: Duration::from_secs(25),
             metadata_locks: std::sync::Mutex::new(BTreeMap::new()),
             watchers: std::sync::Mutex::new(BTreeMap::new()),
             refresh_providers: RwLock::new(BTreeSet::new()),
