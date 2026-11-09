@@ -43,18 +43,17 @@ impl ImageSmoke {
             return;
         }
         app.page = Page::Playground;
-        if !self.submitted {
-            if let Some(choice) = app
+        if !self.submitted
+            && let Some(choice) = app
                 .model_choices()
                 .into_iter()
                 .find(|c| c.provider_id == self.config.provider_id)
-            {
-                app.selected_model = Some(choice.model_id.clone());
-                app.paid_consent
-                    .set(Some(&choice.model_id), self.config.allow_paid);
-                app.submit_prompt(self.config.prompt.clone(), cx);
-                self.submitted = true;
-            }
+        {
+            app.selected_model = Some(choice.model_id.clone());
+            app.paid_consent
+                .set(Some(&choice.model_id), self.config.allow_paid);
+            app.submit_prompt(self.config.prompt.clone(), cx);
+            self.submitted = true;
         }
         if (self.submitted && !app.running) || self.started.elapsed() > Duration::from_secs(180) {
             let images: Vec<_> = app

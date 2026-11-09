@@ -5,6 +5,7 @@ use originlm_service::InventorySource;
 mod broker_cli;
 mod endpoints;
 mod host;
+mod image_cli;
 mod native_profiles;
 mod status;
 use args::{Action, Args};
@@ -51,6 +52,12 @@ Usage:
   --native-profiles ABSOLUTE_JSON explicitly registers Gemini CLI, Antigravity ACP, or Grok native profiles; the file contains paths/labels, never tokens.
   --chatgpt-app-name NAME opts in a separate managed Codex profile and SIWC auth RPCs; grant --allow-metadata codex_managed to use them.
   --billing-declarations ABSOLUTE_JSON declares billing for discovered connections whose provider leaves it unknown; recorded as user-supplied evidence, never verification.
+  originlm image --definition
+      Prints the generate_image tool definition. Contacts nothing.
+  originlm image --assets ABSOLUTE_DIRECTORY --prompt TEXT --allow-paid
+      [--size WIDTHxHEIGHT] [--aspect W:H] [--style TEXT] [--reference RELATIVE_PATH] [--count 1-4]
+      Generates images through ORIGINLM_IMAGE_ROUTE or the installed Codex login and
+      prints JSON holding images or a typed error. Exit: 0 generated, 1 tool error.
   originlm --version
 
 Metadata observations are kept in the broker-owned state directory (state.db,
@@ -646,6 +653,12 @@ async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
 
 fn main() -> std::process::ExitCode {
     let result = (|| -> originlm_contracts::Result<u8> {
+        if std::env::args_os()
+            .nth(1)
+            .is_some_and(|command| command == "image")
+        {
+            return image_cli::run(std::env::args_os().skip(2));
+        }
         let args = Args::parse(std::env::args_os().skip(1))?;
         match args.action {
             Action::Help => {

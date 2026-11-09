@@ -153,17 +153,17 @@ async fn handle(
                     // Small visual previews for the calling model; full-resolution
                     // files go only over the trusted host result channel.
                     for image in &images {
-                        if let Ok(bytes) = std::fs::read(&image.path) {
-                            if let Ok(preview) = decode(&bytes) {
-                                let mut png = Cursor::new(Vec::new());
-                                if preview
-                                    .thumbnail(512, 512)
-                                    .write_to(&mut png, ImageFormat::Png)
-                                    .is_ok()
-                                {
-                                    use base64::Engine;
-                                    content.push(json!({"type":"image","mimeType":"image/png","data":base64::engine::general_purpose::STANDARD.encode(png.get_ref())}));
-                                }
+                        if let Ok(bytes) = std::fs::read(&image.path)
+                            && let Ok(preview) = decode(&bytes)
+                        {
+                            let mut png = Cursor::new(Vec::new());
+                            if preview
+                                .thumbnail(512, 512)
+                                .write_to(&mut png, ImageFormat::Png)
+                                .is_ok()
+                            {
+                                use base64::Engine;
+                                content.push(json!({"type":"image","mimeType":"image/png","data":base64::engine::general_purpose::STANDARD.encode(png.get_ref())}));
                             }
                         }
                     }

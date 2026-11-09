@@ -268,19 +268,21 @@ async fn gemini_and_openrouter_send_image_modalities_and_reference() {
     r.count = 2;
     r.reference_png = Some(png());
     assert_eq!(provider.generate(r).await.unwrap().len(), 2);
-    let capture = capture.lock().unwrap();
-    assert_eq!(capture.len(), 2);
-    assert_eq!(
-        capture[0].0,
-        "/v1/models/gemini-nano-banana-2.1:generateContent"
-    );
-    assert!(capture[0].1.contains_key("x-goog-api-key"));
-    let body: Value = serde_json::from_slice(&capture[0].2).unwrap();
-    assert_eq!(
-        body["generationConfig"]["imageConfig"]["aspectRatio"],
-        "16:9"
-    );
-    assert!(body["contents"][0]["parts"][1]["inlineData"]["data"].is_string());
+    {
+        let capture = capture.lock().unwrap();
+        assert_eq!(capture.len(), 2);
+        assert_eq!(
+            capture[0].0,
+            "/v1/models/gemini-nano-banana-2.1:generateContent"
+        );
+        assert!(capture[0].1.contains_key("x-goog-api-key"));
+        let body: Value = serde_json::from_slice(&capture[0].2).unwrap();
+        assert_eq!(
+            body["generationConfig"]["imageConfig"]["aspectRatio"],
+            "16:9"
+        );
+        assert!(body["contents"][0]["parts"][1]["inlineData"]["data"].is_string());
+    }
     task.abort();
     let response = json!({"choices":[{"message":{"images":[{"image_url":{"url":format!("data:image/png;base64,{}",STANDARD.encode(png()))}}]}}]});
     let (provider, capture, task) = api(ProviderKind::Openrouter, StatusCode::OK, response).await;

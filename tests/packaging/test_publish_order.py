@@ -24,6 +24,7 @@ EXPECTED = [
     "originlm-transports",
     "originlm-control",
     "originlm-adapters",
+    "originlm-images",
     "originlm-kit",
     "originlm",
     "originlm-cli",

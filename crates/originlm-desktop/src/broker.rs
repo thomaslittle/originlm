@@ -847,43 +847,8 @@ fn drain_images(
 fn start_image_server(
     runtime: &tokio::runtime::Runtime,
 ) -> originlm_kit::images::Result<originlm_kit::images::mcp::ImageServer> {
-    use originlm_kit::images::{Canvas, ErrorKind, ImageError, ImageTool, RouteConfig};
-    let provider = match RouteConfig::from_environment()? {
-        Some(config) => match config.connect() {
-            Ok(provider) => Some(std::sync::Arc::new(provider)
-                as std::sync::Arc<dyn originlm_kit::images::ImageProvider>),
-            Err(error) if error.kind == ErrorKind::NoProvider => None,
-            Err(error) => return Err(error),
-        },
-        None => {
-            let inventory =
-                originlm_kit::inventory_source(None)(&std::sync::atomic::AtomicBool::new(false))
-                    .map_err(|_| ImageError::new(ErrorKind::NoProvider))?;
-            // Never select an arbitrary discovered secondary account/profile.
-            let profile = std::env::var_os("CODEX_HOME")
-                .map(std::path::PathBuf::from)
-                .or_else(|| {
-                    std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
-                        .map(|home| std::path::PathBuf::from(home).join(".codex"))
-                })
-                .ok_or_else(|| ImageError::new(ErrorKind::NoProvider))?;
-            let located = inventory.locations.values().find(|client| {
-                client.provider_id == "codex"
-                    && client.executable.is_some()
-                    && client.profile_home == profile
-            });
-            match located {
-                Some(client) => Some(std::sync::Arc::new(
-                    originlm_kit::images::NativeCodexProvider::new(
-                        client.executable.clone().unwrap(),
-                        client.profile_home.clone(),
-                    )?,
-                )
-                    as std::sync::Arc<dyn originlm_kit::images::ImageProvider>),
-                None => None,
-            }
-        }
-    };
+    use originlm_kit::images::{Canvas, ErrorKind, ImageError, ImageTool};
+    let provider = originlm_kit::default_image_provider()?;
     let assets = originlm_platform::default_state_dir(None)
         .ok_or_else(|| ImageError::new(ErrorKind::AssetFailure))?
         .join("playground-images");
