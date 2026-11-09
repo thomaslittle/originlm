@@ -136,7 +136,13 @@ fn packaged_browser_blocker() -> Option<PathBuf> {
         "originlm-auth-blocker"
     };
     let candidate = std::env::current_exe().ok()?.parent()?.join(name);
-    candidate.is_file().then_some(candidate)
+    if candidate.is_file() {
+        Some(candidate)
+    } else {
+        // Standalone desktop builds carry the same no-op blocker entry point.
+        // Moving the desktop must not disable read-only ACP metadata probes.
+        std::env::current_exe().ok()
+    }
 }
 
 /// Descriptors already issued on this machine, most privileged first. The

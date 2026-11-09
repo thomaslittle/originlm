@@ -11,6 +11,13 @@ impl NativeService {
         self.metadata_source = Some(source);
         self
     }
+    /// The metadata host declares its adapters' whole-operation budget. The
+    /// service must not cancel a valid native handshake at a shorter generic
+    /// deadline. Individual adapters retain their own tighter phase deadlines.
+    pub fn with_metadata_timeout(mut self, timeout: Duration) -> Self {
+        self.metadata_timeout = timeout.clamp(Duration::from_secs(1), Duration::from_secs(300));
+        self
+    }
     fn ensure_probe_permission(
         &self,
         client: &str,
@@ -78,7 +85,7 @@ impl NativeService {
             return;
         };
         let result = tokio::time::timeout(
-            Duration::from_secs(25),
+            self.metadata_timeout,
             source(target.located, id.clone(), target.route_id.clone()),
         )
         .await
@@ -96,7 +103,7 @@ impl NativeService {
             }
             Err(error) => {
                 let mut safe =
-                    DomainError::new(error.code.clone(), "Client metadata is unavailable");
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = error.retryable
                     || matches!(
                         error.code,
@@ -110,7 +117,8 @@ impl NativeService {
         }
     }
     pub(crate) async fn probe_connection(&self, client: &str, p: &Value) -> Result<Value> {
-        params::allow(p, &["connectionId"])?;
+        params::allow(p, &["connectionId", "force"])?;
+        let force = params::boolean(p, "force")?;
         let id = params::text(p, "connectionId")?.ok_or_else(params::invalid)?;
         let source = self.metadata_source.as_ref().ok_or_else(unsupported)?;
         // Scope check precedes path lookup so inaccessible IDs cannot be enumerated.
@@ -137,14 +145,20 @@ impl NativeService {
         let _slot = self.metadata_slots.acquire().await.map_err(|_| denied())?;
         let target = self.cache.probe_input(id)?;
         self.ensure_probe_permission(client, id, &target.located.provider_id)?;
+        if force {
+            // Explicit refresh invalidates success and failure caches under the
+            // same connection lease as every other probe.
+            self.cache.invalidate_metadata(&[id.into()])?;
+        }
+        let target = self.cache.probe_input(id)?;
         if let Some(error) = self.cache.metadata_failure(id)? {
             return Err(error);
         }
-        if self.cache.has_fresh_metadata(id)? {
+        if !force && self.cache.has_fresh_metadata(id)? {
             return Ok(json!({"status":"cached","connectionId":id}));
         }
         let result = tokio::time::timeout(
-            Duration::from_secs(25),
+            self.metadata_timeout,
             source(target.located.clone(), id.into(), target.route_id.clone()),
         )
         .await
@@ -165,7 +179,8 @@ impl NativeService {
                             | ErrorCode::ProviderUnavailable
                             | ErrorCode::Timeout
                     );
-                let mut safe = DomainError::new(error.code, "Client metadata is unavailable");
+                let mut safe =
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = retryable;
                 safe.retry_after_ms = error.retry_after_ms;
                 self.cache.fail_metadata(&target.base, id, safe.clone())?;
@@ -221,7 +236,7 @@ impl NativeService {
             return;
         }
         let result = tokio::time::timeout(
-            Duration::from_secs(25),
+            self.metadata_timeout,
             source(
                 target.located.clone(),
                 target.connection_id.clone(),
@@ -246,7 +261,7 @@ impl NativeService {
             }
             Err(error) => {
                 let mut safe =
-                    DomainError::new(error.code.clone(), "Client metadata is unavailable");
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = error.retryable
                     || matches!(
                         error.code,
@@ -262,6 +277,27 @@ impl NativeService {
         }
     }
 }
+// Only fixed, actionable reasons cross the public boundary. Adapter messages
+// may contain private paths, URLs or tokens.
+fn metadata_failure_message(code: &ErrorCode) -> &'static str {
+    match code {
+        ErrorCode::Timeout => "Service unreachable: metadata read timed out",
+        ErrorCode::ProviderUnavailable => {
+            "Service unreachable: local provider service did not answer"
+        }
+        ErrorCode::CapabilityUnsupported => {
+            "Discovery only: OriginLM has no metadata adapter for this provider"
+        }
+        ErrorCode::RuntimeMissing => "Provider executable or required runtime is missing",
+        ErrorCode::IntegrationRestricted => {
+            "Provider launch is restricted: profile or browser-blocking helper is unavailable"
+        }
+        ErrorCode::ProtocolIncompatible => "Provider returned an incompatible metadata response",
+        ErrorCode::LocalAccessDenied => "Provider metadata access was denied",
+        _ => "Client metadata is unavailable",
+    }
+}
+
 fn validate_report(report: &ConnectionMetadata, connection: &str, route: &str) -> Result<()> {
     if report.connection_id != connection
         || report.route_id != route
@@ -331,7 +367,91 @@ fn validate_report(report: &ConnectionMetadata, connection: &str, route: &str) -
     Ok(())
 }
 
+/// Prefer a native tier. When the provider only publishes route billing,
+/// surface that category at account level without inventing a tier/entitlement.
+fn account_plan(snapshot: &Snapshot, report: &ConnectionMetadata) -> Observation<Plan> {
+    if report.plan.fresh_value().is_some() {
+        return report.plan.clone();
+    }
+    let primary = snapshot
+        .connections
+        .iter()
+        .find(|c| c.id == report.connection_id)
+        .map(|c| c.provider_id.as_str())
+        .unwrap_or("");
+    let best = std::iter::once((primary, &report.billing))
+        .chain(
+            report
+                .additional_routes
+                .iter()
+                .filter(|r| r.connection_id == report.connection_id)
+                .map(|r| (r.provider_id.as_str(), &r.billing)),
+        )
+        .filter_map(|(provider, billing)| match billing {
+            Observation::Known {
+                value, freshness, ..
+            } => {
+                let (priority, category) = match value {
+                    BillingMode::Subscription => (5, "Subscription"),
+                    BillingMode::Mixed => (4, "Mixed billing"),
+                    BillingMode::PrepaidCredits => (3, "Prepaid credits"),
+                    BillingMode::ApiMetered => (2, "Metered API"),
+                    BillingMode::Local => (1, "Local"),
+                    BillingMode::Unknown => return None,
+                };
+                Some((
+                    (u8::from(*freshness == Freshness::Fresh), priority),
+                    provider,
+                    category,
+                    billing,
+                ))
+            }
+            _ => None,
+        })
+        .max_by_key(|(priority, ..)| *priority);
+    let Some((
+        _,
+        provider,
+        category,
+        Observation::Known {
+            source,
+            observed_at,
+            freshness,
+            expires_at,
+            ..
+        },
+    )) = best
+    else {
+        return report.plan.clone();
+    };
+    if *freshness == Freshness::Stale && report.plan.value().is_some() {
+        return report.plan.clone();
+    }
+    let name = report
+        .providers
+        .iter()
+        .chain(snapshot.providers.iter())
+        .find(|p| p.id == provider)
+        .map(|p| p.name.as_str())
+        .unwrap_or(provider);
+    Observation::Known {
+        value: Plan {
+            native_id: format!("route-billing:{provider}:{category}"),
+            label: format!("{name} {category}"),
+        },
+        source: source.clone(),
+        observed_at: observed_at.clone(),
+        freshness: freshness.clone(),
+        verification: Verification::Inferred,
+        expires_at: expires_at.clone(),
+    }
+}
+
 pub(crate) fn merge_report(snapshot: &mut Snapshot, report: &ConnectionMetadata, stale: bool) {
+    let plan = account_plan(snapshot, report);
+    let route_plan = plan
+        .value()
+        .is_some_and(|p| p.native_id.starts_with("route-billing:"));
     let Some(connection) = snapshot
         .connections
         .iter_mut()
@@ -340,9 +460,29 @@ pub(crate) fn merge_report(snapshot: &mut Snapshot, report: &ConnectionMetadata,
         return;
     };
     connection.auth = report.auth.clone();
-    connection.plan = report.plan.clone();
+    connection.plan = plan;
     connection.account_id = report.account.as_ref().map(|a| a.id.clone());
     connection.diagnostics = report.diagnostics.clone();
+    if route_plan
+        && !connection
+            .diagnostics
+            .iter()
+            .any(|d| d == "PLAN_FROM_ROUTE_BILLING")
+    {
+        connection
+            .diagnostics
+            .push("PLAN_FROM_ROUTE_BILLING".into());
+    }
+    if connection.plan.value().is_none()
+        && !connection
+            .diagnostics
+            .iter()
+            .any(|d| d == "PLAN_NOT_REPORTED_BY_PROVIDER")
+    {
+        connection
+            .diagnostics
+            .push("PLAN_NOT_REPORTED_BY_PROVIDER".into());
+    }
     connection.status = if stale {
         "metadata_stale"
     } else if report.auth.fresh_value() == Some(&AuthState::Authenticated) {

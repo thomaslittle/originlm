@@ -104,12 +104,16 @@ fn accounts(snapshot: &Snapshot) -> Vec<AccountView> {
 
 fn auth_chip(view: &data::AuthView, theme: &Theme) -> Div {
     let tone = match view.kind {
+        data::AuthKind::DiscoveryOnly => Tone::Neutral,
+        data::AuthKind::Unavailable => Tone::Red,
         data::AuthKind::Verified => Tone::Green,
         data::AuthKind::Cached => Tone::Amber,
         data::AuthKind::Required => Tone::Red,
         data::AuthKind::Unknown => Tone::Neutral,
     };
     let label = match view.kind {
+        data::AuthKind::DiscoveryOnly => "Discovery only",
+        data::AuthKind::Unavailable => "Reading unavailable",
         data::AuthKind::Verified => "Signed in",
         data::AuthKind::Cached => "Cached sign-in",
         data::AuthKind::Required => "Sign-in required",
@@ -221,6 +225,16 @@ fn allowance_cell(
             )
         } else {
             match view.auth.kind {
+                data::AuthKind::DiscoveryOnly => (
+                    "Discovery only",
+                    "OriginLM has no metadata adapter for this provider; sign-in and models were not read.",
+                    Tone::Neutral,
+                ),
+                data::AuthKind::Unavailable => (
+                    "Reading unavailable",
+                    "The provider read failed. Saved readings remain stale while it retries.",
+                    Tone::Red,
+                ),
                 data::AuthKind::Required => (
                     "No reading",
                     "Sign in to the client to read its allowance.",

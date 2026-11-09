@@ -16,6 +16,8 @@ use originlm_contracts::{Snapshot, Support};
 
 pub fn auth_tone(kind: data::AuthKind) -> Tone {
     match kind {
+        data::AuthKind::DiscoveryOnly => Tone::Neutral,
+        data::AuthKind::Unavailable => Tone::Red,
         data::AuthKind::Verified => Tone::Green,
         data::AuthKind::Cached => Tone::Amber,
         data::AuthKind::Required => Tone::Red,
@@ -26,6 +28,8 @@ pub fn auth_tone(kind: data::AuthKind) -> Tone {
 /// Short sign-in label for tables and chips.
 pub fn auth_short(kind: data::AuthKind) -> &'static str {
     match kind {
+        data::AuthKind::DiscoveryOnly => "Discovery only",
+        data::AuthKind::Unavailable => "Reading unavailable",
         data::AuthKind::Verified => "Signed in",
         data::AuthKind::Cached => "Cached sign-in",
         data::AuthKind::Required => "Sign-in required",
@@ -184,7 +188,14 @@ impl Desktop {
                     }),
             )
             .child(div().w(px(56.)).flex_shrink_0().child(ds::mono(
-                model_count(&snapshot, &connection.id).to_string(),
+                if view.kind == data::AuthKind::DiscoveryOnly
+                    || (view.kind == data::AuthKind::Unavailable
+                        && model_count(&snapshot, &connection.id) == 0)
+                {
+                    "Not read".into()
+                } else {
+                    model_count(&snapshot, &connection.id).to_string()
+                },
                 ty::SMALL,
                 theme.foreground,
                 &theme,
@@ -384,7 +395,13 @@ impl Desktop {
                 this.child(
                     div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::banner(
                         Tone::Amber,
-                        "Reported by discovery",
+                        if view.kind == data::AuthKind::DiscoveryOnly {
+                            "Discovery only; metadata not implemented"
+                        } else if view.kind == data::AuthKind::Unavailable {
+                            "Last read failed; saved data is stale"
+                        } else {
+                            "Provider reading"
+                        },
                         Some(
                             connection
                                 .diagnostics

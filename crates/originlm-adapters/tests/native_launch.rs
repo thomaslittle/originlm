@@ -229,3 +229,41 @@ async fn clients_that_cannot_remove_their_tools_refuse_text_only_sessions() {
         assert!(error.message.contains("text-only"));
     }
 }
+
+#[test]
+fn standalone_desktop_can_block_metadata_browser_without_a_sibling_helper() {
+    let root = tempfile::tempdir().unwrap();
+    let p = profile(
+        root.path(),
+        NativeProvider::Antigravity,
+        if cfg!(windows) {
+            "agy_acp_server.exe"
+        } else {
+            "agy_acp_server.par"
+        },
+    );
+    file(&p.executable);
+    file(&root.path().join(if cfg!(windows) {
+        "localharness_external.exe"
+    } else {
+        "localharness_external"
+    }));
+    let desktop = root.path().join(if cfg!(windows) {
+        "originlm-desktop.exe"
+    } else {
+        "originlm-desktop"
+    });
+    file(&desktop);
+    let launch = prepare(&p, root.path(), Some(&desktop)).unwrap();
+    let browser = launch
+        .spec
+        .env
+        .get(std::ffi::OsStr::new("BROWSER"))
+        .unwrap()
+        .to_string_lossy();
+    assert!(browser.contains("--originlm-auth-blocker %s"));
+    assert!(
+        launch.auth_method.is_none(),
+        "metadata must not invent an OAuth flow"
+    );
+}
