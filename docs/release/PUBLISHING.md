@@ -252,7 +252,7 @@ does not publish to PyPI, sign anything or modify consumer repositories.
 
 `cargo package --no-verify` validates the source worktree, not the `.crate`
 contents. The crate preparation and publisher jobs therefore run
-`scripts/verify_packaged_closure.py` against the exact 13 prepared archives. It
+`scripts/verify_packaged_closure.py` against the exact 15 prepared archives. It
 verifies the manifest source/version/order and every archive hash, safely
 extracts the archives outside the checkout, rejects normalized manifests with
 `path` dependencies or leaked absolute workspace paths, and checks the unpacked

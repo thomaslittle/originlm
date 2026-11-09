@@ -14,6 +14,8 @@ pub use originlm_discovery::{
     ScopedProvider,
 };
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
+/// Host-owned image generation, independent of the selected conversation model.
+pub use originlm_images as images;
 use originlm_platform::NativeFilesystem;
 pub use originlm_service::{ExecutionGrant, InventorySource, NativeService};
 use serde::de::DeserializeOwned;
@@ -161,6 +163,38 @@ impl KitBuilder {
                 self.cursor_usage,
             ),
         })
+    }
+}
+/// Selects the image provider a host gets by default: the explicit
+/// `ORIGINLM_IMAGE_ROUTE` file when set, otherwise the installed Codex client's
+/// default profile (`CODEX_HOME` or `~/.codex`, never another discovered
+/// account). `None` means nothing usable is configured. No provider is contacted.
+pub fn default_image_provider() -> images::Result<Option<Arc<dyn images::ImageProvider>>> {
+    use images::{ErrorKind, ImageError, NativeCodexProvider, RouteConfig};
+    if let Some(config) = RouteConfig::from_environment()? {
+        return match config.connect() {
+            Ok(provider) => Ok(Some(Arc::new(provider))),
+            Err(error) if error.kind == ErrorKind::NoProvider => Ok(None),
+            Err(error) => Err(error),
+        };
+    }
+    let inventory = inventory_source(None)(&std::sync::atomic::AtomicBool::new(false))
+        .map_err(|_| ImageError::new(ErrorKind::NoProvider))?;
+    let profile = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+                .map(|home| PathBuf::from(home).join(".codex"))
+        })
+        .ok_or_else(|| ImageError::new(ErrorKind::NoProvider))?;
+    let located = inventory
+        .locations
+        .values()
+        .find(|client| client.provider_id == "codex" && client.profile_home == profile);
+    match located.and_then(|client| Some((client.executable.clone()?, client.profile_home.clone())))
+    {
+        Some((executable, home)) => Ok(Some(Arc::new(NativeCodexProvider::new(executable, home)?))),
+        None => Ok(None),
     }
 }
 /// Lazy environment discovery: even reading HOME/PATH is deferred until an explicit scan.

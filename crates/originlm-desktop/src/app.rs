@@ -171,6 +171,7 @@ pub enum TranscriptRole {
 pub struct TranscriptLine {
     pub role: TranscriptRole,
     pub text: String,
+    pub image: Option<originlm_kit::images::GeneratedImage>,
 }
 
 #[derive(Clone)]
@@ -242,6 +243,7 @@ fn load_prefs() -> Prefs {
 }
 
 pub struct Desktop {
+    image_smoke: Option<crate::image_smoke::ImageSmoke>,
     pub page: Page,
     pub brand_marks: [Entity<crate::brand::EyeLogo>; 3],
     pub bundle: Option<Bundle>,
@@ -469,6 +471,7 @@ impl Desktop {
             sidebar_collapsed: prefs.sidebar_collapsed,
             last_layout_save: Instant::now() - Duration::from_secs(10),
             sidebar_animation: 0,
+            image_smoke: crate::image_smoke::load(),
             _subscriptions: subscriptions,
         };
         window.focus(&this.focus, cx);
@@ -555,6 +558,18 @@ impl Desktop {
                 Ok(event) => {
                     changed = true;
                     match event {
+                        ExecEvent::Images { images } => {
+                            for image in images {
+                                self.transcript.push(TranscriptLine {
+                                    role: TranscriptRole::Assistant,
+                                    text: format!(
+                                        "{} · {} · {}×{}",
+                                        image.provider, image.model, image.width, image.height
+                                    ),
+                                    image: Some(image),
+                                });
+                            }
+                        }
                         ExecEvent::Started {
                             session_id,
                             turn_id,
@@ -576,12 +591,13 @@ impl Desktop {
                         }
                         ExecEvent::Delta { session_id, text } => {
                             if let Some(last) = self.transcript.last_mut() {
-                                if last.role == TranscriptRole::Assistant {
+                                if last.role == TranscriptRole::Assistant && last.image.is_none() {
                                     last.text.push_str(&text);
                                 } else {
                                     self.transcript.push(TranscriptLine {
                                         role: TranscriptRole::Assistant,
                                         text,
+                                        image: None,
                                     });
                                 }
                             }
@@ -635,6 +651,10 @@ impl Desktop {
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => break,
             }
+        }
+        if let Some(mut smoke) = self.image_smoke.take() {
+            smoke.tick(self, cx);
+            self.image_smoke = Some(smoke);
         }
         if changed {
             cx.notify();
@@ -981,6 +1001,13 @@ impl Desktop {
             return;
         }
         let prompt = self.prompt.read(cx).value().to_string();
+        self.submit_prompt(prompt, cx);
+    }
+
+    pub(crate) fn submit_prompt(&mut self, prompt: String, cx: &mut Context<Self>) {
+        if self.running {
+            return;
+        }
         if prompt.trim().is_empty() {
             self.playground_error = Some("Write a prompt before running a turn.".into());
             cx.notify();
@@ -998,6 +1025,7 @@ impl Desktop {
         self.running = true;
         self.transcript.push(TranscriptLine {
             role: TranscriptRole::You,
+            image: None,
             text: prompt.clone(),
         });
         // Consent covers this submitted run only; dispatching clears the switch.

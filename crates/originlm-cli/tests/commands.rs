@@ -185,3 +185,62 @@ fn codex_probe_is_advertised_without_running_it_during_startup() {
             .any(|m| m == "connections.probe")
     );
 }
+
+#[test]
+fn image_definition_needs_no_provider() {
+    let result = Command::new(binary())
+        .args(["image", "--definition"])
+        .output()
+        .unwrap();
+    assert!(result.status.success());
+    let definition: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(definition["name"], "generate_image");
+}
+
+fn image_command(profile: &std::path::Path, extra: &[&str]) -> std::process::Output {
+    Command::new(binary())
+        .args(["image", "--prompt", "A backdrop", "--assets"])
+        .arg(profile.join("assets"))
+        .args(extra)
+        .env("CODEX_HOME", profile)
+        .env("HOME", profile)
+        .env("USERPROFILE", profile)
+        .env("APPDATA", profile)
+        .env("LOCALAPPDATA", profile)
+        .env("PATH", "")
+        .env_remove("ORIGINLM_IMAGE_ROUTE")
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn image_generation_requires_explicit_paid_consent_before_selecting_a_provider() {
+    let home = tempfile::tempdir().unwrap();
+    let result = image_command(home.path(), &[]);
+    assert_eq!(result.status.code(), Some(1));
+    let body: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(body["error"]["kind"], "quota_billing");
+    assert!(!home.path().join("assets").exists());
+}
+
+#[test]
+fn image_generation_reports_a_typed_error_without_a_provider() {
+    let home = tempfile::tempdir().unwrap();
+    let result = image_command(home.path(), &["--allow-paid"]);
+    assert_eq!(result.status.code(), Some(1));
+    let body: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(body["error"]["kind"], "no_provider");
+}
+
+#[test]
+fn image_rejects_malformed_arguments() {
+    for args in [
+        vec!["image"],
+        vec!["image", "--unknown"],
+        vec!["image", "--definition", "extra"],
+        vec!["image", "--assets", "/a", "--prompt", "p", "--size", "wide"],
+    ] {
+        let result = Command::new(binary()).args(args).output().unwrap();
+        assert_eq!(result.status.code(), Some(2));
+    }
+}

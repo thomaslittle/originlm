@@ -6822,6 +6822,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "originlm-images"
+version = "0.1.0-alpha.26"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "image",
+ "originlm-adapters",
+ "originlm-contracts",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "originlm-kit"
 version = "0.1.0-alpha.26"
 dependencies = [
@@ -6831,6 +6849,7 @@ dependencies = [
  "originlm-contracts",
  "originlm-core",
  "originlm-discovery",
+ "originlm-images",
  "originlm-platform",
  "originlm-runtime",
  "originlm-service",
@@ -8970,6 +8989,7 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
+ "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "quinn",

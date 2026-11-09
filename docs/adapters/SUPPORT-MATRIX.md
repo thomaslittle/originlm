@@ -56,3 +56,7 @@ diagnostics and the paths checked; the desktop Diagnostics page renders it.
 ## Model revisions
 
 Model and option revisions hash only semantic catalog content (ids, controls/choices/defaults, category, scope, billing/permission sensitivity, capability ids/support). Evidence sources, client versions, timestamps and current values are excluded, so an unchanged catalog keeps its revisions across probes and helper processes.
+
+## Generated image tool
+
+`originlm-images` implements a host-owned image service and MCP `generate_image`, re-exported by `originlm_kit::images`. OpenAI Images 2.6 Flare (default)/Sunburst and Google Nano Banana 2.1 (default)/Pro are explicit BYOK routes; OpenRouter Gemini uses the compatible endpoint credential binding. Reference edits and generation return exact-canvas PNG files with original dimensions. No hosted billing or fallback. Native conversation integrations already supporting host MCP may call it independently of the text model. Desktop attaches it only on explicitly paid turns and renders trusted local results inline. Direct HTTP conversation integrations remain text-only. Mock and live qualification results belong in the implementation PR; implementation alone is not live qualification. See [specification and configuration](../image-generation-tool.md).

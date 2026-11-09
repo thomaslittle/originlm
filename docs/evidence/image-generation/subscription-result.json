@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "images": [
+    {
+      "path": "subscription-backdrop.png",
+      "provider": "codex_subscription",
+      "model": "codex-native-image-generation",
+      "width": 1920,
+      "height": 1080,
+      "original_width": 1672,
+      "original_height": 941,
+      "fit": "cover_center"
+    }
+  ],
+  "transcript": [
+    "Use generate_image exactly once to create a cinematic Starting Soon backdrop: layered midnight-blue mountains, misty valleys, a warm amber glowing horizon, and clear negative space. No words or UI labels. Present the image inline.",
+    "I’ll generate a cinematic backdrop with layered blue mountains, valley mist, and a warm amber horizon, leaving clear space for your overlay.",
+    "codex_subscription · codex-native-image-generation · 1920×1080",
+    "![Cinematic Starting Soon backdrop with midnight-blue mountains, misty valleys, and an amber horizon](subscription-backdrop.png)\n\nI can also create variations with denser mist or a brighter horizon."
+  ],
+  "error": null,
+  "timedOut": false,
+  "evidenceKind": "actual-windows-desktop-native-codex-subscription-no-api-key"
+}
