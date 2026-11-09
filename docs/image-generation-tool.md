@@ -9,7 +9,7 @@ OriginLM agents have no image-generation tool. A user asking any composer model 
 `generate_image` takes required `prompt`, optional `size`/`aspect` (default caller canvas, e.g. 1920×1080), optional `style`, optional `reference_image` for edits/variations, and `count` (default 1, maximum 4). The caller supplies the asset directory. Results contain file references and provider/model/dimension metadata. Errors distinguish no configured provider, quota/billing, content refusal, and provider failure; no silent fallback.
 
 ## Providers and credentials
-Pluggable adapters: OpenAI `gpt-image-1` Images API (generation and reference edits), and Google Gemini Nano Banana Pro (`gemini-3-pro-image` family), including the owner's Google/OpenRouter routes. Follow explicit user configuration and existing credential machinery. Keys belong to the user; no hosted or billed-by-us path.
+Pluggable adapters: OpenAI Images 2.6: `gpt-image-2.6-flare` (interactive default) and `gpt-image-2.6-sunburst` (fidelity/edit consistency), using `/v1/images/generations` and `/v1/images/edits`, reference edits, per-token billing and resolutions up to 4K. Google: `gemini-nano-banana-2.1` (default, fastest/cheapest) and `gemini-3-pro-image` (hero images and exact text), including the owner's Google/OpenRouter routes. Model IDs remain configuration. Follow explicit user configuration and existing credential machinery. Keys belong to the user; no hosted or billed-by-us path.
 
 ## Agent behavior
 The tool description tells every calling model to use it for scene backdrops, overlays and thumbnails. Include scene purpose/name, canvas aspect and collection art direction in the prompt. Present the result inline and offer variations instead of silently dumping files.
@@ -28,3 +28,7 @@ Implement first. Exactly one final local build/test verification pass, then hard
 
 ## Non-goals
 Hosted billing, image-editor UI, batch asset packs, video generation.
+
+## Owner correction — 2026-11-09
+The original OpenAI gpt-image-1 reference is superseded: owner reports shutdown on 2026-10-23. Target the Images 2.6 pair shipped 2026-11-04, default Flare. Add Nano Banana 2.1 (GA 2026-10-06), default Google route; retain stable Pro. This correction is authoritative for implementation.
+
