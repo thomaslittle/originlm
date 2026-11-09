@@ -134,3 +134,8 @@ Live evidence is now **real subscription generation**, not only the earlier mock
 The running app has compact icon-only Save, Open and Show in folder controls with tooltips and accessible names. Provider/model implementation text is hidden from the visual image footer; only dimensions remain. All 25 desktop tests pass, including native icon/action labels and save-copy behavior; all 8 image tests pass (7 adapter/tool tests plus native artifact binding). The app was relaunched without mock configuration and only one test instance is left open.
 
 Remaining native limitations: the CLI capture operation is bounded to 60 seconds per image; native quota/auth failures currently use a generic provider-failure message rather than a dedicated native error classification. Real subscription reference-edit and count>1 qualification remain unproven.
+
+
+## Resumed stdin-EOF checkpoint acceptance
+
+The final resumed pass passed formatting, the combined desktop/images/kit build, 9 image tests (including exact wire IDs for all four corrected models), the stdin-EOF regression, 14 host-MCP tests, 25 desktop tests and 3 kit tests: 52 passed, 0 failed. `docs/evidence/image-generation/resume-verification.json` records the commands, results, credential status and leftovers. The existing real subscription-backed desktop image/report remains the live ask-to-inline proof; it was not regenerated. No supported image API key or explicit API route was present in the bounded environment check. BYOK live qualification remains unavailable rather than implied by the native subscription proof. Terra read-only review found no new blocking defect. Draft PR #71 stays unmerged; no CI was inspected or used.

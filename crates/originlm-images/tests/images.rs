@@ -182,6 +182,14 @@ async fn api(
     status: StatusCode,
     value: Value,
 ) -> (ApiProvider, Capture, tokio::task::JoinHandle<()>) {
+    api_model(kind, status, value, None).await
+}
+async fn api_model(
+    kind: ProviderKind,
+    status: StatusCode,
+    value: Value,
+    model: Option<&str>,
+) -> (ApiProvider, Capture, tokio::task::JoinHandle<()>) {
     let capture: Capture = Arc::new(Mutex::new(Vec::new()));
     let router = Router::new().fallback(reply).with_state(Mock {
         status,
@@ -194,6 +202,7 @@ async fn api(
         axum::serve(listener, router).await.unwrap();
     });
     let mut config = RouteConfig::standard(kind);
+    config.model = model.map(str::to_owned);
     config.endpoint.base_url = format!("http://{address}/v1/");
     (
         config
@@ -402,4 +411,46 @@ async fn mcp_ask_to_image_returns_preview_and_trusted_host_file() {
             .status(),
         403
     );
+}
+
+#[tokio::test]
+async fn all_corrected_image_models_reach_the_wire_without_substitution() {
+    for (kind, configured, expected) in [
+        (ProviderKind::Openai, None, "gpt-image-2.6-flare"),
+        (
+            ProviderKind::Openai,
+            Some("gpt-image-2.6-sunburst"),
+            "gpt-image-2.6-sunburst",
+        ),
+        (ProviderKind::Gemini, None, "gemini-nano-banana-2.1"),
+        (
+            ProviderKind::Gemini,
+            Some("gemini-3-pro-image"),
+            "gemini-3-pro-image",
+        ),
+    ] {
+        let response = if kind == ProviderKind::Openai {
+            json!({"data":[{"b64_json":STANDARD.encode(png())}]})
+        } else {
+            json!({"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/png","data":STANDARD.encode(png())}}]}}]})
+        };
+        let (provider, capture, task) = api_model(kind, StatusCode::OK, response, configured).await;
+        assert_eq!(provider.model(), expected);
+        assert_eq!(
+            provider.generate(provider_request()).await.unwrap().len(),
+            1
+        );
+        let captured = capture.lock().unwrap();
+        assert_eq!(captured.len(), 1, "no retries or fallback");
+        if kind == ProviderKind::Openai {
+            let body: Value = serde_json::from_slice(&captured[0].2).unwrap();
+            assert_eq!(body["model"], expected);
+        } else {
+            assert_eq!(
+                captured[0].0,
+                format!("/v1/models/{expected}:generateContent")
+            );
+        }
+        task.abort();
+    }
 }

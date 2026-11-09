@@ -38,7 +38,7 @@ impl ImageError {
     pub fn new(kind: ErrorKind) -> Self {
         let message = match kind {
             ErrorKind::NoProvider => {
-                "No usable image provider is configured. Select an image route and supply a valid API key."
+                "No usable image provider is configured. Sign in to the installed Codex client, or configure an explicit image API route."
             }
             ErrorKind::QuotaBilling => {
                 "Image generation needs paid-route approval or the provider's quota/billing limit was reached."
