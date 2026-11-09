@@ -14,6 +14,8 @@ use gpui_kit::component::{
     switch::Switch,
 };
 use gpui_kit::prelude::FluentBuilder as _;
+#[cfg(test)]
+use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
 use std::f32::consts::PI;
 use std::time::Duration;
@@ -178,7 +180,11 @@ impl Desktop {
                         div()
                             .v_flex()
                             .gap(px(2.))
-                            .child(div().text_size(px(ty::SMALL)).child("Allow paid routes"))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .child("Allow paid routes + image generation"),
+                            )
                             .child(ds::caption("For the next run of this model only.", &theme)),
                     ),
             );
@@ -281,7 +287,81 @@ impl Desktop {
         }
         for (index, line) in self.transcript.iter().enumerate() {
             let you = line.role == TranscriptRole::You;
-            let message = if you {
+            let message = if let Some(image) = &line.image {
+                let source = image.path.clone();
+                let save_entity = entity.clone();
+                let save = ds::icon_button(
+                    SharedString::from(format!("save-generated-image-{index}")),
+                    IconName::ArrowDown,
+                    "Save image…",
+                    theme.muted_foreground,
+                    &theme,
+                    move |_, _, cx| {
+                        save_entity
+                            .update(cx, |this, cx| this.save_generated_image(source.clone(), cx));
+                    },
+                )
+                .aria_label("Save image…");
+                let source = image.path.clone();
+                let open = ds::icon_button(
+                    SharedString::from(format!("open-generated-image-{index}")),
+                    IconName::ExternalLink,
+                    "Open image",
+                    theme.muted_foreground,
+                    &theme,
+                    move |_, _, cx| cx.open_with_system(&source),
+                )
+                .aria_label("Open image");
+                let source = image.path.clone();
+                let reveal = ds::icon_button(
+                    SharedString::from(format!("reveal-generated-image-{index}")),
+                    IconName::FolderOpen,
+                    "Show in folder",
+                    theme.muted_foreground,
+                    &theme,
+                    move |_, _, cx| cx.reveal_path(&source),
+                )
+                .aria_label("Show in folder");
+                #[cfg(test)]
+                let save = save.test_support();
+                #[cfg(test)]
+                let open = open.test_support();
+                #[cfg(test)]
+                let reveal = reveal.test_support();
+                let image_message = div()
+                    .id(SharedString::from(format!("generated-image-{index}")))
+                    .aria_label(format!("Generated image: {}", line.text))
+                    .w_full()
+                    .v_flex()
+                    .gap(px(6.))
+                    .child(
+                        img(image.path.clone())
+                            .w_full()
+                            .h(px(260.))
+                            .object_fit(ObjectFit::Contain),
+                    )
+                    .child(
+                        div()
+                            .h_flex()
+                            .items_center()
+                            .justify_between()
+                            .child(ds::caption(
+                                format!("{} × {}", image.width, image.height),
+                                &theme,
+                            ))
+                            .child(
+                                div()
+                                    .h_flex()
+                                    .gap(px(2.))
+                                    .child(save)
+                                    .child(open)
+                                    .child(reveal),
+                            ),
+                    );
+                #[cfg(test)]
+                let image_message = image_message.test_support();
+                image_message.into_any_element()
+            } else if you {
                 div()
                     .w_full()
                     .flex()
@@ -526,5 +606,52 @@ impl Desktop {
                 .into_any_element()
         })
         .into_any_element()
+    }
+}
+
+impl Desktop {
+    pub(crate) fn save_generated_image(
+        &mut self,
+        source: std::path::PathBuf,
+        cx: &mut Context<Self>,
+    ) {
+        let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+            .map(std::path::PathBuf::from);
+        let directory = home
+            .map(|path| path.join("Downloads"))
+            .filter(|path| path.is_dir())
+            .unwrap_or_else(|| {
+                source
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+                    .to_path_buf()
+            });
+        let picker = cx.prompt_for_new_path(&directory, Some("generated-image.png"));
+        cx.spawn(async move |this, cx| {
+            let destination = match picker.await {
+                Ok(Ok(Some(path))) => path,
+                Ok(Ok(None)) => return,
+                _ => {
+                    let _ = this.update(cx, |this, cx| {
+                        this.toast("The save dialog could not open.");
+                        cx.notify();
+                    });
+                    return;
+                }
+            };
+            let result = cx
+                .background_executor()
+                .spawn(async move { std::fs::copy(source, destination) })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.toast(if result.is_ok() {
+                    "Image saved."
+                } else {
+                    "The image could not be saved. Choose a writable folder and try again."
+                });
+                cx.notify();
+            });
+        })
+        .detach();
     }
 }

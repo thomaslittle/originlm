@@ -106,6 +106,85 @@ fn local(url: &Url) -> bool {
         .is_some_and(|ip| ip.is_loopback())
 }
 impl Endpoint {
+    /// Bounded image operation using the same origin and credential rules as text.
+    /// Image errors deliberately discard upstream prose, which may contain secrets.
+    pub async fn image_request(
+        &self,
+        path: &str,
+        body: Value,
+        reference_png: Option<Vec<u8>>,
+    ) -> Result<Value> {
+        const LIMIT: usize = 64 * 1024 * 1024;
+        let client = Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .referer(false)
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(600))
+            .build()
+            .map_err(network)?;
+        let mut request = client.post(self.url(path)?).headers(self.headers.clone());
+        if let Some(bytes) = reference_png {
+            if bytes.len() > 20 * 1024 * 1024 {
+                return Err(error(ErrorCode::FrameTooLarge));
+            }
+            let part = reqwest::multipart::Part::bytes(bytes)
+                .file_name("reference.png")
+                .mime_str("image/png")
+                .map_err(|_| invalid())?;
+            let mut form = reqwest::multipart::Form::new().part("image", part);
+            for (key, value) in body.as_object().ok_or_else(invalid)? {
+                let value = value
+                    .as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| value.to_string());
+                form = form.text(key.clone(), value);
+            }
+            request = request.multipart(form);
+        } else {
+            if serde_json::to_vec(&body).map_err(|_| invalid())?.len() > 32 * 1024 * 1024 {
+                return Err(error(ErrorCode::FrameTooLarge));
+            }
+            request = request.json(&body);
+        }
+        let mut response = request.send().await.map_err(network)?;
+        let status = response.status();
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(network)? {
+            let limit = if status.is_success() { LIMIT } else { 8192 };
+            if bytes.len() + chunk.len() > limit {
+                if status.is_success() {
+                    return Err(error(ErrorCode::FrameTooLarge));
+                }
+                let remaining = limit.saturating_sub(bytes.len());
+                bytes.extend_from_slice(&chunk[..remaining]);
+                break;
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let value: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+        if !status.is_success() {
+            let tag = value["error"]["code"]
+                .as_str()
+                .or_else(|| value["error"]["type"].as_str())
+                .unwrap_or("");
+            let code = match (status.as_u16(), tag) {
+                (_, "content_policy_violation" | "moderation_blocked" | "safety_violation") => {
+                    ErrorCode::IntegrationRestricted
+                }
+                (402 | 429, _) | (_, "insufficient_quota" | "billing_hard_limit_reached") => {
+                    ErrorCode::BillingConsentRequired
+                }
+                (401 | 403, _) => ErrorCode::AuthRequired,
+                _ => ErrorCode::ProviderUnavailable,
+            };
+            return Err(error(code));
+        }
+        if value.is_null() {
+            return Err(error(ErrorCode::ProtocolIncompatible));
+        }
+        Ok(value)
+    }
     /// Only documented OpenRouter origins define usage.cost in USD credits.
     pub(crate) fn reports_usd_cost(&self) -> bool {
         self.base.scheme() == "https"

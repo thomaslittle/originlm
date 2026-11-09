@@ -1,0 +1,62 @@
+{
+  "checkpoint": "f43dacc",
+  "verificationPolicy": "One final local verification pass after edits; no reruns; CI ignored",
+  "steps": [
+    {
+      "step": "format",
+      "command": "cargo fmt --all --check",
+      "exitCode": 0
+    },
+    {
+      "step": "build",
+      "command": "cargo build --locked -p originlm-desktop -p originlm-images -p originlm-kit",
+      "exitCode": 0
+    },
+    {
+      "step": "images",
+      "command": "cargo test --locked -p originlm-images",
+      "exitCode": 0
+    },
+    {
+      "step": "stdin-eof",
+      "command": "cargo test --locked -p originlm-adapters --lib capture_closes_stdin_before_waiting_for_output",
+      "exitCode": 0
+    },
+    {
+      "step": "host-mcp",
+      "command": "cargo test --locked -p originlm-adapters --test host_mcp",
+      "exitCode": 0
+    },
+    {
+      "step": "desktop",
+      "command": "cargo test --locked -p originlm-desktop --lib",
+      "exitCode": 0
+    },
+    {
+      "step": "kit",
+      "command": "cargo test --locked -p originlm-kit --lib",
+      "exitCode": 0
+    }
+  ],
+  "testsPassed": {
+    "images": 9,
+    "stdinEof": 1,
+    "hostMcp": 14,
+    "desktop": 25,
+    "kit": 3
+  },
+  "testsFailed": 0,
+  "apiCredentialAvailability": "No supported image API key or explicit image API route was present in the bounded process environment check; no credential values were printed.",
+  "liveEvidence": "subscription-result.json",
+  "liveEvidenceReused": true,
+  "additionalLiveGenerations": 0,
+  "review": "Terra read-only review of stdin-EOF checkpoint found no new blocking defect; reviewer ran no builds/tests and inspected no CI.",
+  "leftovers": [
+    "Direct HTTP conversation adapters still need host-tool loops.",
+    "Crntly placement remains a scoped follow-up.",
+    "BYOK provider routes have mock proof; no live API key was available.",
+    "Native reference edits and count > 1 remain live-unqualified.",
+    "Native auth/quota errors still use generic provider-failure classification.",
+    "Generated absolute paths need conversion to asset-relative reference inputs for repeated edits."
+  ]
+}

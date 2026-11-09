@@ -50,4 +50,4 @@ jobs:
       - name: State boundaries
         run: |
           echo 'Read-only crate packaging only. No crates.io publication or token was used.' >> "$GITHUB_STEP_SUMMARY"
-          echo 'The artifact contains only the 13 publishable crates in dependency-first order, with SHA256SUMS, a source-commit manifest and packaged-closure compile evidence.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The artifact contains only the 15 publishable crates in dependency-first order, with SHA256SUMS, a source-commit manifest and packaged-closure compile evidence.' >> "$GITHUB_STEP_SUMMARY"

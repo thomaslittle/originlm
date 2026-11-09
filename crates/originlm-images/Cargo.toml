@@ -1,0 +1,27 @@
+[package]
+name = "originlm-images"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Host-owned image generation tool and bring-your-own-key provider adapters"
+
+[dependencies]
+originlm-adapters = { version = "0.1.0-alpha.26", path = "../originlm-adapters" }
+originlm-contracts = { version = "0.1.0-alpha.26", path = "../originlm-contracts" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+base64 = "0.23"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+axum = "0.8.9"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "net"] }
+getrandom = "0.4"
+tempfile = "3"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

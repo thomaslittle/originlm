@@ -735,3 +735,185 @@ async fn native_playground_model_switch_hands_off_the_conversation(cx: &mut Test
 
     harness.update(cx, |_, cx| cx.notify());
 }
+
+/// Drives the real composer and result event path with a mocked image provider.
+/// Native CLI/provider live qualification remains separate.
+#[gpui_kit::test]
+async fn native_playground_ask_renders_trusted_generated_image(cx: &mut TestAppContext) {
+    use originlm_kit::images::{
+        Canvas, GenerateRequest, Generation, ImageProvider, ImageTool, ProviderRequest,
+    };
+    struct ImageFixture;
+    impl ImageProvider for ImageFixture {
+        fn provider(&self) -> &str {
+            "mock"
+        }
+        fn model(&self) -> &str {
+            "mock-image"
+        }
+        fn generate<'a>(&'a self, r: ProviderRequest) -> Generation<'a> {
+            assert!(r.prompt.contains("Starting Soon"));
+            Box::pin(async {
+                let mut png = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::new_rgb8(160, 90)
+                    .write_to(&mut png, image::ImageFormat::Png)
+                    .unwrap();
+                Ok(vec![png.into_inner()])
+            })
+        }
+    }
+    cx.update(gpui_kit::init);
+    let assets = tempfile::tempdir().unwrap();
+    let tool = ImageTool::new(
+        Some(Arc::new(ImageFixture)),
+        assets.path().to_path_buf(),
+        Canvas {
+            width: 160,
+            height: 90,
+        },
+    )
+    .unwrap();
+    let (command_tx, command_rx) = std::sync::mpsc::channel();
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let ExecCommand::Run { prompt, .. } = command_rx.recv().unwrap() else {
+            panic!("expected composer run")
+        };
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let images = runtime
+            .block_on(tool.generate(GenerateRequest {
+                prompt,
+                size: None,
+                aspect: None,
+                style: None,
+                reference_image: None,
+                count: 1,
+            }))
+            .unwrap();
+        event_tx.send(ExecEvent::Images { images }).unwrap();
+        event_tx
+            .send(ExecEvent::Delta {
+                session_id: "mock-image-turn".into(),
+                text: "Here is your backdrop. Would you like a variation?".into(),
+            })
+            .unwrap();
+        event_tx
+            .send(ExecEvent::Finished {
+                session_id: "mock-image-turn".into(),
+                status: "completed".into(),
+            })
+            .unwrap();
+    });
+    let executor = ExecHandle {
+        commands: command_tx,
+        events: event_rx,
+    };
+    let (handle, harness, desktop) = cx.update(|cx| {
+        let (handle, harness) = gpui_kit::open_window(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(Bounds {
+                    origin: point(px(0.), px(0.)),
+                    size: size(px(1440.), px(920.)),
+                })),
+                ..Default::default()
+            },
+            cx,
+            |window, cx| {
+                let desktop = cx.new(|cx| {
+                    Desktop::new(
+                        window,
+                        cx,
+                        Credential::Unavailable("image fixture".into()),
+                        30,
+                        true,
+                    )
+                });
+                desktop.update(cx, |desktop, cx| {
+                    desktop.executor = executor;
+                    desktop.page = Page::Playground;
+                    desktop.viewport_w = 1440.;
+                    desktop.bundle = Some(bundle());
+                    cx.notify();
+                });
+                cx.new(|_| PageHarness {
+                    desktop: desktop.clone(),
+                    page: Page::Playground,
+                })
+            },
+        )
+        .unwrap();
+        let desktop = harness.read(cx).desktop.clone();
+        (handle, harness, desktop)
+    });
+    cx.update_window(handle, |_, window, cx| {
+        desktop.update(cx, |desktop, cx| {
+            desktop.bundle = Some(bundle());
+            desktop.selected_model = Some("model-local".into());
+            desktop.prompt.update(cx, |prompt, cx| {
+                prompt.set_value("Draw a Starting Soon backdrop", window, cx)
+            });
+            desktop.run_prompt(cx);
+        });
+    })
+    .unwrap();
+    cx.wait_for(handle, Duration::from_secs(5), |_, cx| {
+        desktop.read(cx).transcript.len() >= 3 && !desktop.read(cx).running
+    })
+    .await;
+    cx.update_window(handle, |_, window, cx| {
+        harness.update(cx, |_, cx| cx.notify());
+        window.render_frame(cx);
+        assert!(
+            window
+                .find("generated-image-1")
+                .label()
+                .unwrap_or_default()
+                .contains("mock-image")
+        );
+        for (id, label) in [
+            ("save-generated-image-1", "Save image…"),
+            ("open-generated-image-1", "Open image"),
+            ("reveal-generated-image-1", "Show in folder"),
+        ] {
+            assert_eq!(window.find(id).label(), Some(label));
+        }
+        let desktop = desktop.read(cx);
+        assert!(desktop.transcript[1].image.as_ref().unwrap().path.is_file());
+        assert!(desktop.transcript[1].text.contains("160×90"));
+        assert_eq!(
+            desktop.transcript[2].text,
+            "Here is your backdrop. Would you like a variation?"
+        );
+    })
+    .unwrap();
+    let saved = assets.path().join("saved-backdrop.png");
+    cx.update_window(handle, |_, window, cx| {
+        window.click("save-generated-image-1", cx);
+    })
+    .unwrap();
+    cx.simulate_new_path_selection(|_| Some(saved.clone()));
+    cx.wait_for(handle, Duration::from_secs(3), |_, _| saved.is_file())
+        .await;
+    let original = cx.update(|cx| {
+        desktop.read(cx).transcript[1]
+            .image
+            .as_ref()
+            .unwrap()
+            .path
+            .clone()
+    });
+    assert_eq!(
+        std::fs::read(&saved).unwrap(),
+        std::fs::read(original).unwrap()
+    );
+    cx.update_window(handle, |_, window, cx| {
+        window.click("save-generated-image-1", cx);
+    })
+    .unwrap();
+    cx.simulate_new_path_selection(|_| None);
+    worker.join().unwrap();
+}

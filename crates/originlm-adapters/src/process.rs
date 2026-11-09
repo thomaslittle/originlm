@@ -24,7 +24,7 @@ pub struct LaunchSpec {
 }
 pub(crate) struct Peer {
     child: Box<dyn process_wrap::tokio::ChildWrapper>,
-    input: ChildStdin,
+    input: Option<ChildStdin>,
     output: BufReader<ChildStdout>,
     stderr: JoinHandle<()>,
     pub(crate) sequence: u64,
@@ -236,7 +236,7 @@ impl Peer {
         });
         Ok(Self {
             child,
-            input,
+            input: Some(input),
             output,
             stderr: drain,
             sequence: 0,
@@ -272,10 +272,14 @@ impl Peer {
         }
         bytes.push(b'\n');
         self.input
+            .as_mut()
+            .ok_or_else(|| error(ErrorCode::ProviderUnavailable))?
             .write_all(&bytes)
             .await
             .map_err(|_| error(ErrorCode::ProviderUnavailable))?;
         self.input
+            .as_mut()
+            .ok_or_else(|| error(ErrorCode::ProviderUnavailable))?
             .flush()
             .await
             .map_err(|_| error(ErrorCode::ProviderUnavailable))
@@ -289,10 +293,14 @@ impl Peer {
         }
         bytes.push(b'\n');
         self.input
+            .as_mut()
+            .ok_or_else(|| error(ErrorCode::ProviderUnavailable))?
             .write_all(&bytes)
             .await
             .map_err(|_| error(ErrorCode::ProviderUnavailable))?;
         self.input
+            .as_mut()
+            .ok_or_else(|| error(ErrorCode::ProviderUnavailable))?
             .flush()
             .await
             .map_err(|_| error(ErrorCode::ProviderUnavailable))
@@ -382,7 +390,9 @@ impl Peer {
         Err(error(ErrorCode::FrameTooLarge))
     }
     pub(crate) async fn shutdown(&mut self) {
-        let _ = self.input.shutdown().await;
+        if let Some(mut input) = self.input.take() {
+            let _ = input.shutdown().await;
+        }
         if tokio::time::timeout(Duration::from_millis(250), self.child.wait())
             .await
             .is_err()
@@ -567,10 +577,9 @@ pub async fn capture_status(spec: LaunchSpec, deadline: Duration) -> Result<(boo
     }
     let mut peer = Peer::spawn(spec).await?;
     let result = tokio::time::timeout(deadline, async {
-        peer.input
-            .shutdown()
-            .await
-            .map_err(|_| error(ErrorCode::ProviderUnavailable))?;
+        // ChildStdin::shutdown may only flush on Windows. Drop the handle so
+        // noninteractive clients actually receive EOF instead of waiting forever.
+        drop(peer.input.take());
         let mut bytes = Vec::new();
         (&mut peer.output)
             .take(MAX_FRAME + 1)
@@ -672,5 +681,32 @@ mod service_start_tests {
             marker.exists(),
             "successful service start must not kill the daemon with its probe job"
         );
+    }
+}
+
+#[cfg(test)]
+mod capture_eof_tests {
+    use super::*;
+    #[tokio::test]
+    async fn capture_closes_stdin_before_waiting_for_output() {
+        let python = std::process::Command::new(if cfg!(windows) { "python" } else { "python3" })
+            .args(["-c", "import sys; print(sys.executable)"])
+            .output()
+            .unwrap();
+        assert!(python.status.success());
+        let executable = PathBuf::from(String::from_utf8(python.stdout).unwrap().trim());
+        let work = tempfile::tempdir().unwrap();
+        let spec = LaunchSpec {
+            executable,
+            args: vec![
+                "-c".into(),
+                "import sys; sys.stdin.read(); print('EOF received')".into(),
+            ],
+            cwd: work.path().into(),
+            env: BTreeMap::new(),
+        };
+        let (success, output) = capture_status(spec, Duration::from_secs(5)).await.unwrap();
+        assert!(success);
+        assert_eq!(output.trim(), "EOF received");
     }
 }
