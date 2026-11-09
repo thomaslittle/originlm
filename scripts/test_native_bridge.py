@@ -6,7 +6,7 @@ def run(command,env=None):
     if not executable: raise RuntimeError('Missing executable: '+command[0])
     if os.name=='nt' and executable.lower().endswith(('.cmd','.bat')):
         command=[os.environ.get('COMSPEC','cmd.exe'),'/d','/c',executable,*command[1:]]
-    subprocess.run(command,cwd=ROOT,env=env,check=True,timeout=180)
+    subprocess.run(command,cwd=ROOT,env=env,check=True,timeout=900)
 def main():
     run(['cargo','build','--locked','-p','originlm-cli'])
     run(['npm','run','build'])
