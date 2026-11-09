@@ -14,6 +14,8 @@ pub use originlm_discovery::{
     ScopedProvider,
 };
 use originlm_discovery::{HostPlatform, ScanEnvironment, Scanner};
+/// Host-owned image generation, independent of the selected conversation model.
+pub use originlm_images as images;
 use originlm_platform::NativeFilesystem;
 pub use originlm_service::{ExecutionGrant, InventorySource, NativeService};
 use serde::de::DeserializeOwned;

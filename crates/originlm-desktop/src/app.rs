@@ -171,6 +171,7 @@ pub enum TranscriptRole {
 pub struct TranscriptLine {
     pub role: TranscriptRole,
     pub text: String,
+    pub image: Option<originlm_kit::images::GeneratedImage>,
 }
 
 #[derive(Clone)]
@@ -555,6 +556,18 @@ impl Desktop {
                 Ok(event) => {
                     changed = true;
                     match event {
+                        ExecEvent::Images { images } => {
+                            for image in images {
+                                self.transcript.push(TranscriptLine {
+                                    role: TranscriptRole::Assistant,
+                                    text: format!(
+                                        "{} · {} · {}×{}",
+                                        image.provider, image.model, image.width, image.height
+                                    ),
+                                    image: Some(image),
+                                });
+                            }
+                        }
                         ExecEvent::Started {
                             session_id,
                             turn_id,
@@ -576,12 +589,13 @@ impl Desktop {
                         }
                         ExecEvent::Delta { session_id, text } => {
                             if let Some(last) = self.transcript.last_mut() {
-                                if last.role == TranscriptRole::Assistant {
+                                if last.role == TranscriptRole::Assistant && last.image.is_none() {
                                     last.text.push_str(&text);
                                 } else {
                                     self.transcript.push(TranscriptLine {
                                         role: TranscriptRole::Assistant,
                                         text,
+                                        image: None,
                                     });
                                 }
                             }
@@ -998,6 +1012,7 @@ impl Desktop {
         self.running = true;
         self.transcript.push(TranscriptLine {
             role: TranscriptRole::You,
+            image: None,
             text: prompt.clone(),
         });
         // Consent covers this submitted run only; dispatching clears the switch.

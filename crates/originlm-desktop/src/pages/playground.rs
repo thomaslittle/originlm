@@ -14,6 +14,8 @@ use gpui_kit::component::{
     switch::Switch,
 };
 use gpui_kit::prelude::FluentBuilder as _;
+#[cfg(test)]
+use gpui_kit::test::TestSupportExt as _;
 use gpui_kit::*;
 use std::f32::consts::PI;
 use std::time::Duration;
@@ -178,7 +180,11 @@ impl Desktop {
                         div()
                             .v_flex()
                             .gap(px(2.))
-                            .child(div().text_size(px(ty::SMALL)).child("Allow paid routes"))
+                            .child(
+                                div()
+                                    .text_size(px(ty::SMALL))
+                                    .child("Allow paid routes + image generation"),
+                            )
                             .child(ds::caption("For the next run of this model only.", &theme)),
                     ),
             );
@@ -281,7 +287,23 @@ impl Desktop {
         }
         for (index, line) in self.transcript.iter().enumerate() {
             let you = line.role == TranscriptRole::You;
-            let message = if you {
+            let message = if let Some(image) = &line.image {
+                let image_message = div()
+                    .id(SharedString::from(format!("generated-image-{index}")))
+                    .w_full()
+                    .v_flex()
+                    .gap(px(6.))
+                    .child(
+                        img(image.path.clone())
+                            .w_full()
+                            .h(px(260.))
+                            .object_fit(ObjectFit::Contain),
+                    )
+                    .child(ds::caption(line.text.clone(), &theme));
+                #[cfg(test)]
+                let image_message = image_message.test_support();
+                image_message.into_any_element()
+            } else if you {
                 div()
                     .w_full()
                     .flex()

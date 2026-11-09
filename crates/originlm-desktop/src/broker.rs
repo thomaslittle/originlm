@@ -506,6 +506,9 @@ pub enum ExecCommand {
 
 #[derive(Clone, Debug)]
 pub enum ExecEvent {
+    Images {
+        images: Vec<originlm_kit::images::GeneratedImage>,
+    },
     Started {
         session_id: String,
         turn_id: String,
@@ -555,6 +558,10 @@ pub fn spawn_executor(credential: Credential, example: bool) -> ExecHandle {
 }
 
 fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sender<ExecEvent>) {
+    let image_runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build();
     let mut client: Option<BrokerClient> = None;
     #[allow(unused_assignments)]
     let mut current_session: Option<String> = None;
@@ -592,6 +599,39 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                     "revision": choice.revision,
                     "options": {},
                 });
+                // Native agents already expose the host MCP transport. Direct
+                // text-only HTTP integrations currently refuse host MCP tools.
+                let supports_host_tools = !matches!(
+                    choice.provider_id.as_str(),
+                    "openai_api"
+                        | "gemini_api"
+                        | "anthropic_api"
+                        | "compatible_api"
+                        | "xai_api"
+                        | "ollama"
+                        | "lmstudio"
+                );
+                let image_server = if allow_paid && supports_host_tools {
+                    match image_runtime
+                        .as_ref()
+                        .map_err(|_| "Image runtime could not start".to_owned())
+                        .and_then(|runtime| {
+                            start_image_server(runtime).map_err(|error| error.to_string())
+                        }) {
+                        Ok(server) => Some(server),
+                        Err(error) => {
+                            let _ = events.send(ExecEvent::Failed { error });
+                            continue;
+                        }
+                    }
+                } else {
+                    None
+                };
+                let host_servers: Vec<_> = image_server
+                    .as_ref()
+                    .map(|s| s.descriptor.clone())
+                    .into_iter()
+                    .collect();
                 let created = active.call(
                     "sessions.create",
                     json!({
@@ -600,6 +640,8 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                         "permissionMode": "read_only",
                         "reviewRequests": false,
                         "allowPaid": allow_paid,
+                        "hostMcpServers": host_servers,
+                        "instructions": "For requested imagery, call generate_image if available. Include scene purpose and collection art direction. Present the image inline and offer variations. Image generation uses a separately configured paid route. If unavailable, explain that image generation needs a configured image route, paid-operation approval and a conversation integration supporting host tools; never pretend to have generated an image.",
                     }),
                 );
                 let session_id = match created {
@@ -647,11 +689,33 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                 });
 
                 let mut cursor: Option<String> = None;
-                let deadline = Instant::now() + Duration::from_secs(180);
+                let deadline = Instant::now()
+                    + Duration::from_secs(if image_server.is_some() { 660 } else { 180 });
                 let mut idle = 0u32;
                 let mut finished = false;
                 while Instant::now() < deadline && !finished {
                     thread::sleep(Duration::from_millis(500));
+                    if let Ok(command) = commands.try_recv() {
+                        match command {
+                            ExecCommand::Cancel => {
+                                let _ = active.call(
+                                    "turns.cancel",
+                                    json!({"sessionId":session_id,"turnId":turn_id}),
+                                );
+                                let _ = events.send(ExecEvent::Finished {
+                                    session_id: session_id.clone(),
+                                    status: "cancelled".into(),
+                                });
+                                finished = true;
+                                break;
+                            }
+                            ExecCommand::Close(id) => {
+                                let _ = active.call("sessions.close", json!({"sessionId":id}));
+                            }
+                            ExecCommand::Run { .. } => { /* Composer disables submission during a turn. */
+                            }
+                        }
+                    }
                     let mut params = json!({"sessionId": session_id});
                     if let Some(after) = &cursor {
                         params["after"] = json!(after);
@@ -665,13 +729,14 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                             break;
                         }
                     };
+                    drain_images(image_server.as_ref(), &events);
                     let empty = page
                         .get("events")
                         .and_then(Value::as_array)
                         .is_none_or(Vec::is_empty);
                     if empty {
                         idle += 1;
-                        if idle >= 40 {
+                        if idle >= if image_server.is_some() { 1200 } else { 40 } {
                             break;
                         }
                         continue;
@@ -733,12 +798,14 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
                         }
                     }
                 }
+                drain_images(image_server.as_ref(), &events);
                 if !finished {
                     let _ = events.send(ExecEvent::Finished {
                         session_id: session_id.clone(),
                         status: "idle".into(),
                     });
                 }
+                let _ = active.call("sessions.close", json!({"sessionId": session_id}));
                 current_session = None;
                 current_turn = None;
             }
@@ -765,4 +832,34 @@ fn executor(credential: Credential, commands: Receiver<ExecCommand>, events: Sen
         client.close();
     }
     let _ = TryRecvError::Empty;
+}
+
+fn drain_images(
+    server: Option<&originlm_kit::images::mcp::ImageServer>,
+    events: &Sender<ExecEvent>,
+) {
+    if let Some(server) = server {
+        while let Ok(images) = server.results.try_recv() {
+            let _ = events.send(ExecEvent::Images { images });
+        }
+    }
+}
+fn start_image_server(
+    runtime: &tokio::runtime::Runtime,
+) -> originlm_kit::images::Result<originlm_kit::images::mcp::ImageServer> {
+    use originlm_kit::images::{Canvas, ErrorKind, ImageError, ImageTool, RouteConfig};
+    let provider = match RouteConfig::from_environment()? {
+        Some(config) => match config.connect() {
+            Ok(provider) => Some(std::sync::Arc::new(provider)
+                as std::sync::Arc<dyn originlm_kit::images::ImageProvider>),
+            Err(error) if error.kind == ErrorKind::NoProvider => None,
+            Err(error) => return Err(error),
+        },
+        None => None,
+    };
+    let assets = originlm_platform::default_state_dir(None)
+        .ok_or_else(|| ImageError::new(ErrorKind::AssetFailure))?
+        .join("playground-images");
+    let tool = ImageTool::new(provider, assets, Canvas::default())?;
+    runtime.block_on(originlm_kit::images::mcp::ImageServer::start(tool))
 }

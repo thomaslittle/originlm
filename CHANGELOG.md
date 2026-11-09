@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add host-owned `generate_image` through `originlm-images` and `originlm_kit::images`: configurable OpenAI Images 2.6 and Google Nano Banana 2.1/Pro routes (including OpenRouter), reference edits, exact canvas PNG assets, typed errors and authenticated host MCP. Desktop native host-tool turns can show trusted generated files inline after explicit paid-route approval. Direct HTTP chat tool loops and Crntly placement remain follow-ups.
+
 ## 0.1.0-alpha.26 - 2026-11-08
 
 - Release the integrated changes since alpha.25: desktop council improvements, NSH diagnostics spike, landing concepts, in-process desktop tests, and updated provider/runtime behavior.

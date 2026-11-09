@@ -9,6 +9,7 @@ description = "In-process OriginLM kit with explicit consent boundaries"
 publish = true
 
 [dependencies]
+originlm-images = { version = "0.1.0-alpha.26", path = "../originlm-images" }
 originlm-contracts = { version = "0.1.0-alpha.26", path = "../originlm-contracts" }
 originlm-core = { version = "0.1.0-alpha.26", path = "../originlm-core" }
 originlm-service = { version = "0.1.0-alpha.26", path = "../originlm-service" }
