@@ -18,6 +18,16 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+/// Maximum declared metadata operation budget for the installed adapter
+/// registry. Native adapters still bound their individual protocol phases.
+pub fn metadata_timeout() -> Duration {
+    originlm_discovery::definitions()
+        .iter()
+        .map(|definition| originlm_adapters::acp::metadata::probe_budget(definition.id))
+        .max()
+        .unwrap_or(Duration::from_secs(25))
+}
+
 pub fn build_service_with_endpoints(
     source: InventorySource,
     execute: bool,
@@ -133,6 +143,7 @@ pub fn build_service_with_cursor_usage(
     let metadata_declarations = declarations.clone();
     let metadata_chatgpt = chatgpt.clone();
     let mut service = NativeService::new(source, Duration::from_secs(2))
+        .with_metadata_timeout(metadata_timeout())
         .with_adapters(crate::adapter_info::descriptors())
         .with_metadata(Arc::new(move |located, connection, route| {
             let endpoint = metadata_registry.for_connection(&connection, &located.provider_id);

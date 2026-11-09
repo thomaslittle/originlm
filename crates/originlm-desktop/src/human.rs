@@ -18,6 +18,15 @@ pub fn diagnostic(code: &str) -> Option<&'static str> {
         "NO_SUBSCRIPTION_TOKEN_OR_PRIVATE_ENDPOINT_USED" => {
             "No subscription token or private endpoint was used."
         }
+        "METADATA_ADAPTER_NOT_IMPLEMENTED" => {
+            "OriginLM detects this installed client or configuration but has no metadata adapter for it. Sign-in, plan and models were not read; this is not a provider service failure."
+        }
+        "PLAN_FROM_ROUTE_BILLING" => {
+            "The account plan category comes from route billing. A specific plan tier or entitlement is not inferred."
+        }
+        "PLAN_NOT_REPORTED_BY_PROVIDER" => {
+            "The client's metadata supplies no plan or route billing category, so its plan tier cannot be determined from this reading."
+        }
         "METADATA_READ_TIMEOUT" => {
             "Service unreachable: the metadata read timed out. Retrying automatically."
         }

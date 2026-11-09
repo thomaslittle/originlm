@@ -1152,3 +1152,47 @@ async fn stopping_background_inventory_does_not_cancel_a_foreground_joiners_shar
         "scan-1"
     );
 }
+
+#[tokio::test]
+async fn unsupported_metadata_is_discovery_only_and_does_not_retry_forever() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let s = ready(Arc::new(move |_, _, _| {
+        counter.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async {
+            Err(DomainError::new(
+                ErrorCode::CapabilityUnsupported,
+                "No metadata adapter registered",
+            ))
+        })
+    }))
+    .await;
+    advance(120).await;
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        2,
+        "an absent adapter cannot heal by respawning every five seconds"
+    );
+    for _ in 0..3 {
+        let value = snapshot(&s).await;
+        let c = named(&value, "connections", "personal");
+        assert_eq!(c["status"], "metadata_unsupported");
+        assert_eq!(
+            c["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|v| *v == "METADATA_ADAPTER_NOT_IMPLEMENTED")
+                .count(),
+            1
+        );
+        assert!(
+            !value["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["kind"] == "adapter_failure")
+        );
+    }
+    s.stop_background_tasks();
+}

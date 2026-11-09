@@ -3,7 +3,7 @@ use crate::process::{LaunchSpec, Peer};
 use originlm_contracts::*;
 use serde_json::{Value, json};
 use std::time::Duration;
-fn provider_timeout(provider: &str) -> Duration {
+pub(super) fn provider_timeout(provider: &str) -> Duration {
     // The Antigravity managed ACP server is a large PyInstaller runtime and
     // can take well over the generic 20-second budget on a cold Windows start.
     if provider == "antigravity" {

@@ -118,8 +118,23 @@ pub fn connection_title(snapshot: &Snapshot, connection: &Connection) -> String 
 
 pub fn plan_label(connection: &Connection) -> String {
     match &connection.plan {
+        Observation::Known {
+            value,
+            freshness: Freshness::Stale,
+            ..
+        } => format!("{} (stale)", value.label),
         Observation::Known { value, .. } => value.label.clone(),
-        Observation::Unknown { .. } => "Plan unknown".into(),
+        _ if connection.status == "metadata_unsupported" => "Not read by OriginLM".into(),
+        _ if connection.status == "metadata_unavailable" => "Reading unavailable".into(),
+        Observation::Unknown { .. }
+            if matches!(
+                connection.status.as_str(),
+                "metadata_ready" | "metadata_cached"
+            ) =>
+        {
+            "Not reported by client".into()
+        }
+        Observation::Unknown { .. } => "Not checked".into(),
         Observation::Unavailable { .. } => "Plan unavailable".into(),
     }
 }
@@ -128,6 +143,7 @@ pub fn plan_label(connection: &Connection) -> String {
 pub enum AuthKind {
     Verified,
     Unavailable,
+    DiscoveryOnly,
     Cached,
     Required,
     Unknown,
@@ -141,6 +157,13 @@ pub struct AuthView {
 }
 
 pub fn auth_view(connection: &Connection) -> AuthView {
+    if connection.status == "metadata_unsupported" {
+        return AuthView {
+            label: "Not checked: discovery only",
+            kind: AuthKind::DiscoveryOnly,
+            stale: false,
+        };
+    }
     if connection.status == "metadata_unavailable" {
         let unreachable = connection.diagnostics.iter().any(|d| {
             matches!(
@@ -155,7 +178,13 @@ pub fn auth_view(connection: &Connection) -> AuthView {
                 "Reading unavailable"
             },
             kind: AuthKind::Unavailable,
-            stale: true,
+            stale: matches!(
+                &connection.auth,
+                Observation::Known {
+                    freshness: Freshness::Stale,
+                    ..
+                }
+            ),
         };
     }
     let stale = matches!(
@@ -197,6 +226,7 @@ pub fn auth_view(connection: &Connection) -> AuthView {
     AuthView {
         label: match kind {
             AuthKind::Unavailable => "Reading unavailable",
+            AuthKind::DiscoveryOnly => "Not checked: discovery only",
             AuthKind::Verified => "Authenticated",
             AuthKind::Cached => "Signed in, cache only",
             AuthKind::Required => "Sign-in required",
@@ -759,6 +789,28 @@ mod tests {
         }
         snapshot.connections = connections;
         snapshot
+    }
+
+    #[test]
+    fn unavailable_without_a_saved_observation_is_not_a_stale_reading() {
+        let mut c = connection(
+            "test",
+            "ollama",
+            None,
+            AuthState::Unchecked,
+            "metadata_unavailable",
+        );
+        c.auth = Observation::unknown("AUTH_NOT_CHECKED_PASSIVE_SCAN");
+        c.plan = Observation::unknown("PLAN_NOT_REPORTED");
+        c.diagnostics.push("METADATA_SERVICE_UNREACHABLE".into());
+        assert_eq!(auth_view(&c).label, "Service unreachable");
+        assert!(!auth_view(&c).stale);
+        c.status = "metadata_unsupported".into();
+        assert!(auth_view(&c).kind == AuthKind::DiscoveryOnly);
+        assert!(!auth_view(&c).stale);
+        assert_eq!(plan_label(&c), "Not read by OriginLM");
+        c.status = "metadata_ready".into();
+        assert_eq!(plan_label(&c), "Not reported by client");
     }
 
     #[test]

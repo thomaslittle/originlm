@@ -333,8 +333,11 @@ fn worker(
     let mut client: Option<BrokerClient> = None;
     let mut last_error: Option<String> = None;
     let mut scanned = false;
+    let mut metadata_workers: std::collections::BTreeMap<String, thread::JoinHandle<()>> =
+        std::collections::BTreeMap::new();
 
     loop {
+        metadata_workers.retain(|_, worker| !worker.is_finished());
         if client.is_none() {
             match connect(&credential) {
                 Ok(mut connected) => {
@@ -422,13 +425,28 @@ fn worker(
                 }
             }
             Ok(Command::Probe(connection_id)) => {
-                if let Some(active) = client.as_mut() {
-                    let _ = active.call(
-                        "connections.probe",
-                        json!({"connectionId": connection_id, "force": true}),
-                    );
-                    if let Ok(bundle) = fetch(active, &mut history) {
-                        let _ = updates.send(bundle);
+                // A cold native ACP startup can legitimately take longer than
+                // a control request. Keep polling snapshots on this worker;
+                // run the explicit re-read on its own authenticated connection.
+                if !metadata_workers.contains_key(&connection_id) && metadata_workers.len() < 64 {
+                    let credential = credential.clone();
+                    let id = connection_id.clone();
+                    let timeout = originlm_kit::metadata_timeout() * 2 + Duration::from_secs(30);
+                    if let Ok(worker) = thread::Builder::new()
+                        .name("originlm-metadata-refresh".into())
+                        .spawn(move || {
+                            if let Ok(mut active) = connect(&credential) {
+                                let _ = active.call_typed_with(
+                                    "connections.probe",
+                                    json!({"connectionId":id,"force":true}),
+                                    timeout,
+                                    None,
+                                );
+                                active.close();
+                            }
+                        })
+                    {
+                        metadata_workers.insert(connection_id, worker);
                     }
                 }
             }

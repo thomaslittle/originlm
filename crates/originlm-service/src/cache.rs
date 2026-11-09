@@ -88,9 +88,31 @@ impl CacheState {
         }
         for (id, failure) in &self.metadata_failures {
             if let Some(connection) = snapshot.connections.iter_mut().find(|c| &c.id == id) {
-                connection.status = "metadata_unavailable".into();
+                let unsupported = failure.error.code == ErrorCode::CapabilityUnsupported;
+                connection.status = if unsupported {
+                    "metadata_unsupported"
+                } else {
+                    "metadata_unavailable"
+                }
+                .into();
+                // Snapshots can be projected repeatedly before another scan.
+                // Replace the last failure reason rather than accumulating it.
+                connection.diagnostics.retain(|code| {
+                    !matches!(
+                        code.as_str(),
+                        "METADATA_READ_TIMEOUT"
+                            | "METADATA_SERVICE_UNREACHABLE"
+                            | "METADATA_RUNTIME_MISSING"
+                            | "METADATA_LAUNCH_RESTRICTED"
+                            | "METADATA_PROTOCOL_INCOMPATIBLE"
+                            | "METADATA_ACCESS_DENIED"
+                            | "METADATA_READ_FAILED"
+                            | "METADATA_ADAPTER_NOT_IMPLEMENTED"
+                    )
+                });
                 connection.diagnostics.push(
                     match failure.error.code {
+                        ErrorCode::CapabilityUnsupported => "METADATA_ADAPTER_NOT_IMPLEMENTED",
                         ErrorCode::Timeout => "METADATA_READ_TIMEOUT",
                         ErrorCode::ProviderUnavailable => "METADATA_SERVICE_UNREACHABLE",
                         ErrorCode::RuntimeMissing => "METADATA_RUNTIME_MISSING",
@@ -877,7 +899,9 @@ impl InventoryCache {
             if state
                 .metadata_failures
                 .get(&connection.id)
-                .is_some_and(|failure| failure.until > now)
+                .is_some_and(|failure| {
+                    failure.error.code == ErrorCode::CapabilityUnsupported || failure.until > now
+                })
             {
                 continue;
             }
@@ -1302,6 +1326,14 @@ impl InventoryCache {
             issues.push(merge_issue(state.issues.get(&issue.id), issue));
         }
         for (connection, failure) in &state.metadata_failures {
+            // Unsupported coverage is discovery-only, not an unreachable service.
+            if failure.error.code == ErrorCode::CapabilityUnsupported {
+                issues.retain(|issue| {
+                    !(issue.kind == originlm_contracts::IssueKind::AdapterFailure
+                        && issue.connection_id.as_deref() == Some(connection.as_str()))
+                });
+                continue;
+            }
             let now = Timestamp::now();
             let extra = Issue {
                 id: originlm_contracts::stable_id("issue", &["adapter_failure", connection]),

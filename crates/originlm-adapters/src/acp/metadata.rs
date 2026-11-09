@@ -1,6 +1,12 @@
 use super::{evidence, wire::Wire};
 use crate::process::LaunchSpec;
 use originlm_contracts::*;
+/// Metadata connects/initializes and creates a session under separate native
+/// deadlines, then closes it. Hosts must budget the complete operation.
+pub fn probe_budget(provider: &str) -> std::time::Duration {
+    super::wire::provider_timeout(provider) * 2 + std::time::Duration::from_secs(5)
+}
+
 /// Facts published by provider-specific status commands, never inferred from installation.
 pub struct AccountEvidence {
     pub auth: Observation<AuthState>,
