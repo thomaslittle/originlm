@@ -1591,7 +1591,11 @@ impl Desktop {
                 let age = crate::clock::timestamp() - bundle.fetched_at;
                 format!(
                     "{} {}",
-                    if self.stale { "Last read" } else { "Updated" },
+                    if self.stale {
+                        "Last snapshot read"
+                    } else {
+                        "Snapshot read"
+                    },
                     ui::format_age(age)
                 )
             }

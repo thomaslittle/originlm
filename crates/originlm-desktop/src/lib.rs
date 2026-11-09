@@ -59,6 +59,13 @@ fn parse_args() -> (Option<PathBuf>, u64, bool) {
 }
 
 pub fn run() {
+    // Browser callbacks may contain OAuth URLs. Open nothing, log nothing,
+    // and exit before connecting to a broker or creating a window.
+    if std::env::args_os().nth(1).as_deref()
+        == Some(std::ffi::OsStr::new("--originlm-auth-blocker"))
+    {
+        return;
+    }
     let (token_path, refresh, example) = parse_args();
     let credential = if example {
         bootstrap::Credential::Unavailable("Example mode has no runtime.".into())

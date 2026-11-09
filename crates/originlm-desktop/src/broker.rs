@@ -423,8 +423,10 @@ fn worker(
             }
             Ok(Command::Probe(connection_id)) => {
                 if let Some(active) = client.as_mut() {
-                    let _ =
-                        active.call("connections.probe", json!({"connectionId": connection_id}));
+                    let _ = active.call(
+                        "connections.probe",
+                        json!({"connectionId": connection_id, "force": true}),
+                    );
                     if let Ok(bundle) = fetch(active, &mut history) {
                         let _ = updates.send(bundle);
                     }

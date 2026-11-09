@@ -678,3 +678,69 @@ async fn a_corrupt_or_foreign_cache_file_is_preserved_and_rebuilt() {
             .any(|entry| entry.file_name().to_string_lossy().contains("corrupt"))
     );
 }
+
+#[tokio::test]
+async fn explicit_refresh_bypasses_success_cache_and_failure_backoff() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let source: MetadataSource = Arc::new(move |_, id, route| {
+        let attempt = counter.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move {
+            if attempt == 1 {
+                return Err(DomainError::new(
+                    ErrorCode::ProviderUnavailable,
+                    "private adapter details",
+                )
+                .retryable());
+            }
+            Ok(report(&id, &route))
+        })
+    });
+    let s = NativeService::new(Arc::new(|_| Ok(inventory())), Duration::ZERO).with_metadata(source);
+    s.register_client("app", probe_policy()).unwrap();
+    s.handle("app", "discovery.refresh", json!({}))
+        .await
+        .unwrap();
+    s.handle(
+        "app",
+        "connections.probe",
+        json!({"connectionId":"personal"}),
+    )
+    .await
+    .unwrap();
+    let failed = s
+        .handle(
+            "app",
+            "connections.probe",
+            json!({"connectionId":"personal", "force":true}),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(failed.code, ErrorCode::ProviderUnavailable);
+    let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+    let connection = snapshot["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "personal")
+        .unwrap();
+    assert_eq!(connection["status"], "metadata_unavailable");
+    assert!(!snapshot.to_string().contains("private adapter details"));
+    s.handle(
+        "app",
+        "connections.probe",
+        json!({"connectionId":"personal", "force":true}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    let snapshot = s.handle("app", "snapshot.get", json!({})).await.unwrap();
+    let connection = snapshot["connections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "personal")
+        .unwrap();
+    assert_eq!(connection["status"], "metadata_ready");
+    assert_eq!(connection["auth"]["freshness"], "fresh");
+}

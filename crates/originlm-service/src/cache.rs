@@ -81,6 +81,31 @@ struct CacheState {
     hydrated: bool,
 }
 
+impl CacheState {
+    fn merge_metadata(&self, snapshot: &mut Snapshot) {
+        for entry in self.metadata.values() {
+            entry.merge(snapshot);
+        }
+        for (id, failure) in &self.metadata_failures {
+            if let Some(connection) = snapshot.connections.iter_mut().find(|c| &c.id == id) {
+                connection.status = "metadata_unavailable".into();
+                connection.diagnostics.push(
+                    match failure.error.code {
+                        ErrorCode::Timeout => "METADATA_READ_TIMEOUT",
+                        ErrorCode::ProviderUnavailable => "METADATA_SERVICE_UNREACHABLE",
+                        ErrorCode::RuntimeMissing => "METADATA_RUNTIME_MISSING",
+                        ErrorCode::IntegrationRestricted => "METADATA_LAUNCH_RESTRICTED",
+                        ErrorCode::ProtocolIncompatible => "METADATA_PROTOCOL_INCOMPATIBLE",
+                        ErrorCode::LocalAccessDenied => "METADATA_ACCESS_DENIED",
+                        _ => "METADATA_READ_FAILED",
+                    }
+                    .into(),
+                );
+            }
+        }
+    }
+}
+
 pub(crate) struct ProbeTarget {
     pub connection_id: String,
     pub located: LocatedClient,
@@ -485,9 +510,7 @@ impl InventoryCache {
     pub fn snapshot(&self) -> Result<Snapshot> {
         let state = self.state.lock().map_err(|_| unavailable())?;
         let mut snapshot = state.snapshot.clone();
-        for entry in state.metadata.values() {
-            entry.merge(&mut snapshot);
-        }
+        state.merge_metadata(&mut snapshot);
         Ok(snapshot)
     }
 
@@ -598,9 +621,7 @@ impl InventoryCache {
     pub(crate) fn expire_observations(&self) -> Result<()> {
         let mut state = self.state.lock().map_err(|_| unavailable())?;
         let mut next = state.snapshot.clone();
-        for entry in state.metadata.values() {
-            entry.merge(&mut next);
-        }
+        state.merge_metadata(&mut next);
         let changes = diff_snapshot(&state.snapshot, &next);
         if changes.is_empty() {
             return Ok(());
@@ -744,9 +765,7 @@ impl InventoryCache {
         let mut next = state.snapshot.clone();
         // The last-known observation remains visible as stale; failure never
         // rewrites it as fresh or pretends the account signed out.
-        for entry in state.metadata.values() {
-            entry.merge(&mut next);
-        }
+        state.merge_metadata(&mut next);
         next.observed_at = Timestamp::now();
         let issues = self.compose_issues_locked(&state, &next);
         next.issues = issues.clone();
@@ -781,6 +800,7 @@ impl InventoryCache {
                 entry.invalidated = true;
                 changed.push(id.clone());
             }
+            state.metadata_failures.remove(id);
             state.dirty.insert(id.clone());
             *state.connection_generations.entry(id.clone()).or_default() += 1;
         }
@@ -790,9 +810,7 @@ impl InventoryCache {
             return Ok(());
         }
         let mut next = state.snapshot.clone();
-        for entry in state.metadata.values() {
-            entry.merge(&mut next);
-        }
+        state.merge_metadata(&mut next);
         next.observed_at = Timestamp::now();
         let issues = self.compose_issues_locked(&state, &next);
         next.issues = issues.clone();
@@ -878,6 +896,7 @@ impl InventoryCache {
                     } else {
                         entry.invalidated
                             || state.dirty.contains(&connection.id)
+                            || metadata_is_stale(entry.observed.elapsed())
                             || entry.observed.elapsed() >= period
                     }
                 }
@@ -1200,9 +1219,7 @@ impl InventoryCache {
                         .iter()
                         .any(|connection| connection.id == *id)
                 });
-                for entry in state.metadata.values() {
-                    entry.merge(&mut next);
-                }
+                state.merge_metadata(&mut next);
                 next.observed_at = Timestamp::now();
                 let issues = self.compose_issues_locked(&state, &next);
                 next.issues = issues.clone();
@@ -1535,6 +1552,57 @@ mod refresh_generation_tests {
             }))
             .unwrap();
         cache
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn expired_auth_is_due_even_without_client_interest() {
+        let cache = seeded();
+        let fixture = common::fixture();
+        let report = ConnectionMetadata {
+            connection_id: "personal".into(),
+            route_id: "route-personal".into(),
+            version: Observation::unknown("TEST"),
+            auth: fixture.connections[0].auth.clone(),
+            plan: Observation::unknown("TEST"),
+            billing: fixture.routes[0].billing.clone(),
+            account: None,
+            models: vec![],
+            providers: vec![],
+            additional_routes: vec![],
+            quota_pools: vec![],
+            included_usage_allowed: Observation::unknown("TEST"),
+            diagnostics: vec![],
+        };
+        cache
+            .publish_metadata(&cache.probe_input("personal").unwrap().base, report)
+            .unwrap();
+        tokio::time::advance(Duration::from_secs(901)).await;
+        let snapshot = cache.snapshot().unwrap();
+        assert!(matches!(
+            snapshot
+                .connections
+                .iter()
+                .find(|c| c.id == "personal")
+                .unwrap()
+                .auth,
+            Observation::Known {
+                freshness: Freshness::Stale,
+                ..
+            }
+        ));
+        let due = cache
+            .due_probes(
+                &BTreeSet::from(["test".into()]),
+                64,
+                Duration::from_secs(3600),
+                "",
+            )
+            .unwrap();
+        assert_eq!(
+            due.len(),
+            1,
+            "expired auth must trigger its own re-read, including providers without quota windows"
+        );
     }
 
     #[test]

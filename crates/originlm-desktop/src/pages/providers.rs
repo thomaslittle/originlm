@@ -16,6 +16,7 @@ use originlm_contracts::{Snapshot, Support};
 
 pub fn auth_tone(kind: data::AuthKind) -> Tone {
     match kind {
+        data::AuthKind::Unavailable => Tone::Red,
         data::AuthKind::Verified => Tone::Green,
         data::AuthKind::Cached => Tone::Amber,
         data::AuthKind::Required => Tone::Red,
@@ -26,6 +27,7 @@ pub fn auth_tone(kind: data::AuthKind) -> Tone {
 /// Short sign-in label for tables and chips.
 pub fn auth_short(kind: data::AuthKind) -> &'static str {
     match kind {
+        data::AuthKind::Unavailable => "Reading unavailable",
         data::AuthKind::Verified => "Signed in",
         data::AuthKind::Cached => "Cached sign-in",
         data::AuthKind::Required => "Sign-in required",
@@ -384,7 +386,11 @@ impl Desktop {
                 this.child(
                     div().px(px(sp::LG)).pb(px(sp::MD)).child(ds::banner(
                         Tone::Amber,
-                        "Reported by discovery",
+                        if view.kind == data::AuthKind::Unavailable {
+                            "Last read failed; saved data is stale"
+                        } else {
+                            "Provider reading"
+                        },
                         Some(
                             connection
                                 .diagnostics

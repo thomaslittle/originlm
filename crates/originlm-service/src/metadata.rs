@@ -96,7 +96,7 @@ impl NativeService {
             }
             Err(error) => {
                 let mut safe =
-                    DomainError::new(error.code.clone(), "Client metadata is unavailable");
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = error.retryable
                     || matches!(
                         error.code,
@@ -110,7 +110,8 @@ impl NativeService {
         }
     }
     pub(crate) async fn probe_connection(&self, client: &str, p: &Value) -> Result<Value> {
-        params::allow(p, &["connectionId"])?;
+        params::allow(p, &["connectionId", "force"])?;
+        let force = params::boolean(p, "force")?;
         let id = params::text(p, "connectionId")?.ok_or_else(params::invalid)?;
         let source = self.metadata_source.as_ref().ok_or_else(unsupported)?;
         // Scope check precedes path lookup so inaccessible IDs cannot be enumerated.
@@ -137,10 +138,16 @@ impl NativeService {
         let _slot = self.metadata_slots.acquire().await.map_err(|_| denied())?;
         let target = self.cache.probe_input(id)?;
         self.ensure_probe_permission(client, id, &target.located.provider_id)?;
+        if force {
+            // Explicit refresh invalidates success and failure caches under the
+            // same connection lease as every other probe.
+            self.cache.invalidate_metadata(&[id.into()])?;
+        }
+        let target = self.cache.probe_input(id)?;
         if let Some(error) = self.cache.metadata_failure(id)? {
             return Err(error);
         }
-        if self.cache.has_fresh_metadata(id)? {
+        if !force && self.cache.has_fresh_metadata(id)? {
             return Ok(json!({"status":"cached","connectionId":id}));
         }
         let result = tokio::time::timeout(
@@ -165,7 +172,8 @@ impl NativeService {
                             | ErrorCode::ProviderUnavailable
                             | ErrorCode::Timeout
                     );
-                let mut safe = DomainError::new(error.code, "Client metadata is unavailable");
+                let mut safe =
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = retryable;
                 safe.retry_after_ms = error.retry_after_ms;
                 self.cache.fail_metadata(&target.base, id, safe.clone())?;
@@ -246,7 +254,7 @@ impl NativeService {
             }
             Err(error) => {
                 let mut safe =
-                    DomainError::new(error.code.clone(), "Client metadata is unavailable");
+                    DomainError::new(error.code.clone(), metadata_failure_message(&error.code));
                 safe.retryable = error.retryable
                     || matches!(
                         error.code,
@@ -262,6 +270,24 @@ impl NativeService {
         }
     }
 }
+// Only fixed, actionable reasons cross the public boundary. Adapter messages
+// may contain private paths, URLs or tokens.
+fn metadata_failure_message(code: &ErrorCode) -> &'static str {
+    match code {
+        ErrorCode::Timeout => "Service unreachable: metadata read timed out",
+        ErrorCode::ProviderUnavailable => {
+            "Service unreachable: local provider service did not answer"
+        }
+        ErrorCode::RuntimeMissing => "Provider executable or required runtime is missing",
+        ErrorCode::IntegrationRestricted => {
+            "Provider launch is restricted: profile or browser-blocking helper is unavailable"
+        }
+        ErrorCode::ProtocolIncompatible => "Provider returned an incompatible metadata response",
+        ErrorCode::LocalAccessDenied => "Provider metadata access was denied",
+        _ => "Client metadata is unavailable",
+    }
+}
+
 fn validate_report(report: &ConnectionMetadata, connection: &str, route: &str) -> Result<()> {
     if report.connection_id != connection
         || report.route_id != route

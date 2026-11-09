@@ -127,6 +127,7 @@ pub fn plan_label(connection: &Connection) -> String {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AuthKind {
     Verified,
+    Unavailable,
     Cached,
     Required,
     Unknown,
@@ -140,6 +141,23 @@ pub struct AuthView {
 }
 
 pub fn auth_view(connection: &Connection) -> AuthView {
+    if connection.status == "metadata_unavailable" {
+        let unreachable = connection.diagnostics.iter().any(|d| {
+            matches!(
+                d.as_str(),
+                "METADATA_SERVICE_UNREACHABLE" | "METADATA_READ_TIMEOUT"
+            )
+        });
+        return AuthView {
+            label: if unreachable {
+                "Service unreachable"
+            } else {
+                "Reading unavailable"
+            },
+            kind: AuthKind::Unavailable,
+            stale: true,
+        };
+    }
     let stale = matches!(
         &connection.auth,
         Observation::Known {
@@ -178,6 +196,7 @@ pub fn auth_view(connection: &Connection) -> AuthView {
     };
     AuthView {
         label: match kind {
+            AuthKind::Unavailable => "Reading unavailable",
             AuthKind::Verified => "Authenticated",
             AuthKind::Cached => "Signed in, cache only",
             AuthKind::Required => "Sign-in required",
@@ -740,6 +759,30 @@ mod tests {
         }
         snapshot.connections = connections;
         snapshot
+    }
+
+    #[test]
+    fn failed_live_read_never_presents_saved_auth_as_current_sign_in() {
+        for provider in ["opencode", "antigravity", "codex"] {
+            let mut c = connection(
+                "test",
+                provider,
+                Some("saved-account"),
+                AuthState::Authenticated,
+                "metadata_unavailable",
+            );
+            c.auth.mark_stale();
+            c.diagnostics.push("METADATA_SERVICE_UNREACHABLE".into());
+            let view = auth_view(&c);
+            assert!(view.kind == AuthKind::Unavailable);
+            assert_eq!(view.label, "Service unreachable");
+            assert!(view.stale);
+            c.status = "metadata_ready".into();
+            c.auth = auth(AuthState::Authenticated);
+            c.diagnostics.clear();
+            assert!(auth_view(&c).kind == AuthKind::Verified);
+            assert!(!auth_view(&c).stale);
+        }
     }
 
     #[test]

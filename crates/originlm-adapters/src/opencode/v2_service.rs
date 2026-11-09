@@ -9,7 +9,7 @@
 
 use crate::{
     http::{Authentication, Endpoint},
-    process::{LaunchSpec, capture},
+    process::LaunchSpec,
 };
 use chrono::DateTime;
 use originlm_contracts::*;
@@ -153,7 +153,7 @@ fn service_environment(scope: Option<&ProfileScope>) -> BTreeMap<OsString, OsStr
 async fn ensure_service(executable: &Path, scope: Option<&ProfileScope>) -> Result<()> {
     let cwd = std::env::current_dir()
         .map_err(|_| unavailable("OpenCode working directory is unavailable"))?;
-    capture(
+    crate::process::start_service(
         LaunchSpec {
             executable: executable.to_owned(),
             args: vec!["service".into(), "start".into()],
