@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "images": [
+    {
+      "path": "mock-desktop-result.png",
+      "provider": "openai",
+      "model": "gpt-image-2.6-flare",
+      "width": 1920,
+      "height": 1080,
+      "original_width": 1920,
+      "original_height": 1080,
+      "fit": "cover_center"
+    }
+  ],
+  "transcript": [
+    "Call generate_image exactly once to create a Starting Soon backdrop for a 1920x1080 canvas, midnight blue mountains and warm amber horizon. Present the resulting image inline and offer a variation. This is a local mocked-provider integration test.",
+    "I’ll generate the 1920×1080 Starting Soon backdrop with midnight blue mountains and a warm amber horizon.",
+    "openai · gpt-image-2.6-flare · 1920×1080",
+    "![Starting Soon backdrop with midnight blue mountains and a warm amber horizon](mock-desktop-result.png)\n\n1920×1080 backdrop. I can also make a variation with a brighter amber glow and mistier mountains."
+  ],
+  "error": null,
+  "timedOut": false,
+  "evidenceKind": "live-desktop-native-codex-with-local-mock-image-provider"
+}

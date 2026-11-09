@@ -105,3 +105,13 @@ text execution instead of attaching an unsupported server. Native host-tool
 integrations (including Codex and Claude) use the image server independently of
 their text-model credentials. Extending HTTP chat tool-call loops is a separate
 follow-up; this is a remaining gap against the “any model” goal.
+
+## Desktop follow-up proof — 2026-11-09
+
+Fixed the failing image assertion by adding the image container's actual accessibility label, consistent with the app's other observed elements. Local desktop build and all 25 desktop tests pass.
+
+The running native Windows app also completed a self-driving smoke run through its real composer submission method, broker worker, native Codex session, authenticated MCP image tool and local mock HTTP image provider. The app's transcript received the 1920×1080 PNG and the assistant's inline-image response / offer of a variation. See `docs/evidence/image-generation/result.json` and the explicitly labeled mock PNG. This proves the integrated app data path with a mock image provider; it does not qualify a live billed image provider or independently assert compositor pixel correctness.
+
+For repeatable testing without OS mouse/keyboard automation, set `ORIGINLM_DESKTOP_IMAGE_SMOKE` to an absolute JSON config path before launching the desktop. It submits one turn, leaves the window open, and writes the report after the turn ends (or 180 seconds). Config fields: `prompt`, `providerId` (native conversation provider, e.g. `codex`), `allowPaid` (explicit approval for this test turn), and absolute `report` path. Normal app startup is unchanged when this opt-in variable is absent.
+
+`scripts/image_generation_mock.py` is a local-only fixture server (requires Pillow), bound to 127.0.0.1:18763. It writes a clearly labeled synthetic PNG and captures the request beside the script. For a mock image route, use the standard OpenAI endpoint config with `baseUrl` set to `http://127.0.0.1:18763/v1/` and a dedicated `keyEnv` bound to a non-secret placeholder. Never supply a real API credential to the mock. Configure `ORIGINLM_IMAGE_ROUTE` normally; no production route or credential is altered by this harness.

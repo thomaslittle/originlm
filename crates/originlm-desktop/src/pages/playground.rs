@@ -290,6 +290,7 @@ impl Desktop {
             let message = if let Some(image) = &line.image {
                 let image_message = div()
                     .id(SharedString::from(format!("generated-image-{index}")))
+                    .aria_label(format!("Generated image: {}", line.text))
                     .w_full()
                     .v_flex()
                     .gap(px(6.))
