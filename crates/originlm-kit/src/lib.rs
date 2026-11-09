@@ -187,12 +187,13 @@ pub fn default_image_provider() -> images::Result<Option<Arc<dyn images::ImagePr
                 .map(|home| PathBuf::from(home).join(".codex"))
         })
         .ok_or_else(|| ImageError::new(ErrorKind::NoProvider))?;
-    let located = inventory
-        .locations
-        .values()
-        .find(|client| client.provider_id == "codex" && client.profile_home == profile);
-    match located.and_then(|client| Some((client.executable.clone()?, client.profile_home.clone())))
-    {
+    let located = inventory.locations.values().find_map(|client| {
+        (client.provider_id == "codex" && client.profile_home == profile)
+            .then(|| client.executable.clone())
+            .flatten()
+            .map(|executable| (executable, client.profile_home.clone()))
+    });
+    match located {
         Some((executable, home)) => Ok(Some(Arc::new(NativeCodexProvider::new(executable, home)?))),
         None => Ok(None),
     }
