@@ -122,14 +122,22 @@ fn usage_on_an_empty_home_names_the_missing_providers_without_inventing_numbers(
 }
 
 #[test]
-fn usage_rejects_ungranted_providers_and_bad_arguments_as_tool_errors() {
+fn usage_narrows_by_known_providers_and_rejects_bad_arguments_as_tool_errors() {
     let home = tempfile::tempdir().unwrap();
     let mut client = Client::start(home.path(), &["--allow-metadata", "codex"]);
     client.initialize();
-    let reply = client.call(2, "usage", json!({"providers":["claude_code"]}));
+    // Any provider discovery knows may be asked for, granted or not; one that is
+    // not installed is named as not found rather than dropped.
+    let reply = client.call(2, "usage", json!({"providers":["gemini_cli"]}));
+    assert_eq!(reply["result"]["isError"], false, "{reply}");
+    assert_eq!(
+        reply["result"]["structuredContent"]["notFound"],
+        json!(["gemini_cli"])
+    );
+    let reply = client.call(5, "usage", json!({"providers":["not_a_provider"]}));
     assert_eq!(reply["result"]["isError"], true);
     let text = reply["result"]["content"][0]["text"].as_str().unwrap();
-    assert!(text.contains("not granted"), "{text}");
+    assert!(text.contains("Unknown provider"), "{text}");
     let reply = client.call(3, "usage", json!({"refresh":"yes"}));
     assert_eq!(reply["result"]["isError"], true);
     let reply = client.call(4, "providers", json!({"x":1}));

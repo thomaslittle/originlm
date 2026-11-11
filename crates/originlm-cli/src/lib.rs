@@ -29,9 +29,17 @@ Usage:
   originlm connect --ipc LOCAL_ADDRESS
   originlm scan --json [--include-locations] [--home ABSOLUTE_DIRECTORY] [--executable-only-provider PROVIDER]
       --include-locations adds this host's private executable and profile paths.
-  originlm usage --json [--home ABSOLUTE_DIRECTORY]
-      Reads bounded Claude Code and Codex session-history token totals. No prompt,
-      tool output or credential is read; malformed or oversized input is reported.
+  originlm usage [--json] [--refresh] [--allow-identity] [--allow-metadata PROVIDER]...
+      [--home ABSOLUTE_DIRECTORY] [--no-metadata-cache]
+      Lists every AI provider and profile detected on this machine with its plan
+      usage where a usage source exists: percent used and left per window, reset
+      times, plan, and whether each reading is live or cached and how old it is.
+      Claude Code and Codex are read by default; --allow-metadata replaces that.
+      Detected providers without a reading are listed with the reason. Never zero
+      for unknown. Installed from npm, `olm` is the same command (`olm usage`).
+  originlm usage --history [--json] [--home ABSOLUTE_DIRECTORY]
+      Reads bounded local session-history token totals (the pre-quota `usage`
+      output). No prompt, tool output or credential is read.
   originlm models --json [--home ABSOLUTE_DIRECTORY]
       Lists on-disk Ollama manifests and LM Studio GGUF files. Reports only ids,
       names, sizes and a coarse format; no capability or quantization guesses.
@@ -220,12 +228,17 @@ async fn execute(args: Args) -> Result<()> {
     }
     service.enable_autonomous_refresh(args.metadata_providers.clone());
     service.enable_inventory_refresh(args.allow_passive);
-    if matches!(args.action, Action::Serve | Action::Mcp)
+    let quota_usage = matches!(args.action, Action::Usage) && !args.history;
+    if (matches!(args.action, Action::Serve | Action::Mcp) || quota_usage)
         && !args.no_metadata_cache
         && let Some(directory) = host::default_state_dir(args.home.as_deref())
         // The MCP server keeps its own store so it never contends with a broker.
         && let Err(error) = service.enable_state_store(directory.join(
-            if matches!(args.action, Action::Mcp) { "mcp-state.db" } else { "state.db" },
+            match args.action {
+                Action::Mcp => "mcp-state.db",
+                Action::Usage => "usage-state.db",
+                _ => "state.db",
+            },
         ))
     {
         eprintln!("storage: {error}");
@@ -346,6 +359,32 @@ async fn execute(args: Args) -> Result<()> {
             }
             Ok(())
         }
+        Action::Usage if !args.history => {
+            // Plan quota from the same probes as the MCP `usage` tool.
+            const CLIENT: &str = "usage-cli";
+            service.register_client(CLIENT, policy)?;
+            let report = mcp::collect_usage(
+                &service,
+                CLIENT,
+                &args.metadata_providers,
+                None,
+                args.refresh,
+                true,
+                args.allow_identity,
+            )
+            .await;
+            service.close_client(CLIENT);
+            let report = report?;
+            if args.json {
+                println!("{report}");
+            } else {
+                print!(
+                    "{}",
+                    mcp::usage_terminal(&report, *chrono::Local::now().offset())
+                );
+            }
+            Ok(())
+        }
         Action::Usage => {
             let history = match args.home.clone() {
                 Some(home) => originlm_discovery::history::read_usage(
@@ -360,7 +399,11 @@ async fn execute(args: Args) -> Result<()> {
                     )
                 }
             };
-            println!("{}", json!(history));
+            if args.json {
+                println!("{}", json!(history));
+            } else {
+                print!("{}", mcp::history_text(&json!(history)));
+            }
             Ok(())
         }
         Action::Models => {

@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Add `originlm mcp`, a built-in MCP server over stdio. Its `usage` tool returns the provider-reported plan usage for the connected Claude Code and Codex accounts: percent used and remaining for each 5-hour, weekly, per-model and monthly window, reset times, account and plan. Each provider is labelled live or cached with the age of its reading. The server also has `providers` and `usage_history` tools. It is read-only and never starts a model turn. See `docs/integration/mcp-server.md`.
+- `npm i -g originlm` now puts `olm` and `originlm` on PATH. A dependency-free launcher in the `originlm` package runs the installed `originlm-cli-<platform>` helper with arguments, stdio and exit status unchanged, and prints a clear error if the platform package is missing. Before this, the global install linked no command.
+- **Behavior change:** `originlm usage` (`olm usage`) now prints plan usage for every AI provider and profile detected on this machine: percent used and left per window, reset times, plan, and whether each reading is live or cached with its age. Claude Code and Codex are read by default. Detected providers without a reading are listed with the reason. `--json` prints the same report. The previous output, local session-history token totals, is unchanged under `originlm usage --history [--json]`.
+- Add `originlm mcp`, a built-in MCP server over stdio. Its `usage` tool returns the same report as `olm usage`. It also has `providers` and `usage_history` tools. It is read-only and never starts a model turn. See `docs/integration/mcp-server.md`.
 
 ## 0.1.0-alpha.28 - 2026-11-11
 

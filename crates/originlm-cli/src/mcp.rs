@@ -41,14 +41,14 @@ pub fn tool_definitions() -> Value {
         {
             "name": "usage",
             "title": "Provider plan usage",
-            "description": "Current plan usage for the connected Claude Code and Codex accounts (and any other granted provider that reports quota): percent used and remaining per window (5-hour, weekly, model-specific, monthly credits), reset times, account and plan. Reads the providers' own usage endpoints through their installed clients; never starts a model turn. Each provider says whether its numbers are live or cached and how old they are. A missing window is unknown, not zero.",
+            "description": "Every AI provider and profile OriginLM detects on this machine, with plan usage wherever a usage source exists (Claude Code and Codex by default): percent used and remaining per window (5-hour, weekly, model-specific, monthly credits), reset times, account and plan. Reads the providers' own usage endpoints through their installed clients; never starts a model turn. Each provider says whether its numbers are live or cached and how old they are. A detected provider without a usage source is still listed and marked so. A missing window is unknown, not zero.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "providers": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Provider ids to include, e.g. [\"claude_code\",\"codex\"]. Default: every granted provider."
+                        "description": "Provider ids to include, e.g. [\"claude_code\",\"codex\"]. Default: every detected provider."
                     },
                     "refresh": {
                         "type": "boolean",
@@ -200,89 +200,18 @@ impl McpServer {
             Some(Value::Bool(value)) => *value,
             Some(_) => return Err(invalid("`refresh` must be a boolean")),
         };
-        let wanted: BTreeSet<String> = match arguments.get("providers") {
-            None | Some(Value::Null) => self.providers.clone(),
-            Some(Value::Array(items)) => {
-                let mut set = BTreeSet::new();
-                for item in items {
-                    let id = item
-                        .as_str()
-                        .ok_or_else(|| invalid("`providers` must be strings"))?;
-                    if !self.providers.contains(id) {
-                        return Err(invalid(&format!(
-                            "Provider `{id}` is not granted to this server (granted: {})",
-                            self.providers
-                                .iter()
-                                .cloned()
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        )));
-                    }
-                    set.insert(id.to_owned());
-                }
-                set
-            }
-            Some(_) => return Err(invalid("`providers` must be an array")),
-        };
-        let started = chrono::Utc::now();
-        self.discover(refresh).await?;
-        let listed = self
-            .service
-            .handle(CLIENT, "connections.list", json!({}))
-            .await?;
-        let mut by_provider: std::collections::BTreeMap<String, Vec<String>> = Default::default();
-        for connection in listed.as_array().into_iter().flatten() {
-            if let (Some(provider), Some(id)) =
-                (connection["providerId"].as_str(), connection["id"].as_str())
-                && wanted.contains(provider)
-            {
-                by_provider
-                    .entry(provider.to_owned())
-                    .or_default()
-                    .push(id.to_owned());
-            }
-        }
-        // Providers are probed concurrently; one provider's profiles in order,
-        // because a probe may refresh that provider's own credentials.
-        let mut checks = tokio::task::JoinSet::new();
-        for ids in by_provider.into_values() {
-            let service = self.service.clone();
-            checks.spawn(async move {
-                let mut results = vec![];
-                for id in ids {
-                    let outcome = service
-                        .handle(
-                            CLIENT,
-                            "connections.probe",
-                            json!({"connectionId": id, "force": refresh}),
-                        )
-                        .await;
-                    results.push((id, outcome));
-                }
-                results
-            });
-        }
-        let mut probes = std::collections::BTreeMap::new();
-        while let Some(joined) = checks.join_next().await {
-            for (id, outcome) in joined.unwrap_or_default() {
-                probes.insert(
-                    id,
-                    match outcome {
-                        Ok(value) => ProbeOutcome::Ok(value["status"].as_str() == Some("cached")),
-                        Err(error) => ProbeOutcome::Failed(code(&error)),
-                    },
-                );
-            }
-        }
-        let snapshot = self.snapshot().await?;
-        let report = usage_report(
-            &snapshot,
-            &wanted,
-            &probes,
-            started,
-            chrono::Utc::now(),
+        let filter = provider_filter(arguments.get("providers"))?;
+        let report = collect_usage(
+            &self.service,
+            CLIENT,
+            &self.providers,
+            filter.as_ref(),
+            refresh,
+            !self.discovered || refresh,
             self.identity,
-        );
+        )
+        .await?;
+        self.discovered = true;
         let text = usage_text(&report);
         let mut report = report;
         // Some clients (Claude Code) show only structuredContent when present,
@@ -335,21 +264,128 @@ impl McpServer {
             }
         };
         let value = json!(history);
-        let mut text = String::from(
-            "Local session-history token totals (this machine only; not plan quota):\n",
-        );
-        for provider in value["providers"].as_array().into_iter().flatten() {
-            let t = &provider["totals"];
-            text.push_str(&format!(
-                "{}: input {} · cached input {} · cache writes {} · output {} (reasoning {}) across {} file(s){}\n",
-                provider["providerId"].as_str().unwrap_or("?"),
-                t["inputTokens"], t["cachedInputTokens"], t["cacheCreationTokens"],
-                t["outputTokens"], t["reasoningTokens"], provider["filesRead"],
-                if provider["truncated"] == true { " (truncated)" } else { "" },
-            ));
-        }
+        let text = history_text(&value);
         Ok((text, value))
     }
+}
+
+/// Readable local token totals (`usage_history` tool, `usage --history`).
+pub fn history_text(value: &Value) -> String {
+    let mut text =
+        String::from("Local session-history token totals (this machine only; not plan quota):\n");
+    for provider in value["providers"].as_array().into_iter().flatten() {
+        let t = &provider["totals"];
+        text.push_str(&format!(
+            "{}: input {} · cached input {} · cache writes {} · output {} (reasoning {}) across {} file(s){}\n",
+            provider["providerId"].as_str().unwrap_or("?"),
+            t["inputTokens"], t["cachedInputTokens"], t["cacheCreationTokens"],
+            t["outputTokens"], t["reasoningTokens"], provider["filesRead"],
+            if provider["truncated"] == true { " (truncated)" } else { "" },
+        ));
+    }
+    text
+}
+
+/// Discover (when asked), probe every granted connection of `wanted`, and
+/// shape the snapshot into the usage report. Shared by the MCP `usage` tool
+/// and the `originlm usage` / `olm usage` command so both show the same numbers.
+pub async fn collect_usage(
+    service: &Arc<NativeService>,
+    client: &str,
+    granted: &BTreeSet<String>,
+    filter: Option<&BTreeSet<String>>,
+    refresh: bool,
+    discover: bool,
+    identity: bool,
+) -> Result<Value> {
+    let started = chrono::Utc::now();
+    if discover {
+        service
+            .handle(client, "discovery.refresh", json!({"level":"passive"}))
+            .await?;
+    }
+    let listed = service
+        .handle(client, "connections.list", json!({}))
+        .await?;
+    let mut by_provider: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+    for connection in listed.as_array().into_iter().flatten() {
+        if let (Some(provider), Some(id)) =
+            (connection["providerId"].as_str(), connection["id"].as_str())
+            && granted.contains(provider)
+            && filter.is_none_or(|filter| filter.contains(provider))
+        {
+            by_provider
+                .entry(provider.to_owned())
+                .or_default()
+                .push(id.to_owned());
+        }
+    }
+    // Providers are probed concurrently; one provider's profiles in order,
+    // because a probe may refresh that provider's own credentials.
+    let mut checks = tokio::task::JoinSet::new();
+    for ids in by_provider.into_values() {
+        let service = service.clone();
+        let client = client.to_owned();
+        checks.spawn(async move {
+            let mut results = vec![];
+            for id in ids {
+                let outcome = service
+                    .handle(
+                        &client,
+                        "connections.probe",
+                        json!({"connectionId": id, "force": refresh}),
+                    )
+                    .await;
+                results.push((id, outcome));
+            }
+            results
+        });
+    }
+    let mut probes = std::collections::BTreeMap::new();
+    while let Some(joined) = checks.join_next().await {
+        for (id, outcome) in joined.unwrap_or_default() {
+            probes.insert(
+                id,
+                match outcome {
+                    Ok(value) => ProbeOutcome::Ok(value["status"].as_str() == Some("cached")),
+                    Err(error) => ProbeOutcome::Failed(code(&error)),
+                },
+            );
+        }
+    }
+    let snapshot = service.handle(client, "snapshot.get", json!({})).await?;
+    Ok(usage_report(
+        &snapshot,
+        granted,
+        filter,
+        &probes,
+        started,
+        chrono::Utc::now(),
+        identity,
+    ))
+}
+
+/// Optional `providers` narrowing: ids OriginLM discovery knows, else an error.
+pub fn provider_filter(value: Option<&Value>) -> Result<Option<BTreeSet<String>>> {
+    let items = match value {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::Array(items)) => items,
+        Some(_) => return Err(invalid("`providers` must be an array")),
+    };
+    let mut set = BTreeSet::new();
+    for item in items {
+        let id = item
+            .as_str()
+            .ok_or_else(|| invalid("`providers` must be strings"))?;
+        if !originlm_discovery::definitions()
+            .iter()
+            .any(|definition| definition.id == id)
+        {
+            return Err(invalid(&format!("Unknown provider `{id}`")));
+        }
+        set.insert(id.to_owned());
+    }
+    Ok(Some(set))
 }
 
 pub enum ProbeOutcome {
@@ -409,10 +445,34 @@ fn account_label(snapshot: &Value, account_id: &Value, identity: bool) -> Value 
         .unwrap_or(Value::Null)
 }
 
+/// Providers whose adapters can report plan quota, and the grant that turns
+/// the read on. Claude Code and Codex are granted by default; the others are
+/// listed with the flags that enable them. Every other detected provider has
+/// no usage source in OriginLM today and is listed as such.
+pub const USAGE_SOURCES: &[(&str, &str)] = &[
+    ("claude_code", "--allow-metadata claude_code"),
+    ("codex", "--allow-metadata codex"),
+    ("cursor", "--allow-metadata cursor --allow-usage cursor"),
+    ("muse", "--allow-metadata muse"),
+    ("opencode", "--allow-metadata opencode"),
+];
+
+fn usage_source(provider: &str) -> Option<&'static str> {
+    USAGE_SOURCES
+        .iter()
+        .find(|(id, _)| *id == provider)
+        .map(|(_, flags)| *flags)
+}
+
 /// Shape the projected snapshot into the `usage` result. Pure, for tests.
+///
+/// Every detected connection is listed (narrowed only by `filter`); only the
+/// `granted` providers were probed. A connection without a reading is still
+/// listed, with the reason: not granted, or no usage source at all.
 pub fn usage_report(
     snapshot: &Value,
-    wanted: &BTreeSet<String>,
+    granted: &BTreeSet<String>,
+    filter: Option<&BTreeSet<String>>,
     probes: &std::collections::BTreeMap<String, ProbeOutcome>,
     started: chrono::DateTime<chrono::Utc>,
     now: chrono::DateTime<chrono::Utc>,
@@ -423,7 +483,7 @@ pub fn usage_report(
     let mut rows = vec![];
     for connection in snapshot["connections"].as_array().unwrap_or(&empty) {
         let provider = connection["providerId"].as_str().unwrap_or_default();
-        if !wanted.contains(provider) {
+        if filter.is_some_and(|filter| !filter.contains(provider)) {
             continue;
         }
         let connection_id = connection["id"].as_str().unwrap_or_default();
@@ -475,8 +535,19 @@ pub fn usage_report(
         let probe = probes.get(connection_id);
         let age = oldest.map(|observed| (now - observed).num_seconds().max(0));
         let probe_ok = matches!(probe, Some(ProbeOutcome::Ok(_)));
+        let source = if granted.contains(provider) {
+            "granted"
+        } else if usage_source(provider).is_some() {
+            "not_granted"
+        } else {
+            "none"
+        };
         let state = if windows.is_empty() {
-            "unavailable"
+            match source {
+                "granted" => "unavailable",
+                "not_granted" => "not_read",
+                _ => "no_source",
+            }
         } else if probe_ok
             && age.is_some_and(|age| age <= LIVE_AGE_SECONDS)
             && oldest.is_some_and(|o| o >= started - chrono::Duration::seconds(LIVE_AGE_SECONDS))
@@ -504,22 +575,39 @@ pub fn usage_report(
             "account": account_label(snapshot, &connection["accountId"], identity),
             "identityHidden": !identity,
             "plan": known(&connection["plan"]).map(|plan| plan["label"].clone()).unwrap_or(Value::Null),
+            "usageSource": source,
+            "enableWith": if source == "not_granted" { json!(usage_source(provider)) } else { Value::Null },
             "data": data,
             "windows": windows,
         }));
     }
-    // Connections with readings first; signed-out extra profiles last.
+    // Readings first, then granted connections without one, then providers
+    // whose usage was not read, then providers with no usage source.
     rows.sort_by_key(|row| {
+        let rank = if row["windows"].as_array().is_some_and(|w| !w.is_empty()) {
+            0
+        } else {
+            match row["usageSource"].as_str() {
+                Some("granted") => 1,
+                Some("not_granted") => 2,
+                _ => 3,
+            }
+        };
         (
-            row["windows"].as_array().is_none_or(Vec::is_empty),
-            row["providerId"].as_str().unwrap_or_default().to_owned(),
+            rank,
+            row["providerName"].as_str().unwrap_or_default().to_owned(),
+            row["connectionName"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
         )
     });
     let found: BTreeSet<&str> = rows
         .iter()
         .filter_map(|row| row["providerId"].as_str())
         .collect();
-    let missing: Vec<&String> = wanted
+    let missing: Vec<&String> = filter
+        .unwrap_or(granted)
         .iter()
         .filter(|p| !found.contains(p.as_str()))
         .collect();
@@ -530,6 +618,7 @@ pub fn usage_report(
         "notes": [
             "Percentages are the provider's own plan-quota readings, not token estimates.",
             "A missing window or null percent is unknown, not zero.",
+            "Every detected provider is listed. usageSource `none` means OriginLM has no usage source for it; `not_granted` means one exists and enableWith names the flags.",
             "data.state is `live` when this call read the provider within the last 90 s, otherwise `cached` with its age."
         ]
     })
@@ -580,8 +669,7 @@ pub fn usage_text(report: &Value) -> String {
         let freshness = match (data["state"].as_str(), data["ageSeconds"].as_i64()) {
             (Some("live"), Some(age)) => format!("live, read {age}s ago"),
             (Some("cached"), Some(age)) => format!("CACHED, {} old", duration_text(age)),
-            _ if row["auth"] == "unauthenticated" => "not signed in; no usage".to_owned(),
-            _ => "no usage reported".to_owned(),
+            _ => status_without_reading(row),
         };
         text.push_str(&format!(
             "{}{} — {}{}\n",
@@ -633,9 +721,143 @@ pub fn usage_text(report: &Value) -> String {
         ));
     }
     if text.is_empty() {
-        text.push_str("No granted provider reported usage.\n");
+        text.push_str("No AI provider was detected on this machine.\n");
     }
     text
+}
+
+fn percent(value: f64) -> String {
+    if value.fract() == 0.0 {
+        format!("{value:.0}%")
+    } else {
+        format!("{value:.1}%")
+    }
+}
+
+/// Terminal rendering for `originlm usage` / `olm usage`: one block per
+/// account with aligned window rows, then every detected provider that has no
+/// reading, each with its reason. Reset times are shown in `offset` (the
+/// caller's local zone).
+pub fn usage_terminal(report: &Value, offset: chrono::FixedOffset) -> String {
+    let rows: Vec<&Value> = report["providers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .collect();
+    let with: Vec<&&Value> = rows
+        .iter()
+        .filter(|row| row["windows"].as_array().is_some_and(|w| !w.is_empty()))
+        .collect();
+    let without: Vec<&&Value> = rows
+        .iter()
+        .filter(|row| row["windows"].as_array().is_none_or(Vec::is_empty))
+        .collect();
+    let label_width = with
+        .iter()
+        .flat_map(|row| row["windows"].as_array().into_iter().flatten())
+        .map(|w| w["label"].as_str().unwrap_or("window").chars().count())
+        .max()
+        .unwrap_or(0);
+    let name = |row: &Value| {
+        row["connectionName"]
+            .as_str()
+            .or(row["providerName"].as_str())
+            .unwrap_or("?")
+            .to_owned()
+    };
+    let mut out = String::new();
+    for row in &with {
+        let data = &row["data"];
+        let mut header = name(row);
+        if let Some(plan) = row["plan"].as_str() {
+            header.push_str(&format!("  ·  {plan}"));
+        }
+        if let Some(account) = row["account"].as_str() {
+            header.push_str(&format!("  ·  {account}"));
+        }
+        let freshness = match (data["state"].as_str(), data["ageSeconds"].as_i64()) {
+            (Some("live"), Some(age)) => format!("live, read {age}s ago"),
+            (Some("cached"), Some(age)) => format!("CACHED, {} old", duration_text(age)),
+            _ => "age unknown".to_owned(),
+        };
+        out.push_str(&format!("{header}  ·  {freshness}"));
+        if let Some(error) = data["refreshError"].as_str() {
+            out.push_str(&format!("  (refresh failed: {error})"));
+        }
+        out.push('\n');
+        for window in row["windows"].as_array().into_iter().flatten() {
+            let label = window["label"].as_str().unwrap_or("window");
+            let reading = match (
+                window["usedPercent"].as_f64(),
+                window["remainingPercent"].as_f64(),
+            ) {
+                (Some(used), Some(left)) => {
+                    format!("{:>5} used  {:>5} left", percent(used), percent(left))
+                }
+                _ => format!("{:>9}", "unknown"),
+            };
+            let reset = match (
+                parse_time(&window["resetsAt"]),
+                window["resetsInSeconds"].as_i64(),
+            ) {
+                (Some(at), Some(secs)) => format!(
+                    "  resets {} (in {})",
+                    at.with_timezone(&offset).format("%a %b %-d %H:%M"),
+                    duration_text(secs)
+                ),
+                _ => String::new(),
+            };
+            out.push_str(format!("  {label:<label_width$}  {reading}{reset}").trim_end());
+            out.push('\n');
+        }
+        out.push('\n');
+    }
+    if !without.is_empty() {
+        out.push_str("Detected without a usage reading:\n");
+        let width = without
+            .iter()
+            .map(|row| name(row).chars().count())
+            .max()
+            .unwrap_or(0);
+        for row in &without {
+            out.push_str(&format!(
+                "  {:<width$}  {}\n",
+                name(row),
+                status_without_reading(row)
+            ));
+        }
+        out.push('\n');
+    }
+    for missing in report["notFound"].as_array().into_iter().flatten() {
+        out.push_str(&format!(
+            "{}: not found on this machine.\n",
+            provider_name(missing.as_str().unwrap_or("?"))
+        ));
+    }
+    if rows.is_empty() && report["notFound"].as_array().is_none_or(Vec::is_empty) {
+        out.push_str("No AI provider was detected on this machine.\n");
+    }
+    out.push_str(
+        "Percentages are the providers' own plan-quota readings; unknown is not zero.\n\
+         Local token totals: olm usage --history\n",
+    );
+    out
+}
+
+/// Why a listed connection has no reading. Plain, and never a number.
+fn status_without_reading(row: &Value) -> String {
+    match row["data"]["state"].as_str() {
+        Some("no_source") => format!(
+            "detected; usage unavailable (OriginLM has no usage source for {})",
+            row["providerName"].as_str().unwrap_or("this provider")
+        ),
+        Some("not_read") => format!(
+            "detected; usage not read (enable with {})",
+            row["enableWith"].as_str().unwrap_or("its metadata grant")
+        ),
+        _ if row["auth"] == "unauthenticated" => "not signed in; no usage".to_owned(),
+        _ => "detected; no usage reported".to_owned(),
+    }
 }
 
 /// Shape the snapshot into the `providers` result. Pure, for tests.
@@ -776,6 +998,7 @@ mod tests {
                 connection("conn-codex-2","codex","Codex · Additional profile 2",Value::Null,
                     known_value(json!("unauthenticated"),at),unknown.clone()),
                 connection("conn-gemini","gemini_cli","Gemini",Value::Null,unknown.clone(),unknown.clone()),
+                connection("conn-cursor","cursor","Cursor",Value::Null,unknown.clone(),unknown.clone()),
             ],
             "quotaPools":[
                 {"id":"pool-c","accountId":"acct-c","connectionIds":["conn-claude"],"routeIds":[],"sharing":"unknown","windows":[
@@ -818,16 +1041,41 @@ mod tests {
         let report = usage_report(
             &snapshot(),
             &wanted(),
+            None,
             &probes,
             time("2026-11-11T16:00:01Z"),
             time("2026-11-11T16:00:30Z"),
             true,
         );
         let rows = report["providers"].as_array().unwrap();
-        // Gemini is not granted; the signed-out profile sorts last.
-        assert_eq!(rows.len(), 3);
-        assert_eq!(rows[2]["connectionId"], "conn-codex-2");
+        // Every detected connection is listed: readings, then granted without
+        // one, then a usage source not granted, then no usage source at all.
+        let order: Vec<_> = rows
+            .iter()
+            .map(|r| r["connectionId"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            order,
+            [
+                "conn-claude",
+                "conn-codex",
+                "conn-codex-2",
+                "conn-cursor",
+                "conn-gemini"
+            ]
+        );
         assert_eq!(rows[2]["data"]["state"], "unavailable");
+        assert_eq!(rows[3]["data"]["state"], "not_read");
+        assert_eq!(rows[3]["usageSource"], "not_granted");
+        assert_eq!(
+            rows[3]["enableWith"],
+            "--allow-metadata cursor --allow-usage cursor"
+        );
+        assert_eq!(rows[4]["data"]["state"], "no_source");
+        assert_eq!(rows[4]["usageSource"], "none");
+        // Detected without a reading never becomes a number.
+        assert_eq!(rows[4]["windows"], json!([]));
+        assert!(rows[4]["data"]["ageSeconds"].is_null());
 
         let claude = row(&report, "conn-claude");
         assert_eq!(claude["data"]["state"], "live");
@@ -858,9 +1106,72 @@ mod tests {
             "Codex · Default profile — CACHED, 1h 0m old — refresh failed: PROVIDER_UNAVAILABLE",
             "Monthly spend: unknown",
             "Additional profile 2 — not signed in; no usage",
+            "Cursor — detected; usage not read (enable with --allow-metadata cursor --allow-usage cursor)",
+            "Gemini — detected; usage unavailable (OriginLM has no usage source for Gemini CLI)",
         ] {
             assert!(text.contains(expected), "missing {expected:?} in:\n{text}");
         }
+
+        let terminal = usage_terminal(&report, chrono::FixedOffset::west_opt(5 * 3600).unwrap());
+        for expected in [
+            "Claude Code · Default profile  ·  Claude Max  ·  me@example.com  ·  live, read 30s ago\n",
+            "  5-hour session    16% used    84% left  resets Wed Nov 11 15:10 (in 4h 9m)\n",
+            "  Monthly spend     unknown\n",
+            "Codex · Default profile  ·  CACHED, 1h 0m old  (refresh failed: PROVIDER_UNAVAILABLE)\n",
+            "Detected without a usage reading:\n",
+            "  Codex · Additional profile 2  not signed in; no usage\n",
+            "  Gemini                        detected; usage unavailable (OriginLM has no usage source for Gemini CLI)\n",
+            "Local token totals: olm usage --history\n",
+        ] {
+            assert!(
+                terminal.contains(expected),
+                "missing {expected:?} in:\n{terminal}"
+            );
+        }
+        assert!(
+            !terminal.contains('{'),
+            "no JSON in terminal output:\n{terminal}"
+        );
+    }
+
+    #[test]
+    fn a_provider_filter_narrows_the_listing_and_names_what_is_missing() {
+        let filter: BTreeSet<String> = ["gemini_cli", "kiro"].map(String::from).into();
+        let now = time("2026-11-11T16:00:00Z");
+        let report = usage_report(
+            &snapshot(),
+            &wanted(),
+            Some(&filter),
+            &BTreeMap::new(),
+            now,
+            now,
+            true,
+        );
+        let rows = report["providers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["providerId"], "gemini_cli");
+        assert_eq!(report["notFound"], json!(["kiro"]));
+    }
+
+    #[test]
+    fn an_empty_machine_says_so() {
+        let now = time("2026-11-11T16:00:00Z");
+        let empty = json!({"connections":[],"quotaPools":[],"accounts":[]});
+        let report = usage_report(
+            &empty,
+            &BTreeSet::new(),
+            None,
+            &BTreeMap::new(),
+            now,
+            now,
+            false,
+        );
+        let offset = chrono::FixedOffset::east_opt(0).unwrap();
+        assert!(
+            usage_terminal(&report, offset)
+                .contains("No AI provider was detected on this machine.")
+        );
+        assert!(usage_text(&report).contains("No AI provider was detected on this machine."));
     }
 
     #[test]
@@ -870,6 +1181,7 @@ mod tests {
         let report = usage_report(
             &snapshot(),
             &wanted(),
+            None,
             &probes,
             time("2026-11-11T16:05:00Z"),
             time("2026-11-11T16:05:01Z"),
@@ -882,21 +1194,30 @@ mod tests {
 
     #[test]
     fn identity_is_withheld_without_the_grant_and_missing_providers_are_named() {
-        let wanted: BTreeSet<String> = ["claude_code", "cursor"].map(String::from).into();
+        // A granted provider that is not installed is named, not dropped.
+        let granted: BTreeSet<String> = ["claude_code", "kiro"].map(String::from).into();
         let now = time("2026-11-11T16:00:00Z");
-        let report = usage_report(&snapshot(), &wanted, &BTreeMap::new(), now, now, false);
+        let report = usage_report(
+            &snapshot(),
+            &granted,
+            None,
+            &BTreeMap::new(),
+            now,
+            now,
+            false,
+        );
         let claude = row(&report, "conn-claude");
         assert!(claude["account"].is_null());
         assert_eq!(claude["identityHidden"], true);
-        assert_eq!(report["notFound"], json!(["cursor"]));
-        assert!(usage_text(&report).contains("Cursor: not found on this machine."));
+        assert_eq!(report["notFound"], json!(["kiro"]));
+        assert!(usage_text(&report).contains("Kiro: not found on this machine."));
     }
 
     #[test]
     fn providers_report_counts_windows_and_marks_grants() {
         let report = providers_report(&snapshot(), &wanted(), true);
         let rows = report["providers"].as_array().unwrap();
-        assert_eq!(rows.len(), 4);
+        assert_eq!(rows.len(), 5);
         assert_eq!(rows[0]["usageWindows"], 3);
         assert_eq!(rows[0]["auth"], "authenticated");
         assert_eq!(rows[3]["usageGranted"], false);

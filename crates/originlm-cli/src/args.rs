@@ -23,6 +23,10 @@ pub struct Args {
     /// Explicit opt-in: run each retained executable with `--version` and add
     /// the raw output to `scan --include-locations`. Never used by passive scans.
     pub probe_versions: bool,
+    /// `usage --history`: local session-history token totals instead of plan quota.
+    pub history: bool,
+    /// `usage --refresh`: bypass the 60-second probe cache.
+    pub refresh: bool,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -113,6 +117,8 @@ impl Args {
             json: false,
             include_locations: false,
             probe_versions: false,
+            history: false,
+            refresh: false,
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -168,6 +174,8 @@ impl Args {
                 {
                     json = true
                 }
+                "--history" if matches!(args.action, Action::Usage) => args.history = true,
+                "--refresh" if matches!(args.action, Action::Usage) => args.refresh = true,
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
                 }
@@ -244,7 +252,9 @@ impl Args {
                 "--allow-passive-discovery" if matches!(args.action, Action::Serve) => {
                     args.allow_passive = true
                 }
-                "--allow-identity" if matches!(args.action, Action::Serve | Action::Mcp) => {
+                "--allow-identity"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     args.allow_identity = true
                 }
                 "--executable-only-provider"
@@ -262,7 +272,9 @@ impl Args {
                     }
                     args.executable_only_providers.insert(provider);
                 }
-                "--allow-usage" if matches!(args.action, Action::Serve | Action::Mcp) => {
+                "--allow-usage"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     let provider = input
                         .next()
                         .and_then(|v| v.into_string().ok())
@@ -272,7 +284,8 @@ impl Args {
                 }
                 "--allow-metadata" | "--allow-execution"
                     if matches!(args.action, Action::Serve)
-                        || (flag == "--allow-metadata" && matches!(args.action, Action::Mcp)) =>
+                        || (flag == "--allow-metadata"
+                            && matches!(args.action, Action::Mcp | Action::Usage)) =>
                 {
                     let provider = input
                         .next()
@@ -316,7 +329,9 @@ impl Args {
                 "--warm-metadata" if matches!(args.action, Action::Serve) => {
                     args.warm_metadata = true
                 }
-                "--no-metadata-cache" if matches!(args.action, Action::Serve | Action::Mcp) => {
+                "--no-metadata-cache"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     args.no_metadata_cache = true
                 }
                 "--workspace" if matches!(args.action, Action::Serve) => {
@@ -353,7 +368,20 @@ impl Args {
             return Err(invalid());
         }
         args.json = json;
-        if matches!(args.action, Action::Mcp) {
+        if matches!(args.action, Action::Usage)
+            && args.history
+            && (args.refresh
+                || args.allow_identity
+                || args.no_metadata_cache
+                || !args.metadata_providers.is_empty()
+                || !args.usage_providers.is_empty())
+        {
+            // History reads local files only; provider grants do not apply.
+            return Err(invalid());
+        }
+        if matches!(args.action, Action::Mcp)
+            || matches!(args.action, Action::Usage) && !args.history
+        {
             // The usage MCP reads the installed clients' own quota endpoints.
             // Claude Code and Codex are the default grants; any explicit
             // --allow-metadata list replaces them.

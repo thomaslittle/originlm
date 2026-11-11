@@ -43,7 +43,7 @@ Read [native Google/Grok status](native-google-grok-status.md), [Cursor cached m
 ## Token history and detection status
 
 `usage.history` and `costs.read.historical` expose bounded local token totals for
-Claude Code, Codex, Gemini CLI, Grok, and Kiro (`originlm usage` is the CLI
+Claude Code, Codex, Gemini CLI, Grok, and Kiro (`originlm usage --history` is the CLI
 form). Cursor stays on its separate dashboard allowance grant; Copilot and
 Antigravity conversation databases are not opened. `detection.status` reports
 every known provider as found, configuration-only, or not-found with its

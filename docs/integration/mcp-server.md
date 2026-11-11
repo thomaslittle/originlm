@@ -1,105 +1,132 @@
-# Built-in MCP server (`originlm mcp`)
+# `olm usage` and the built-in MCP server
 
-`originlm mcp` runs a Model Context Protocol server over stdio from the shipped
-`originlm` binary. Any MCP client (Claude Code, Codex, T3 Code, or another
-client) can start it and ask how much Claude and Codex plan usage is left.
+## Install
 
-Here OriginLM is the MCP *server*. In [host-provided MCP servers](host-mcp.md)
-the direction is reversed: OriginLM attaches a host's server to a native-client
-session. The SDK's [cached-usage MCP](cached-usage-mcp.md) is a library for
-apps that already own an OriginLM snapshot cache. `originlm mcp` needs no app
-code.
-
-## Tools
-
-| Tool | What it returns | Backing data |
-| --- | --- | --- |
-| `usage` | For each connected provider: percent used and remaining per window (Claude: 5-hour session, weekly all-models, weekly per-model such as Fable, monthly spend or extra usage when enabled; Codex: each window it reports, named by its duration, e.g. `5 hr`, `Weekly`, plus enterprise monthly credits), reset time and time until reset, account (with `--allow-identity`) and plan, and whether the numbers are `live` or `cached` and how old they are. | The adapters' own quota probes: Claude Code's control-protocol `get_usage` and Codex app-server rate limits. No model turn is started. |
-| `providers` | Clients that passive discovery found, with sign-in state, account, plan, whether usage is granted, and how many usage windows have been read. | Passive discovery plus earlier probes. It does not contact providers itself. |
-| `usage_history` | Token totals per model from local session-history files: input, cached input, cache writes, output and reasoning. | The same reader as `originlm usage --json`. Prompts and outputs are never read. |
-
-`usage` accepts `{"providers": ["claude_code"], "refresh": true}`. Both fields
-are optional. `refresh` skips OriginLM's 60-second probe cache. A provider that
-has not been granted is a tool error, not an empty result.
-
-Every result has readable `content` text. It also has `structuredContent`, which
-carries the same summary in a `summary` field because some clients show only
-structured output. A window with no reading has `usedPercent: null` and means
-unknown, never zero. When a refresh fails and an earlier reading exists, the
-provider is `cached` with `ageSeconds` and `refreshError`.
-
-Example `usage` text (from this repository's proof run):
-
-```text
-Claude Code · Default profile (you@example.com, plan Claude Max) — live, read 2s ago
-  5-hour session: 18% used, 82% left, resets 2026-11-11T20:09:59Z (in 4h 3m)
-  Weekly (all models): 82% used, 18% left, resets 2026-11-14T20:59:59Z (in 3d 4h)
-  Weekly (Fable): 54% used, 46% left, resets 2026-11-14T20:59:59Z (in 3d 4h)
-Codex · Default profile (you@example.com, plan ChatGPT Pro 100 Subscription) — live, read 3s ago
-  Weekly: 61% used, 39% left, resets 2026-11-15T20:54:50Z (in 4d 4h)
+```sh
+npm i -g originlm
 ```
 
-## Flags
+This puts two names for the same command on your PATH, `olm` and `originlm`.
+npm installs the native helper for your platform (`originlm-cli-<platform>`) as
+an optional dependency. The `olm` command is a small dependency-free launcher in
+the `originlm` package that runs that helper with your arguments, stdio and exit
+status unchanged, the same pattern esbuild and Biome use. Do not install with
+`--omit=optional`. If the platform package is missing, `olm` says which one to
+install. `LAI_HELPER_PATH` can point the launcher at a helper you built yourself
+(`cargo install originlm-cli`).
+
+Helpers are published for Windows x64, Linux x64 and Linux arm64.
+
+## `olm usage`
 
 ```text
-originlm mcp [--allow-metadata PROVIDER]... [--allow-identity] [--allow-usage cursor]
-             [--home ABSOLUTE_DIRECTORY] [--no-metadata-cache]
+$ olm usage --allow-identity
+Claude Code · Default profile  ·  Claude Max  ·  you@example.com  ·  live, read 2s ago
+  5-hour session         23% used    77% left  resets Wed Nov 11 15:09 (in 3h 25m)
+  Weekly (all models)    83% used    17% left  resets Sat Nov 14 15:59 (in 3d 4h)
+  Weekly (Fable)         54% used    46% left  resets Sat Nov 14 15:59 (in 3d 4h)
+
+Codex · Default profile  ·  ChatGPT Pro 100 Subscription  ·  you@example.com  ·  live, read 3s ago
+  Weekly                 61% used    39% left  resets Sun Nov 15 15:54 (in 4d 4h)
+
+Detected without a usage reading:
+  Claude Code · Additional profile 2  detected; no usage reported
+  Codex · Additional profile 2        not signed in; no usage
+  Cursor · Default profile            detected; usage not read (enable with --allow-metadata cursor --allow-usage cursor)
+  Gemini CLI · Default profile        detected; usage unavailable (OriginLM has no usage source for Gemini CLI)
+  Ollama · Default profile            detected; usage unavailable (OriginLM has no usage source for Ollama)
+
+Percentages are the providers' own plan-quota readings; unknown is not zero.
+Local token totals: olm usage --history
 ```
 
-- Without `--allow-metadata`, the server may probe `claude_code` and `codex`.
-  Any `--allow-metadata` list replaces that default. The values are the same
-  ones `serve` accepts, such as `cursor`, `kiro` and `muse`.
-- `--allow-identity` includes the signed-in account label (an email). Without
-  it, `account` is `null` and `identityHidden` is `true`.
-- Readings persist in `mcp-state.db` in OriginLM's state directory. This is a
-  separate file from the broker's `state.db`, so the two never contend. After
-  a restart, a provider that cannot be reached shows its last reading as
-  `cached` with that reading's age. `--no-metadata-cache` turns persistence off.
-- Execution, writes, HTTP and IPC flags are refused. This mode is read-only.
+(Shortened. The real output lists every provider and profile detected.)
 
-## Client configuration
+Every provider and profile that OriginLM discovery finds is listed:
 
-Use an absolute path to the binary, for example
-`C:\\Users\\you\\.cargo\\bin\\originlm.exe` after `cargo install originlm-cli`,
-or `target/debug/originlm` from a source build.
+- **Reading.** Claude Code and Codex are read by default through their installed
+  clients. This uses Claude Code's `get_usage` and Codex app-server rate limits,
+  and never starts a model turn. Each window shows percent used and left, the
+  reset time in your local zone and the time until reset. Each account shows its
+  plan and whether the reading is `live` or `CACHED` and how old it is. A window
+  without a reading prints `unknown`, never `0%`.
+- **Usage not read.** OriginLM has a usage source for this provider (Cursor,
+  Muse, OpenCode) but you have not granted it. The row shows the flags that
+  turn it on.
+- **Usage unavailable.** OriginLM has no usage source for this provider today
+  (for example Gemini CLI, Grok, Ollama, LM Studio). It is still listed, never
+  with a number.
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | The same report as JSON, the `structuredContent` of the MCP `usage` tool. |
+| `--refresh` | Skip the 60-second probe cache. |
+| `--allow-identity` | Show the signed-in account label (an email). Hidden by default. |
+| `--allow-metadata PROVIDER` | Which providers to read (repeatable). Replaces the Claude Code + Codex default. |
+| `--history [--json]` | Local session-history token totals instead of plan quota. This was the output of `usage` before plan quota. |
+| `--no-metadata-cache` | Don't keep readings in `usage-state.db` between runs. |
+
+## Built-in MCP server (`olm mcp`)
+
+`olm mcp` serves the same data over MCP stdio to any client (Claude Code, Codex,
+T3 Code, or another client).
 
 **Claude Code**
 
 ```sh
-claude mcp add originlm -- /absolute/path/to/originlm mcp --allow-identity
+claude mcp add originlm -- olm mcp --allow-identity
 ```
 
-Or in `.mcp.json` / `--mcp-config`:
+Or in `.mcp.json`. On Windows, npm's shim is `olm.cmd`, so run it through
+`cmd /c`:
 
 ```json
 {
   "mcpServers": {
     "originlm": {
       "type": "stdio",
-      "command": "/absolute/path/to/originlm",
-      "args": ["mcp", "--allow-identity"]
+      "command": "cmd",
+      "args": ["/c", "olm", "mcp", "--allow-identity"]
     }
   }
 }
 ```
 
+On macOS and Linux, use `"command": "olm", "args": ["mcp", "--allow-identity"]`.
+
 **Codex** (`~/.codex/config.toml`):
 
 ```toml
 [mcp_servers.originlm]
-command = "/absolute/path/to/originlm"
+command = "olm"            # Windows: command = "cmd", args = ["/c", "olm", "mcp", "--allow-identity"]
 args = ["mcp", "--allow-identity"]
-# The first call starts the Claude and Codex clients to read usage.
-tool_timeout_sec = 120
+tool_timeout_sec = 120     # the first call starts the Claude and Codex clients to read usage
 ```
 
 **T3 Code and other clients**: add a stdio server with the same command and
-args. Most clients accept the `mcpServers` JSON shape above.
+args.
+
+### Tools
+
+| Tool | What it returns |
+| --- | --- |
+| `usage` `{providers?, refresh?}` | The `olm usage` report: every detected connection with `usageSource` (`granted` / `not_granted` / `none`), `data.state` (`live` / `cached` / `unavailable` / `not_read` / `no_source`), `ageSeconds`, `refreshError`, windows with `usedPercent` / `remainingPercent` / `resetsAt` / `resetsInSeconds`, plan, account (with `--allow-identity`), and a readable `summary`. `providers` narrows the listing to known provider ids. |
+| `providers` | Discovered connections with sign-in state, account, plan, usage grant and window count. Does not contact providers. |
+| `usage_history` | Local token totals (same as `olm usage --history`). |
+
+`olm mcp` takes the same `--allow-metadata`, `--allow-identity`,
+`--allow-usage cursor`, `--home` and `--no-metadata-cache` flags as
+`olm usage`. Execution, write, HTTP and IPC flags are refused, so this mode is
+read-only. Readings persist in `mcp-state.db`, separately from the broker's
+`state.db` and from `usage-state.db`, so the three never contend.
+
+Here OriginLM is the MCP *server*. In [host-provided MCP servers](host-mcp.md)
+the direction is reversed. The SDK's [cached-usage MCP](cached-usage-mcp.md) is
+a library for apps that already own an OriginLM snapshot cache.
 
 ## Latency
 
-The first `usage` call runs a passive scan and then reads each provider through
-its installed client. On the proof machine this took a few seconds. Different
-providers are probed concurrently. Profiles of the same provider are probed one
-at a time, because a probe can refresh that provider's credentials. Repeat
-calls within 60 seconds use the probe cache unless `refresh` is set.
+The first read runs a passive scan and then reads each granted provider through
+its installed client, which takes about 5 seconds on the proof machine.
+Different providers are read concurrently. Profiles of the same provider are
+read one at a time, because a read can refresh that provider's credentials.
