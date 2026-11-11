@@ -14,6 +14,23 @@ There are no signed app installers or hosted one-line downloads yet. The source
 build below is for development and offline use; compilation is not a 60-second
 install.
 
+### Shipping the helper from a Rust host
+
+A Rust application that runs the helper as a separate process does not need a
+prebuilt download. `originlm-cli` is also a library whose `run()` is the whole
+`originlm` executable, so the host can add one binary to its own workspace:
+
+```rust
+fn main() -> std::process::ExitCode {
+    originlm_cli::run()
+}
+```
+
+Cargo then builds the helper with the host's lockfile and toolchain for every
+target the host supports, and `Cargo.lock` records the exact source checksums.
+The host ships that binary beside its own; there is no separate archive to
+fetch, pin or keep in step with the host's version.
+
 ## See your AI
 
 From a checkout with the [build prerequisites](../../CONTRIBUTING.md) installed:
