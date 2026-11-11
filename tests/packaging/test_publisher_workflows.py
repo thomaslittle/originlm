@@ -28,7 +28,6 @@ class PublisherWorkflows(unittest.TestCase):
         module = load('verify_python_release_set')
         self.assertEqual(set(module.EXPECTED), {
             'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
-            'x86_64-apple-darwin', 'aarch64-apple-darwin',
             'x86_64-pc-windows-msvc',
         })
         self.assertEqual(
@@ -36,8 +35,6 @@ class PublisherWorkflows(unittest.TestCase):
             {
                 'x86_64-unknown-linux-gnu': 'manylinux_2_28_x86_64',
                 'aarch64-unknown-linux-gnu': 'manylinux_2_28_aarch64',
-                'x86_64-apple-darwin': 'macosx_15_0_x86_64',
-                'aarch64-apple-darwin': 'macosx_15_0_arm64',
                 'x86_64-pc-windows-msvc': 'win_amd64',
             },
         )
@@ -147,7 +144,7 @@ class PublisherWorkflows(unittest.TestCase):
             with self.assertRaises(module.PayloadError):
                 module.verify(directory, 'originlm-contracts', '0.1.0-alpha.20', '0' * 64)
 
-    def test_npm_publisher_requires_five_consumer_artifacts(self):
+    def test_npm_publisher_requires_three_consumer_artifacts(self):
         workflow = (WORKFLOWS / 'publish-npm.yml').read_text(encoding='utf-8')
         self.assertIn("--pattern 'npm-*'", workflow)
         self.assertIn('verify_npm_consumer_matrix.py', workflow)
@@ -178,7 +175,7 @@ class PublisherWorkflows(unittest.TestCase):
                     'inferenceRequests': 0,
                 }), encoding='utf-8')
             evidence = module.verify(artifacts, version, source)
-            self.assertEqual(len(evidence['platforms']), 5)
+            self.assertEqual(len(evidence['platforms']), 3)
             (artifacts / 'npm-consumer-win32-x64' / 'npm-consumer-win32-x64.json').unlink()
             with self.assertRaises(module.ConsumerMatrixError):
                 module.verify(artifacts, version, source)

@@ -440,13 +440,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('twine upload', text)
         self.assertNotIn('pypa/gh-action-pypi-publish', text)
         self.assertIn('permissions:\n  contents: read', text)
-        for target in (
-            'x86_64-apple-darwin', 'aarch64-apple-darwin',
-            'x86_64-pc-windows-msvc',
-        ):
-            self.assertIn(target, text)
-        self.assertIn('macosx_15_0_x86_64', text)
-        self.assertIn('macosx_15_0_arm64', text)
+        self.assertIn('x86_64-pc-windows-msvc', text)
+        self.assertNotIn('apple-darwin', text)
         self.assertIn('win_amd64', text)
         self.assertIn('name: python-wheel-${{ matrix.target }}', text)
 

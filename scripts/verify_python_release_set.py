@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verify exactly five qualified Python wheel artifacts before PyPI upload.
+"""Verify exactly three qualified Python wheel artifacts before PyPI upload.
 
-The publishable set is the five supported targets: manylinux_2_28 x86_64/ARM64,
-macOS 15 Intel/Apple-silicon and Windows x64. Each wheel must have matching
+The publishable set is the three supported targets: manylinux_2_28 x86_64/ARM64 and
+Windows x64 (macOS is no longer released). Each wheel must have matching
 wheel and fresh-consumer evidence, the correct native platform tag/kind, native
 binary proof (ELF/PE/Mach-O), twine metadata, license/SBOM/provenance closure and
 the exact source commit. Upload inputs are wheels only; reports stay separate.
@@ -28,8 +28,6 @@ class PublishSetError(RuntimeError):
 EXPECTED_TARGETS = (
     'x86_64-unknown-linux-gnu',
     'aarch64-unknown-linux-gnu',
-    'x86_64-apple-darwin',
-    'aarch64-apple-darwin',
     'x86_64-pc-windows-msvc',
 )
 EXPECTED = {}
@@ -149,7 +147,7 @@ def verify_set(artifacts, version, source_commit, dist, reports):
     found = {directory.name.removeprefix('python-wheel-'): directory for directory in directories if directory.is_dir()}
     if set(found) != set(EXPECTED):
         raise PublishSetError(
-            f'expected exactly the five supported wheel targets; '
+            f'expected exactly the three supported wheel targets; '
             f'missing={sorted(set(EXPECTED) - set(found))} extra={sorted(set(found) - set(EXPECTED))}'
         )
     for directory in (dist, reports):

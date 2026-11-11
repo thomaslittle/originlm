@@ -2,7 +2,7 @@
 """Registry-equivalent proof for the single universal npm SDK.
 
 Unlike the bootstrap smoke (which installs both tarballs explicitly), this test
-installs only ``originlm`` into a clean project and lets npm resolve its five
+installs only ``originlm`` into a clean project and lets npm resolve its three
 optional platform dependencies normally from a temporary local registry that
 serves the actual assembled tarballs. On the current platform exactly one
 platform package must resolve, and ``createLocalAI()`` must start its bundled
@@ -33,8 +33,6 @@ import npm_consumer_smoke
 PLATFORM_PACKAGES = {
     ('linux', 'x86_64'): 'originlm-cli-linux-x64',
     ('linux', 'aarch64'): 'originlm-cli-linux-arm64',
-    ('darwin', 'x86_64'): 'originlm-cli-darwin-x64',
-    ('darwin', 'arm64'): 'originlm-cli-darwin-arm64',
     ('win32', 'x64'): 'originlm-cli-windows-x64',
 }
 
@@ -179,7 +177,7 @@ def smoke(release_dir, version, source_commit=None, timeout=240):
     manifest = _package(sdk)
     optional = manifest.get('optionalDependencies') or {}
     if set(optional) != set(PLATFORM_PACKAGES.values()) or any(value != version for value in optional.values()):
-        raise RegistryError('universal SDK does not pin the five platform packages')
+        raise RegistryError('universal SDK does not pin the three platform packages')
     expected = _current_platform_package()
     if not expected:
         raise RegistryError(f'unsupported test platform: {sys.platform}/{platform.machine()}')

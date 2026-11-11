@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require all five platform consumer proofs before publishing npm.
+"""Require all three platform consumer proofs before publishing npm.
 
 Each proof is a separate ``npm-consumer-<label>`` artifact from the same
 preparation run as the canonical ``npm-release`` set. The evidence must name the
@@ -16,8 +16,6 @@ import sys
 LABELS = {
     'linux-x64': 'originlm-cli-linux-x64',
     'linux-arm64': 'originlm-cli-linux-arm64',
-    'darwin-x64': 'originlm-cli-darwin-x64',
-    'darwin-arm64': 'originlm-cli-darwin-arm64',
     'win32-x64': 'originlm-cli-windows-x64',
 }
 
@@ -42,8 +40,8 @@ def verify(artifacts, version, source_commit):
     if not isinstance(sdk_sha256, str):
         raise ConsumerMatrixError('npm release manifest has no SDK SHA-256')
     expected_optional = manifest.get('optionalDependencies')
-    if not isinstance(expected_optional, dict) or len(expected_optional) != 5:
-        raise ConsumerMatrixError('npm release manifest has no five optional dependencies')
+    if not isinstance(expected_optional, dict) or len(expected_optional) != len(LABELS):
+        raise ConsumerMatrixError('npm release manifest has not exactly the supported optional dependencies')
     checked = []
     for label, expected_package in LABELS.items():
         path = artifacts / f'npm-consumer-{label}' / f'npm-consumer-{label}.json'

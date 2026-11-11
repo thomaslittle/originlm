@@ -8,7 +8,7 @@
  *
  * The workspace package.json deliberately has no platform dependencies so
  * `npm ci` is identical on every machine. Release staging is the single
- * universal `originlm` tarball: it declares all five exact-version unscoped
+ * universal `originlm` tarball: it declares all three exact-version unscoped
  * `originlm-cli-<platform>` packages as optionalDependencies. All release jobs
  * produce the same universal manifest; only the built platform package differs.
  */
@@ -18,8 +18,6 @@ import {join} from 'node:path';
 const PLATFORM_PACKAGES = [
   'originlm-cli-linux-x64',
   'originlm-cli-linux-arm64',
-  'originlm-cli-darwin-arm64',
-  'originlm-cli-darwin-x64',
   'originlm-cli-windows-x64',
 ];
 
@@ -69,7 +67,7 @@ if (allPlatforms) {
 }
 if (Object.keys(optional).length === 0) throw new Error('No platform packages to attach');
 if (release && Object.keys(optional).length !== PLATFORM_PACKAGES.length) {
-  throw new Error('Release staging must attach all five platform packages');
+  throw new Error('Release staging must attach all three platform packages');
 }
 if (release) {
   delete manifest.private;

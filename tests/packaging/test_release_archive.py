@@ -145,7 +145,7 @@ class NpmReleaseShape(unittest.TestCase):
             self.assertEqual(evidence['status'], 'pass')
             self.assertEqual(evidence['target'], 'x86_64-unknown-linux-gnu')
             self.assertEqual(evidence['targets'], ['x86_64-unknown-linux-gnu'])
-            self.assertEqual(len(evidence['optionalDependencies']), 5)
+            self.assertEqual(len(evidence['optionalDependencies']), 3)
 
     def test_a_partial_platform_set_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -261,7 +261,7 @@ class WorkflowEvidence(unittest.TestCase):
         self.assertIn('echo "VERSION=$(', workflow)
         self.assertIn('--version "$VERSION" --source-commit "$GITHUB_SHA"', workflow)
         self.assertIn("if [ '${{ matrix.target }}' = 'x86_64-unknown-linux-gnu' ]", workflow)
-        for label in ('linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'):
+        for label in ('linux-x64', 'linux-arm64', 'win32-x64'):
             self.assertIn(f'label: {label}', workflow)
 
 

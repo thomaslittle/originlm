@@ -132,7 +132,7 @@ def smoke(sdk, platform, version, target, timeout=180):
             raise ConsumerError('installed SDK version does not match the expected release')
         optional = installed.get('optionalDependencies') or {}
         if len(optional) != 5:
-            raise ConsumerError('installed SDK does not declare all five platform packages')
+            raise ConsumerError('installed SDK does not declare all three platform packages')
         (project / 'consumer.mjs').write_text(CONSUMER, encoding='utf-8')
         output = _run(['node', 'consumer.mjs'], project, _clean_env(home), timeout)
     lines = [line for line in output.splitlines() if line.strip().startswith('{')]

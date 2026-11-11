@@ -205,15 +205,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: x86_64-apple-darwin, os: macos-15-intel, plat: macosx_15_0_x86_64 }
-          - { target: aarch64-apple-darwin, os: macos-15, plat: macosx_15_0_arm64 }
           - { target: x86_64-pc-windows-msvc, os: windows-2025, plat: win_amd64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: '0'
       CARGO_BUILD_JOBS: '2'
-      MACOSX_DEPLOYMENT_TARGET: '15.0'
       PYTHONUTF8: '1'
       RUSTUP_TOOLCHAIN: '1.98.1'
       RUSTUP_AUTO_INSTALL: '0'

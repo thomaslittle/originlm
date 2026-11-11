@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Aggregate all five target npm artifacts into one verified release set.
+"""Aggregate all three target npm artifacts into one verified release set.
 
 The universal SDK is produced by every prepare job. This script requires those
-tarballs to be byte-identical, requires exactly one tarball for each of the five
+tarballs to be byte-identical, requires exactly one tarball for each of the three
 platform packages, copies the canonical set to a release directory, verifies the
 native member hashes, and writes SHA256SUMS plus an aggregate manifest.
 """

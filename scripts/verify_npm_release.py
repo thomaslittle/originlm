@@ -2,7 +2,7 @@
 """Verify packed npm release tarballs before publication.
 
 The release SDK must be one universal `originlm` tarball whose
-`optionalDependencies` contain exactly the five supported platform packages at
+`optionalDependencies` contain exactly the three supported platform packages at
 the same exact version. Each platform tarball must carry the qualified native
 manifest, SBOM, notices and full license texts from the helper archive, and its
 binary/license bytes must match the hashes in that native manifest.
@@ -19,8 +19,6 @@ import tarfile
 PLATFORM_PACKAGES = (
     'originlm-cli-linux-x64',
     'originlm-cli-linux-arm64',
-    'originlm-cli-darwin-arm64',
-    'originlm-cli-darwin-x64',
     'originlm-cli-windows-x64',
 )
 
@@ -80,7 +78,7 @@ def verify(packages, version, source_commit=None, require_all=False):
         raise VerifyNpmError('universal SDK still has private:true')
     optional = manifest.get('optionalDependencies')
     if not isinstance(optional, dict) or set(optional) != set(PLATFORM_PACKAGES):
-        raise VerifyNpmError('SDK optionalDependencies are not the five supported platform packages')
+        raise VerifyNpmError('SDK optionalDependencies are not the three supported platform packages')
     for name, pinned in optional.items():
         if pinned != version:
             raise VerifyNpmError(f'optional dependency {name} is {pinned!r}, expected {version!r}')

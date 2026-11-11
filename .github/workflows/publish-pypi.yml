@@ -1,7 +1,7 @@
 name: Publish Python wheels
 
 # Manual, protected publisher. Defaults to dry-run; an actual publish requires
-# the release-pypi environment approval and confirm=PUBLISH. Exactly the five
+# the release-pypi environment approval and confirm=PUBLISH. Exactly the three
 # qualified platform wheels that passed the qualification workflow are uploaded.
 on:
   workflow_dispatch:
@@ -72,7 +72,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.artifact_run_id }}
         run: gh run download "$RUN_ID" --pattern 'python-wheel-*' --dir artifacts
-      - name: Verify exactly five qualified wheels, evidence and native proofs
+      - name: Verify exactly three qualified wheels, evidence and native proofs
         env:
           SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
@@ -104,7 +104,7 @@ jobs:
       - name: State publication result
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo 'Dry run: all five qualified wheels passed verification; nothing was uploaded.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Dry run: all three qualified wheels passed verification; nothing was uploaded.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'Uploaded the five qualified platform wheels using PyPI trusted publishing.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Uploaded the three qualified platform wheels using PyPI trusted publishing.' >> "$GITHUB_STEP_SUMMARY"
           fi
