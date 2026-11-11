@@ -31,6 +31,11 @@ target the host supports, and `Cargo.lock` records the exact source checksums.
 The host ships that binary beside its own; there is no separate archive to
 fetch, pin or keep in step with the host's version.
 
+A host that would rather ship no extra executable can call
+`originlm_cli::run_from(arguments)` from its own `main` behind a private first
+argument and re-launch itself in that mode. The helper then still runs in a
+process of its own, with its own environment, but it is the host's binary.
+
 ## See your AI
 
 From a checkout with the [build prerequisites](../../CONTRIBUTING.md) installed:

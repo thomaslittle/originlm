@@ -670,14 +670,32 @@ async fn auth_provider(provider: &str, home: Option<&Path>) -> Result<()> {
 /// Nothing happens until it is called: it parses the command line and only
 /// then performs the selected command.
 pub fn run() -> std::process::ExitCode {
+    run_from(std::env::args_os().skip(1))
+}
+
+/// [`run`] with explicit arguments (everything after the program name).
+///
+/// A host that has no separate helper executable can re-launch its own binary
+/// with a private first argument and hand the remaining arguments to the
+/// helper, so the helper still runs in a process of its own:
+///
+/// ```no_run
+/// fn main() -> std::process::ExitCode {
+///     let mut args = std::env::args_os().skip(1);
+///     if args.next().is_some_and(|first| first == "--originlm-helper") {
+///         return originlm_cli::run_from(args);
+///     }
+///     // ... the host application ...
+///     std::process::ExitCode::SUCCESS
+/// }
+/// ```
+pub fn run_from(arguments: impl IntoIterator<Item = std::ffi::OsString>) -> std::process::ExitCode {
+    let arguments: Vec<std::ffi::OsString> = arguments.into_iter().collect();
     let result = (|| -> originlm_contracts::Result<u8> {
-        if std::env::args_os()
-            .nth(1)
-            .is_some_and(|command| command == "image")
-        {
-            return image_cli::run(std::env::args_os().skip(2));
+        if arguments.first().is_some_and(|command| command == "image") {
+            return image_cli::run(arguments.into_iter().skip(1));
         }
-        let args = Args::parse(std::env::args_os().skip(1))?;
+        let args = Args::parse(arguments)?;
         match args.action {
             Action::Help => {
                 println!("{HELP}");
