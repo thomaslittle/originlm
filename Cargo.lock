@@ -6729,6 +6729,7 @@ dependencies = [
 name = "originlm-cli"
 version = "0.1.0-alpha.28"
 dependencies = [
+ "chrono",
  "originlm-adapters",
  "originlm-chatgpt-auth",
  "originlm-contracts",

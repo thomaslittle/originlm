@@ -2,6 +2,7 @@
 //! executable's entry point. The `originlm` binary of this crate only calls it.
 mod args;
 mod inventory;
+pub mod mcp;
 use inventory::source;
 use originlm_service::InventorySource;
 mod broker_cli;
@@ -60,6 +61,13 @@ Usage:
       [--size WIDTHxHEIGHT] [--aspect W:H] [--style TEXT] [--reference RELATIVE_PATH] [--count 1-4]
       Generates images through ORIGINLM_IMAGE_ROUTE or the installed Codex login and
       prints JSON holding images or a typed error. Exit: 0 generated, 1 tool error.
+  originlm mcp [--allow-metadata PROVIDER]... [--allow-identity] [--allow-usage cursor]
+      [--home ABSOLUTE_DIRECTORY] [--no-metadata-cache]
+      Model Context Protocol server over stdio. Tools: `usage` (plan quota per window:
+      percent used/left, resets, account, plan; live or cached with its age),
+      `providers` (connected clients) and `usage_history` (local token totals).
+      Grants default to claude_code and codex; --allow-metadata replaces them.
+      Reads quota through the installed clients; never starts a model turn.
   originlm --version
 
 Metadata observations are kept in the broker-owned state directory (state.db,
@@ -212,10 +220,13 @@ async fn execute(args: Args) -> Result<()> {
     }
     service.enable_autonomous_refresh(args.metadata_providers.clone());
     service.enable_inventory_refresh(args.allow_passive);
-    if matches!(args.action, Action::Serve)
+    if matches!(args.action, Action::Serve | Action::Mcp)
         && !args.no_metadata_cache
         && let Some(directory) = host::default_state_dir(args.home.as_deref())
-        && let Err(error) = service.enable_state_store(directory.join("state.db"))
+        // The MCP server keeps its own store so it never contends with a broker.
+        && let Err(error) = service.enable_state_store(directory.join(
+            if matches!(args.action, Action::Mcp) { "mcp-state.db" } else { "state.db" },
+        ))
     {
         eprintln!("storage: {error}");
     }
@@ -431,6 +442,18 @@ async fn execute(args: Args) -> Result<()> {
             })?;
             server.close().await;
             Ok(())
+        }
+        Action::Mcp => {
+            service.register_client(mcp::CLIENT, policy)?;
+            let server = mcp::McpServer::new(
+                service.clone(),
+                args.metadata_providers.clone(),
+                args.home.clone(),
+                args.allow_identity,
+            );
+            let outcome = mcp::serve(tokio::io::stdin(), tokio::io::stdout(), server).await;
+            service.close_client(mcp::CLIENT);
+            outcome
         }
         Action::Serve => {
             service.register_client("stdio-owner", policy)?;

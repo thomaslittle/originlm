@@ -9,6 +9,7 @@ pub enum Action {
     Models,
     Status,
     Serve,
+    Mcp,
     Connect,
     Install(String),
     Auth(String),
@@ -88,6 +89,7 @@ impl Args {
             Some("models") => Action::Models,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
+            Some("mcp") => Action::Mcp,
             Some("install") => {
                 let provider = input
                     .next()
@@ -175,7 +177,7 @@ impl Args {
                 "--home"
                     if matches!(
                         args.action,
-                        Action::Scan | Action::Serve | Action::Usage | Action::Models
+                        Action::Scan | Action::Serve | Action::Usage | Action::Models | Action::Mcp
                     ) =>
                 {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
@@ -242,7 +244,7 @@ impl Args {
                 "--allow-passive-discovery" if matches!(args.action, Action::Serve) => {
                     args.allow_passive = true
                 }
-                "--allow-identity" if matches!(args.action, Action::Serve) => {
+                "--allow-identity" if matches!(args.action, Action::Serve | Action::Mcp) => {
                     args.allow_identity = true
                 }
                 "--executable-only-provider"
@@ -260,7 +262,7 @@ impl Args {
                     }
                     args.executable_only_providers.insert(provider);
                 }
-                "--allow-usage" if matches!(args.action, Action::Serve) => {
+                "--allow-usage" if matches!(args.action, Action::Serve | Action::Mcp) => {
                     let provider = input
                         .next()
                         .and_then(|v| v.into_string().ok())
@@ -269,7 +271,8 @@ impl Args {
                     args.usage_providers.insert(provider);
                 }
                 "--allow-metadata" | "--allow-execution"
-                    if matches!(args.action, Action::Serve) =>
+                    if matches!(args.action, Action::Serve)
+                        || (flag == "--allow-metadata" && matches!(args.action, Action::Mcp)) =>
                 {
                     let provider = input
                         .next()
@@ -313,7 +316,7 @@ impl Args {
                 "--warm-metadata" if matches!(args.action, Action::Serve) => {
                     args.warm_metadata = true
                 }
-                "--no-metadata-cache" if matches!(args.action, Action::Serve) => {
+                "--no-metadata-cache" if matches!(args.action, Action::Serve | Action::Mcp) => {
                     args.no_metadata_cache = true
                 }
                 "--workspace" if matches!(args.action, Action::Serve) => {
@@ -350,6 +353,15 @@ impl Args {
             return Err(invalid());
         }
         args.json = json;
+        if matches!(args.action, Action::Mcp) {
+            // The usage MCP reads the installed clients' own quota endpoints.
+            // Claude Code and Codex are the default grants; any explicit
+            // --allow-metadata list replaces them.
+            if args.metadata_providers.is_empty() {
+                args.metadata_providers = ["claude_code", "codex"].map(String::from).into();
+            }
+            args.allow_passive = true;
+        }
         if args.allow_codex_metadata {
             args.metadata_providers.insert("codex".into());
         }
@@ -515,6 +527,22 @@ mod tests {
             .is_ok()
         );
         assert!(parse(&["serve", "--stdio", "--allow-codex-execution"]).is_err());
+    }
+    #[test]
+    fn mcp_defaults_to_claude_and_codex_and_explicit_grants_replace_them() {
+        let args = parse(&["mcp"]).unwrap();
+        assert!(matches!(args.action, Action::Mcp));
+        assert!(args.allow_passive);
+        assert_eq!(
+            args.metadata_providers,
+            ["claude_code", "codex"].map(String::from).into()
+        );
+        assert!(!args.allow_identity);
+        let args = parse(&["mcp", "--allow-metadata", "cursor", "--allow-identity"]).unwrap();
+        assert_eq!(args.metadata_providers, ["cursor"].map(String::from).into());
+        assert!(args.allow_identity);
+        assert!(parse(&["mcp", "--allow-execution", "codex"]).is_err());
+        assert!(parse(&["mcp", "--allow-writes"]).is_err());
     }
     #[test]
     fn cursor_usage_is_a_separate_grant_that_requires_the_metadata_grant() {

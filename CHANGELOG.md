@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `originlm mcp`, a built-in MCP server over stdio. Its `usage` tool returns the provider-reported plan usage for the connected Claude Code and Codex accounts: percent used and remaining for each 5-hour, weekly, per-model and monthly window, reset times, account and plan. Each provider is labelled live or cached with the age of its reading. The server also has `providers` and `usage_history` tools. It is read-only and never starts a model turn. See `docs/integration/mcp-server.md`.
+
 ## 0.1.0-alpha.28 - 2026-11-11
 
 - Expose the `originlm` helper entry point as a library: `originlm_cli::run()` and `run_from()`. A Rust host can now build the helper from the published crate with its own lockfile and toolchain, so no prebuilt archive, pinned checksum or out-of-band compile is needed. No behavior, argument or protocol change.

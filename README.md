@@ -76,6 +76,15 @@ target/debug/originlm usage --json
 It reads bounded Claude Code, Codex, Gemini CLI, Grok, and Kiro history, never
 prompts, tool output, or credentials. See
 [session-history usage](docs/adapters/usage-history.md).
+Any MCP client (Claude Code, Codex, T3) can ask for plan usage (percent used and
+left per 5-hour, weekly and model window, reset times, account and plan) from the
+built-in MCP server:
+
+```sh
+claude mcp add originlm -- /absolute/path/to/originlm mcp --allow-identity
+```
+
+See [built-in MCP server](docs/integration/mcp-server.md).
 On-disk local models are a separate read:
 
 ```sh
