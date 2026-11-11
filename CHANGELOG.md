@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0-alpha.28 - 2026-11-11
+
+- Expose the `originlm` helper entry point as a library: `originlm_cli::run()` and `run_from()`. A Rust host can now build the helper from the published crate with its own lockfile and toolchain, so no prebuilt archive, pinned checksum or out-of-band compile is needed. No behavior, argument or protocol change.
+
 ## 0.1.0-alpha.27 - 2026-11-09
 
 - Add `originlm image` to the helper, so npm, PyPI and crates.io installs can run `generate_image`. `--definition` prints the tool schema without contacting a provider; generation requires `--allow-paid` and uses `ORIGINLM_IMAGE_ROUTE` or the installed Codex login. Publish the new `originlm-images` crate as part of a 15-crate closure.

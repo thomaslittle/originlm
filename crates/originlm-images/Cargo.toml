@@ -8,8 +8,8 @@ repository.workspace = true
 description = "Host-owned image generation tool and bring-your-own-key provider adapters"
 
 [dependencies]
-originlm-adapters = { version = "0.1.0-alpha.27", path = "../originlm-adapters" }
-originlm-contracts = { version = "0.1.0-alpha.27", path = "../originlm-contracts" }
+originlm-adapters = { version = "0.1.0-alpha.28", path = "../originlm-adapters" }
+originlm-contracts = { version = "0.1.0-alpha.28", path = "../originlm-contracts" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
