@@ -125,6 +125,13 @@ the release operation must:
    introducing a parallel flat-binary asset scheme.
 4. Publish the GitHub prerelease with the platform archives, `SHA256SUMS`, and the
    matching per-target manifests; describe it as unsigned and prerelease.
+5. Check the assembled files before uploading them, and the published release
+   afterwards: `python scripts/verify_github_release.py --assets <directory>
+   --version <version>`. It fails when an archive, a per-target manifest or
+   `SHA256SUMS` is missing or disagrees with the archive bytes. The read-only
+   `Verify release assets` workflow runs the same check whenever a release is
+   published or edited, and on demand for a tag. Consumers pin helper archives
+   by checksum, so a release with archives alone is incomplete.
 
 The final release assets must all come from the same candidate SHA. The existing
 x64 CI bundles are useful evidence but are not final release assets if their SHA

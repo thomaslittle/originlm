@@ -1,0 +1,36 @@
+name: Verify release assets
+
+# Read-only gate: a published GitHub release must carry every helper archive,
+# its per-target manifest and SHA256SUMS (docs/release/PUBLISHING.md). This
+# publishes, signs and changes nothing; a red run means the release is
+# incomplete and needs its missing files attached.
+on:
+  release:
+    types: [published, edited]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to check, for example v0.1.0-alpha.27
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: verify-release-assets-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: true
+jobs:
+  assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Download the release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir release-assets
+      - name: Check the helper asset set
+        run: python scripts/verify_github_release.py --assets release-assets --version "${TAG#v}"
