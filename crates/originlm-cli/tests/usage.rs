@@ -112,27 +112,38 @@ fn usage_on_an_empty_home_names_the_default_providers_as_not_found() {
     assert_eq!(value["providers"], serde_json::json!([]));
     assert_eq!(
         value["notFound"],
-        serde_json::json!(["claude_code", "codex"])
+        serde_json::json!([
+            "antigravity",
+            "claude_code",
+            "codex",
+            "cursor",
+            "gemini_cli",
+            "github_copilot",
+            "grok",
+            "muse",
+            "opencode",
+            "pi"
+        ])
     );
 }
 
 #[test]
 fn usage_finds_a_detected_provider_without_a_usage_source_and_lists_it() {
-    // A Gemini CLI profile on disk is detected passively; OriginLM has no
+    // An Ollama profile on disk is detected passively; OriginLM has no
     // usage source for it, so it is listed as such, never with a number.
     let home = tempfile::tempdir().unwrap();
-    write(&home.path().join(".gemini/settings.json"), &["{}"]);
+    std::fs::create_dir_all(home.path().join(".ollama/models")).unwrap();
     let output = originlm(&["usage", "--json", "--no-metadata-cache"], home.path());
     assert!(output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let rows = value["providers"].as_array().unwrap();
-    let gemini = rows
+    let ollama = rows
         .iter()
-        .find(|row| row["providerId"] == "gemini_cli")
-        .expect("Gemini CLI is detected from its profile directory");
-    assert_eq!(gemini["usageSource"], "none");
-    assert_eq!(gemini["data"]["state"], "no_source");
-    assert_eq!(gemini["windows"], serde_json::json!([]));
+        .find(|row| row["providerId"] == "ollama")
+        .expect("Ollama is detected from its profile directory");
+    assert_eq!(ollama["usageSource"], "none");
+    assert_eq!(ollama["data"]["state"], "no_source");
+    assert_eq!(ollama["windows"], serde_json::json!([]));
     for row in rows {
         // Nothing detected in an isolated home was probed, so nothing has numbers.
         assert_eq!(row["windows"], serde_json::json!([]), "{row}");

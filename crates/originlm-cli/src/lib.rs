@@ -29,12 +29,14 @@ Usage:
   originlm connect --ipc LOCAL_ADDRESS
   originlm scan --json [--include-locations] [--home ABSOLUTE_DIRECTORY] [--executable-only-provider PROVIDER]
       --include-locations adds this host's private executable and profile paths.
-  originlm usage [--json] [--refresh] [--allow-identity] [--allow-metadata PROVIDER]...
+  originlm usage [--json] [--refresh] [--allow-identity] [--no-usage PROVIDER]... [--allow-metadata PROVIDER]...
       [--home ABSOLUTE_DIRECTORY] [--no-metadata-cache]
       Lists every AI provider and profile detected on this machine with its plan
       usage where a usage source exists: percent used and left per window, reset
       times, plan, and whether each reading is live or cached and how old it is.
-      Claude Code and Codex are read by default; --allow-metadata replaces that.
+      Every provider with a usage source is read by default (Claude Code, Codex,
+      Cursor, OpenCode, Muse, Grok, Antigravity, Gemini CLI, GitHub Copilot, Pi);
+      --no-usage PROVIDER leaves one out, --allow-metadata replaces the list.
       Detected providers without a reading are listed with the reason. Never zero
       for unknown. Installed from npm, `olm` is the same command (`olm usage`).
   originlm usage --history [--json] [--home ABSOLUTE_DIRECTORY]
@@ -69,12 +71,12 @@ Usage:
       [--size WIDTHxHEIGHT] [--aspect W:H] [--style TEXT] [--reference RELATIVE_PATH] [--count 1-4]
       Generates images through ORIGINLM_IMAGE_ROUTE or the installed Codex login and
       prints JSON holding images or a typed error. Exit: 0 generated, 1 tool error.
-  originlm mcp [--allow-metadata PROVIDER]... [--allow-identity] [--allow-usage cursor]
+  originlm mcp [--no-usage PROVIDER]... [--allow-metadata PROVIDER]... [--allow-identity]
       [--home ABSOLUTE_DIRECTORY] [--no-metadata-cache]
       Model Context Protocol server over stdio. Tools: `usage` (plan quota per window:
       percent used/left, resets, account, plan; live or cached with its age),
       `providers` (connected clients) and `usage_history` (local token totals).
-      Grants default to claude_code and codex; --allow-metadata replaces them.
+      Reads the same providers as `usage` by default; --no-usage and --allow-metadata as there.
       Reads quota through the installed clients; never starts a model turn.
   originlm --version
 

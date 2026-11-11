@@ -110,7 +110,18 @@ fn usage_on_an_empty_home_names_the_missing_providers_without_inventing_numbers(
     assert_eq!(result["structuredContent"]["providers"], json!([]));
     assert_eq!(
         result["structuredContent"]["notFound"],
-        json!(["claude_code", "codex"])
+        json!([
+            "antigravity",
+            "claude_code",
+            "codex",
+            "cursor",
+            "gemini_cli",
+            "github_copilot",
+            "grok",
+            "muse",
+            "opencode",
+            "pi"
+        ])
     );
     let text = result["content"][0]["text"].as_str().unwrap();
     assert!(

@@ -69,9 +69,10 @@ To see exactly what discovery finds without touching your real home directory, p
 
 Plan usage for every AI provider detected on this machine. It shows percent
 used and left per 5-hour, weekly and model window, reset times, plan, and
-whether each reading is live or cached. Claude Code and Codex are read by
-default; other detected providers are listed with the reason they have no
-reading:
+whether each reading is live or cached. Usage is read from every provider
+that has a usage source: Claude Code, Codex, Cursor, OpenCode, Muse, Grok,
+Antigravity, Gemini CLI, GitHub Copilot and Pi. Every other detected provider
+is listed with the reason it has no reading:
 
 ```sh
 npm i -g originlm      # puts `olm` and `originlm` on PATH

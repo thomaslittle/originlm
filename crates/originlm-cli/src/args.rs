@@ -27,6 +27,8 @@ pub struct Args {
     pub history: bool,
     /// `usage --refresh`: bypass the 60-second probe cache.
     pub refresh: bool,
+    /// `usage`/`mcp --no-usage PROVIDER`: leave a default usage source unread.
+    pub skip_usage: BTreeSet<String>,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -119,6 +121,7 @@ impl Args {
             probe_versions: false,
             history: false,
             refresh: false,
+            skip_usage: BTreeSet::new(),
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -160,6 +163,7 @@ impl Args {
                     "--allow-usage",
                     "--allow-execution",
                     "--executable-only-provider",
+                    "--no-usage",
                 ]
                 .contains(&flag)
             {
@@ -176,6 +180,14 @@ impl Args {
                 }
                 "--history" if matches!(args.action, Action::Usage) => args.history = true,
                 "--refresh" if matches!(args.action, Action::Usage) => args.refresh = true,
+                "--no-usage" if matches!(args.action, Action::Usage | Action::Mcp) => {
+                    let provider = input
+                        .next()
+                        .and_then(|v| v.into_string().ok())
+                        .filter(|v| DEFAULT_USAGE_PROVIDERS.contains(&v.as_str()))
+                        .ok_or_else(invalid)?;
+                    args.skip_usage.insert(provider);
+                }
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
                 }
@@ -310,7 +322,10 @@ impl Args {
                             ]
                             .contains(&v.as_str())
                                 || (flag == "--allow-metadata"
-                                    && matches!(v.as_str(), "cursor" | "kiro"))
+                                    && matches!(
+                                        v.as_str(),
+                                        "cursor" | "kiro" | "github_copilot" | "pi"
+                                    ))
                         })
                         .ok_or_else(invalid)?;
                     if flag == "--allow-metadata" {
@@ -374,7 +389,8 @@ impl Args {
                 || args.allow_identity
                 || args.no_metadata_cache
                 || !args.metadata_providers.is_empty()
-                || !args.usage_providers.is_empty())
+                || !args.usage_providers.is_empty()
+                || !args.skip_usage.is_empty())
         {
             // History reads local files only; provider grants do not apply.
             return Err(invalid());
@@ -382,11 +398,21 @@ impl Args {
         if matches!(args.action, Action::Mcp)
             || matches!(args.action, Action::Usage) && !args.history
         {
-            // The usage MCP reads the installed clients' own quota endpoints.
-            // Claude Code and Codex are the default grants; any explicit
-            // --allow-metadata list replaces them.
+            // Usage is read by default from every provider with a usage
+            // source; --no-usage leaves one unread. An explicit
+            // --allow-metadata list replaces the default instead, so the two
+            // are not combined.
             if args.metadata_providers.is_empty() {
-                args.metadata_providers = ["claude_code", "codex"].map(String::from).into();
+                args.metadata_providers = DEFAULT_USAGE_PROVIDERS
+                    .iter()
+                    .filter(|p| !args.skip_usage.contains(**p))
+                    .map(|p| (*p).to_owned())
+                    .collect();
+                if args.metadata_providers.contains("cursor") {
+                    args.usage_providers.insert("cursor".into());
+                }
+            } else if !args.skip_usage.is_empty() {
+                return Err(invalid());
             }
             args.allow_passive = true;
         }
@@ -465,6 +491,20 @@ impl Args {
         Ok(args)
     }
 }
+/// Every provider whose usage `olm usage` and the MCP `usage` tool read by
+/// default. Each has a real usage source; see `mcp::USAGE_SOURCES`.
+pub const DEFAULT_USAGE_PROVIDERS: [&str; 10] = [
+    "claude_code",
+    "codex",
+    "cursor",
+    "muse",
+    "opencode",
+    "grok",
+    "gemini_cli",
+    "antigravity",
+    "github_copilot",
+    "pi",
+];
 fn invalid() -> DomainError {
     DomainError::new(
         ErrorCode::InvalidRequest,
@@ -557,15 +597,26 @@ mod tests {
         assert!(parse(&["serve", "--stdio", "--allow-codex-execution"]).is_err());
     }
     #[test]
-    fn mcp_defaults_to_claude_and_codex_and_explicit_grants_replace_them() {
+    fn usage_reads_every_usage_source_by_default_with_a_per_provider_opt_out() {
         let args = parse(&["mcp"]).unwrap();
         assert!(matches!(args.action, Action::Mcp));
         assert!(args.allow_passive);
         assert_eq!(
             args.metadata_providers,
-            ["claude_code", "codex"].map(String::from).into()
+            DEFAULT_USAGE_PROVIDERS.map(String::from).into()
         );
+        // Cursor's allowance read is part of the default, not a separate step.
+        assert!(args.usage_providers.contains("cursor"));
         assert!(!args.allow_identity);
+        let args = parse(&["usage", "--no-usage", "cursor", "--no-usage", "grok"]).unwrap();
+        assert!(!args.metadata_providers.contains("cursor"));
+        assert!(!args.metadata_providers.contains("grok"));
+        assert!(args.metadata_providers.contains("claude_code"));
+        assert!(args.usage_providers.is_empty());
+        // Only a default source can be opted out, and not alongside an explicit list.
+        assert!(parse(&["usage", "--no-usage", "ollama"]).is_err());
+        assert!(parse(&["usage", "--no-usage", "grok", "--allow-metadata", "codex"]).is_err());
+        assert!(parse(&["usage", "--history", "--no-usage", "grok"]).is_err());
         let args = parse(&["mcp", "--allow-metadata", "cursor", "--allow-identity"]).unwrap();
         assert_eq!(args.metadata_providers, ["cursor"].map(String::from).into());
         assert!(args.allow_identity);

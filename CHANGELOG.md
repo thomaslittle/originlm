@@ -4,6 +4,14 @@
 
 - `npm i -g originlm` now puts `olm` and `originlm` on PATH. A dependency-free launcher in the `originlm` package runs the installed `originlm-cli-<platform>` helper with arguments, stdio and exit status unchanged, and prints a clear error if the platform package is missing. Before this, the global install linked no command.
 - **Behavior change:** `originlm usage` (`olm usage`) now prints plan usage for every AI provider and profile detected on this machine: percent used and left per window, reset times, plan, and whether each reading is live or cached with its age. Claude Code and Codex are read by default. Detected providers without a reading are listed with the reason. `--json` prints the same report. The previous output, local session-history token totals, is unchanged under `originlm usage --history [--json]`.
+- `olm usage` and the MCP `usage` tool now read usage by default from every detected provider with a usage source. Claude Code, Codex, Cursor, OpenCode and Muse use their existing readers. New readers:
+  - Grok: ACP `_x.ai/billing` credit percent and tier.
+  - Antigravity: Code Assist per-model quota and tier, via the managed profile's own credential.
+  - Gemini CLI: Code Assist quota for a Google-login profile.
+  - GitHub Copilot: `copilot_internal/user` allowances for the `gh` login.
+  - Pi: OpenRouter key spend.
+
+  `--no-usage PROVIDER` leaves one unread. Providers with no usage source (Ollama, LM Studio) and readings that cannot be obtained (expired login, API-key auth, not signed in, runtime missing, no answer in time) are listed with the reason, never with a number. Claude Code and Codex are probed first, and a full read is bounded at 60 seconds.
 - Add `originlm mcp`, a built-in MCP server over stdio. Its `usage` tool returns the same report as `olm usage`. It also has `providers` and `usage_history` tools. It is read-only and never starts a model turn. See `docs/integration/mcp-server.md`.
 
 ## 0.1.0-alpha.28 - 2026-11-11

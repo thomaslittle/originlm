@@ -334,6 +334,8 @@ async fn probe_metadata(
             originlm_adapters::cursor::probe(located, &connection, &route, cursor_usage).await
         }
         "kiro" => originlm_adapters::kiro::probe(located, &connection, &route).await,
+        "github_copilot" => originlm_adapters::plan_usage::copilot(&connection, &route).await,
+        "pi" => originlm_adapters::plan_usage::pi(&located.profile_home, &connection, &route).await,
         _ => Err(DomainError::new(
             ErrorCode::CapabilityUnsupported,
             "No metadata adapter registered",

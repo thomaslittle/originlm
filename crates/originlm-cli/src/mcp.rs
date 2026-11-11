@@ -17,6 +17,8 @@ const PROTOCOL_VERSION: &str = "2025-06-18";
 const MAX_LINE_BYTES: usize = 1 << 20;
 /// A reading this young that was (re)confirmed by this call is reported as live.
 const LIVE_AGE_SECONDS: i64 = 90;
+/// Upper bound for one usage read across every provider.
+const PROBE_DEADLINE: std::time::Duration = std::time::Duration::from_secs(60);
 
 pub struct McpServer {
     service: Arc<NativeService>,
@@ -41,7 +43,7 @@ pub fn tool_definitions() -> Value {
         {
             "name": "usage",
             "title": "Provider plan usage",
-            "description": "Every AI provider and profile OriginLM detects on this machine, with plan usage wherever a usage source exists (Claude Code and Codex by default): percent used and remaining per window (5-hour, weekly, model-specific, monthly credits), reset times, account and plan. Reads the providers' own usage endpoints through their installed clients; never starts a model turn. Each provider says whether its numbers are live or cached and how old they are. A detected provider without a usage source is still listed and marked so. A missing window is unknown, not zero.",
+            "description": "Every AI provider and profile OriginLM detects on this machine, with plan usage wherever a usage source exists (Claude Code, Codex, Cursor, OpenCode, Muse, Grok, Antigravity, Gemini CLI, GitHub Copilot, Pi): percent used and remaining per window (5-hour, weekly, model-specific, monthly credits), reset times, account and plan. Reads the providers' own usage endpoints through their installed clients; never starts a model turn. Each provider says whether its numbers are live or cached and how old they are. A detected provider without a usage source is still listed and marked so. A missing window is unknown, not zero.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -307,50 +309,88 @@ pub async fn collect_usage(
     let listed = service
         .handle(client, "connections.list", json!({}))
         .await?;
-    let mut by_provider: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+    // (provider, connection id, is the provider's default profile)
+    let mut targets: Vec<(String, String, bool)> = vec![];
     for connection in listed.as_array().into_iter().flatten() {
         if let (Some(provider), Some(id)) =
             (connection["providerId"].as_str(), connection["id"].as_str())
             && granted.contains(provider)
             && filter.is_none_or(|filter| filter.contains(provider))
         {
-            by_provider
-                .entry(provider.to_owned())
-                .or_default()
-                .push(id.to_owned());
+            let default = connection["displayName"]
+                .as_str()
+                .is_some_and(|name| name.contains("Default profile"));
+            targets.push((provider.to_owned(), id.to_owned(), default));
         }
     }
-    // Providers are probed concurrently; one provider's profiles in order,
-    // because a probe may refresh that provider's own credentials.
-    let mut checks = tokio::task::JoinSet::new();
-    for ids in by_provider.into_values() {
-        let service = service.clone();
-        let client = client.to_owned();
-        checks.spawn(async move {
-            let mut results = vec![];
-            for id in ids {
-                let outcome = service
-                    .handle(
-                        &client,
-                        "connections.probe",
-                        json!({"connectionId": id, "force": refresh}),
-                    )
-                    .await;
-                results.push((id, outcome));
-            }
-            results
-        });
+    // Each probe starts that provider's own client, and starting them all at
+    // once starves the slow ones (Claude Code allows 10 s for its usage
+    // answer) into timeouts. So: Claude Code and Codex default profiles
+    // first, alone; then every other provider's first profile, three at a
+    // time; then additional profiles. One provider's profiles never run at
+    // the same time, because a probe may refresh that provider's credentials.
+    targets.sort_by_key(|(provider, _, default)| (!*default, provider.clone()));
+    let mut seen = BTreeSet::new();
+    let mut waves: [Vec<(String, String)>; 3] = Default::default();
+    for (provider, id, _) in targets {
+        let wave = if !seen.insert(provider.clone()) {
+            2
+        } else if matches!(provider.as_str(), "claude_code" | "codex") {
+            0
+        } else {
+            1
+        };
+        waves[wave].push((provider, id));
     }
+    // One bound for the whole read, so a client that hangs costs its own row,
+    // not the answer: what has been read by then is reported, the rest is a
+    // timeout with any earlier reading shown as cached.
+    let deadline = tokio::time::Instant::now() + PROBE_DEADLINE;
     let mut probes = std::collections::BTreeMap::new();
-    while let Some(joined) = checks.join_next().await {
-        for (id, outcome) in joined.unwrap_or_default() {
-            probes.insert(
-                id,
-                match outcome {
-                    Ok(value) => ProbeOutcome::Ok(value["status"].as_str() == Some("cached")),
-                    Err(error) => ProbeOutcome::Failed(code(&error)),
-                },
-            );
+    for wave in waves {
+        let mut by_provider: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+        for (provider, id) in wave {
+            by_provider.entry(provider).or_default().push(id);
+        }
+        let slots = Arc::new(tokio::sync::Semaphore::new(3));
+        let mut checks = tokio::task::JoinSet::new();
+        for ids in by_provider.into_values() {
+            let service = service.clone();
+            let client = client.to_owned();
+            let slots = slots.clone();
+            checks.spawn(async move {
+                let _slot = tokio::time::timeout_at(deadline, slots.acquire_owned()).await;
+                let mut results = vec![];
+                for id in ids {
+                    let outcome = tokio::time::timeout_at(
+                        deadline,
+                        service.handle(
+                            &client,
+                            "connections.probe",
+                            json!({"connectionId": id, "force": refresh}),
+                        ),
+                    )
+                    .await
+                    .unwrap_or_else(|_| {
+                        Err(DomainError::new(ErrorCode::Timeout, "Usage read timed out"))
+                    });
+                    results.push((id, outcome));
+                }
+                results
+            });
+        }
+        while let Some(joined) = checks.join_next().await {
+            for (id, outcome) in joined.unwrap_or_default() {
+                probes.insert(
+                    id,
+                    match outcome {
+                        Ok(value) => ProbeOutcome::Ok(value["status"].as_str() == Some("cached")),
+                        Err(error) => {
+                            ProbeOutcome::Failed(code(&error), detail_codes(&error.message))
+                        }
+                    },
+                );
+            }
         }
     }
     let snapshot = service.handle(client, "snapshot.get", json!({})).await?;
@@ -391,7 +431,33 @@ pub fn provider_filter(value: Option<&Value>) -> Result<Option<BTreeSet<String>>
 pub enum ProbeOutcome {
     /// `true` when the service answered from its own short-lived probe cache.
     Ok(bool),
-    Failed(String),
+    /// Error code, plus the adapter's own diagnostic codes when the error
+    /// carried them (`message [CODE,...]`).
+    Failed(String, Vec<String>),
+}
+
+/// Diagnostic codes an adapter appended to an error message as `[A,B]`.
+pub fn detail_codes(message: &str) -> Vec<String> {
+    let Some(inner) = message
+        .trim_end()
+        .strip_suffix(']')
+        .and_then(|rest| rest.rsplit_once('[').map(|(_, inner)| inner))
+    else {
+        return vec![];
+    };
+    inner
+        .split(',')
+        .map(str::trim)
+        .filter(|code| {
+            !code.is_empty()
+                && code.len() <= 96
+                && code
+                    .chars()
+                    .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_' || c == '.')
+        })
+        .map(str::to_owned)
+        .take(16)
+        .collect()
 }
 
 fn allow(arguments: &Value, keys: &[&str]) -> Result<()> {
@@ -449,19 +515,78 @@ fn account_label(snapshot: &Value, account_id: &Value, identity: bool) -> Value 
 /// the read on. Claude Code and Codex are granted by default; the others are
 /// listed with the flags that enable them. Every other detected provider has
 /// no usage source in OriginLM today and is listed as such.
-pub const USAGE_SOURCES: &[(&str, &str)] = &[
-    ("claude_code", "--allow-metadata claude_code"),
-    ("codex", "--allow-metadata codex"),
-    ("cursor", "--allow-metadata cursor --allow-usage cursor"),
-    ("muse", "--allow-metadata muse"),
-    ("opencode", "--allow-metadata opencode"),
-];
+pub const USAGE_SOURCES: [&str; 10] = crate::args::DEFAULT_USAGE_PROVIDERS;
 
 fn usage_source(provider: &str) -> Option<&'static str> {
-    USAGE_SOURCES
-        .iter()
-        .find(|(id, _)| *id == provider)
-        .map(|(_, flags)| *flags)
+    USAGE_SOURCES.iter().find(|id| **id == provider).copied()
+}
+
+/// Why a detected provider has no usage source in OriginLM, checked per
+/// provider (see docs/integration/mcp-server.md).
+fn no_source_reason(provider: &str) -> &'static str {
+    match provider {
+        "ollama" => "Ollama's local API reports sign-in and plan, not cloud usage limits",
+        "lmstudio" => "local runtime; LM Studio has no plan quota",
+        "kiro" => "Kiro CLI does not report usage",
+        _ => "OriginLM has no usage source for it",
+    }
+}
+
+/// Plain reason for a probed connection that returned no reading, from the
+/// adapter's own diagnostics. Unknown codes fall back to a neutral line.
+fn reading_missing_reason(row: &Value) -> Option<String> {
+    let codes: Vec<&str> = row["diagnostics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let has = |code: &str| codes.iter().any(|c| c.starts_with(code));
+    let reason = if has("USAGE_NOT_YET_OBSERVED") {
+        "Muse reports usage only after this login has run a turn".to_owned()
+    } else if has("METADATA_RUNTIME_MISSING") {
+        "this installation's runtime is missing".to_owned()
+    } else if has("GEMINI_API_KEY_AUTH_NO_QUOTA") {
+        "Gemini CLI signs in with a Gemini API key here; that is metered and Google publishes no usage endpoint for a key".to_owned()
+    } else if has("GEMINI_VERTEX_AUTH_NO_QUOTA") {
+        "Gemini CLI uses Vertex AI here; usage is billed in Google Cloud, not as a plan quota"
+            .to_owned()
+    } else if has("GEMINI_LOGIN_EXPIRED") {
+        "Gemini CLI's saved login has expired; run gemini once to refresh it".to_owned()
+    } else if has("GEMINI_LOGIN_NOT_FOUND") {
+        "no saved Gemini CLI login".to_owned()
+    } else if has("METADATA_READ_TIMEOUT") || has("USAGE_READ_FAILED_Timeout") {
+        "the client did not answer in time; try olm usage --refresh".to_owned()
+    } else if has("COPILOT_GH_LOGIN_UNAVAILABLE") {
+        "sign in with `gh auth login` to read Copilot usage".to_owned()
+    } else if has("COPILOT_USAGE_REQUEST_FAILED") {
+        "GitHub did not return Copilot usage for the gh login".to_owned()
+    } else if has("PI_NO_SAVED_LOGINS") {
+        "Pi has no saved logins".to_owned()
+    } else if let Some(name) = codes.iter().find_map(|c| {
+        c.strip_prefix("PI_")
+            .and_then(|c| c.strip_suffix("_NO_USAGE_SOURCE"))
+    }) {
+        format!(
+            "Pi login `{}` has no usage source",
+            name.to_ascii_lowercase()
+        )
+    } else if has("ANTIGRAVITY_LOGIN_REFRESH_FAILED") {
+        "Antigravity's saved login could not be refreshed".to_owned()
+    } else if has("ANTIGRAVITY_CREDENTIAL") {
+        "no saved Antigravity login for this profile".to_owned()
+    } else if has("GROK_BILLING_UNAVAILABLE") {
+        "Grok did not answer its billing request".to_owned()
+    } else if has("CURSOR_SESSION_TOKEN_UNAVAILABLE") || has("CURSOR_CLI_NOT_SIGNED_IN") {
+        "Cursor is not signed in".to_owned()
+    } else if row["auth"] == "unauthenticated" {
+        "not signed in".to_owned()
+    } else if row["auth"] != "authenticated" && has("PLAN_NOT_REPORTED_BY_PROVIDER") {
+        "the client reported no sign-in or plan for this profile".to_owned()
+    } else {
+        return None;
+    };
+    Some(reason)
 }
 
 /// Shape the projected snapshot into the `usage` result. Pure, for tests.
@@ -521,6 +646,9 @@ pub fn usage_report(
                         .map_or(Value::Null, |p| json!(p));
                     row["observedAt"] = reading["observedAt"].clone();
                     row["freshness"] = reading["freshness"].clone();
+                    row["unit"] = value["unit"].clone();
+                    row["used"] = value["used"].clone();
+                    row["limit"] = value["limit"].clone();
                 } else {
                     row["usedPercent"] = Value::Null;
                     row["remainingPercent"] = Value::Null;
@@ -562,9 +690,17 @@ pub fn usage_report(
             "ageSeconds": age,
         });
         match probe {
-            Some(ProbeOutcome::Failed(code)) => data["refreshError"] = json!(code),
+            Some(ProbeOutcome::Failed(code, _)) => data["refreshError"] = json!(code),
             Some(ProbeOutcome::Ok(true)) => data["servedFromProbeCache"] = json!(true),
             _ => {}
+        }
+        // The connection's own diagnostics, plus any the failed read carried.
+        let mut diagnostics: Vec<Value> = connection["diagnostics"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        if let Some(ProbeOutcome::Failed(_, codes)) = probe {
+            diagnostics.extend(codes.iter().map(|code| json!(code)));
         }
         rows.push(json!({
             "providerId": provider,
@@ -576,7 +712,8 @@ pub fn usage_report(
             "identityHidden": !identity,
             "plan": known(&connection["plan"]).map(|plan| plan["label"].clone()).unwrap_or(Value::Null),
             "usageSource": source,
-            "enableWith": if source == "not_granted" { json!(usage_source(provider)) } else { Value::Null },
+            "diagnostics": diagnostics,
+            "noSourceReason": if source == "none" { json!(no_source_reason(provider)) } else { Value::Null },
             "data": data,
             "windows": windows,
         }));
@@ -593,8 +730,15 @@ pub fn usage_report(
                 _ => 3,
             }
         };
+        // Claude Code and Codex lead their group; the rest are alphabetical.
+        let lead = match row["providerId"].as_str() {
+            Some("claude_code") => 0,
+            Some("codex") => 1,
+            _ => 2,
+        };
         (
             rank,
+            lead,
             row["providerName"].as_str().unwrap_or_default().to_owned(),
             row["connectionName"]
                 .as_str()
@@ -618,7 +762,7 @@ pub fn usage_report(
         "notes": [
             "Percentages are the provider's own plan-quota readings, not token estimates.",
             "A missing window or null percent is unknown, not zero.",
-            "Every detected provider is listed. usageSource `none` means OriginLM has no usage source for it; `not_granted` means one exists and enableWith names the flags.",
+            "Every detected provider is listed. usageSource `none` means OriginLM has no usage source for it; `not_granted` means one exists but this run excluded it (--no-usage or an explicit --allow-metadata list).",
             "data.state is `live` when this call read the provider within the last 90 s, otherwise `cached` with its age."
         ]
     })
@@ -710,7 +854,10 @@ pub fn usage_text(report: &Value) -> String {
                 (Some(used), Some(left)) => {
                     text.push_str(&format!("  {label}: {used}% used, {left}% left{reset}\n"))
                 }
-                _ => text.push_str(&format!("  {label}: unknown{reset}\n")),
+                _ => text.push_str(&format!(
+                    "  {label}: {}{reset}\n",
+                    amount_text(window).unwrap_or_else(|| "unknown".into())
+                )),
             }
         }
     }
@@ -724,6 +871,25 @@ pub fn usage_text(report: &Value) -> String {
         text.push_str("No AI provider was detected on this machine.\n");
     }
     text
+}
+
+/// A known non-percent reading, e.g. dollars spent with no limit.
+fn amount_text(window: &Value) -> Option<String> {
+    let used: f64 = window["used"].as_str()?.parse().ok()?;
+    let unit = window["unit"].as_str()?;
+    let money = |v: f64| {
+        if unit == "usd" {
+            format!("${v:.2}")
+        } else {
+            format!("{v} {unit}")
+        }
+    };
+    Some(
+        match window["limit"].as_str().and_then(|l| l.parse::<f64>().ok()) {
+            Some(limit) => format!("{} of {} used", money(used), money(limit)),
+            None => format!("{} used, no limit", money(used)),
+        },
+    )
 }
 
 fn percent(value: f64) -> String {
@@ -794,7 +960,7 @@ pub fn usage_terminal(report: &Value, offset: chrono::FixedOffset) -> String {
                 (Some(used), Some(left)) => {
                     format!("{:>5} used  {:>5} left", percent(used), percent(left))
                 }
-                _ => format!("{:>9}", "unknown"),
+                _ => amount_text(window).unwrap_or_else(|| format!("{:>9}", "unknown")),
             };
             let reset = match (
                 parse_time(&window["resetsAt"]),
@@ -848,15 +1014,20 @@ pub fn usage_terminal(report: &Value, offset: chrono::FixedOffset) -> String {
 fn status_without_reading(row: &Value) -> String {
     match row["data"]["state"].as_str() {
         Some("no_source") => format!(
-            "detected; usage unavailable (OriginLM has no usage source for {})",
-            row["providerName"].as_str().unwrap_or("this provider")
+            "detected; usage unavailable ({})",
+            row["noSourceReason"]
+                .as_str()
+                .unwrap_or("OriginLM has no usage source for it")
         ),
-        Some("not_read") => format!(
-            "detected; usage not read (enable with {})",
-            row["enableWith"].as_str().unwrap_or("its metadata grant")
-        ),
-        _ if row["auth"] == "unauthenticated" => "not signed in; no usage".to_owned(),
-        _ => "detected; no usage reported".to_owned(),
+        Some("not_read") => "detected; usage not read (excluded from this run)".to_owned(),
+        _ => match (
+            reading_missing_reason(row),
+            row["data"]["refreshError"].as_str(),
+        ) {
+            (Some(reason), _) => format!("no usage: {reason}"),
+            (None, Some(error)) => format!("no usage: read failed ({error})"),
+            (None, None) => "detected; no usage reported".to_owned(),
+        },
     }
 }
 
@@ -997,7 +1168,7 @@ mod tests {
                     known_value(json!("authenticated"),at),unknown.clone()),
                 connection("conn-codex-2","codex","Codex · Additional profile 2",Value::Null,
                     known_value(json!("unauthenticated"),at),unknown.clone()),
-                connection("conn-gemini","gemini_cli","Gemini",Value::Null,unknown.clone(),unknown.clone()),
+                connection("conn-ollama","ollama","Ollama",Value::Null,unknown.clone(),unknown.clone()),
                 connection("conn-cursor","cursor","Cursor",Value::Null,unknown.clone(),unknown.clone()),
             ],
             "quotaPools":[
@@ -1036,7 +1207,7 @@ mod tests {
         probes.insert("conn-claude".to_owned(), ProbeOutcome::Ok(false));
         probes.insert(
             "conn-codex".to_owned(),
-            ProbeOutcome::Failed("PROVIDER_UNAVAILABLE".into()),
+            ProbeOutcome::Failed("PROVIDER_UNAVAILABLE".into(), vec![]),
         );
         let report = usage_report(
             &snapshot(),
@@ -1061,16 +1232,12 @@ mod tests {
                 "conn-codex",
                 "conn-codex-2",
                 "conn-cursor",
-                "conn-gemini"
+                "conn-ollama"
             ]
         );
         assert_eq!(rows[2]["data"]["state"], "unavailable");
         assert_eq!(rows[3]["data"]["state"], "not_read");
         assert_eq!(rows[3]["usageSource"], "not_granted");
-        assert_eq!(
-            rows[3]["enableWith"],
-            "--allow-metadata cursor --allow-usage cursor"
-        );
         assert_eq!(rows[4]["data"]["state"], "no_source");
         assert_eq!(rows[4]["usageSource"], "none");
         // Detected without a reading never becomes a number.
@@ -1105,9 +1272,9 @@ mod tests {
             "5-hour session: 16% used, 84% left, resets 2026-11-11T20:10:00Z (in 4h 9m)",
             "Codex · Default profile — CACHED, 1h 0m old — refresh failed: PROVIDER_UNAVAILABLE",
             "Monthly spend: unknown",
-            "Additional profile 2 — not signed in; no usage",
-            "Cursor — detected; usage not read (enable with --allow-metadata cursor --allow-usage cursor)",
-            "Gemini — detected; usage unavailable (OriginLM has no usage source for Gemini CLI)",
+            "Additional profile 2 — no usage: not signed in",
+            "Cursor — detected; usage not read (excluded from this run)",
+            "Ollama — detected; usage unavailable (Ollama's local API reports sign-in and plan, not cloud usage limits)",
         ] {
             assert!(text.contains(expected), "missing {expected:?} in:\n{text}");
         }
@@ -1119,8 +1286,8 @@ mod tests {
             "  Monthly spend     unknown\n",
             "Codex · Default profile  ·  CACHED, 1h 0m old  (refresh failed: PROVIDER_UNAVAILABLE)\n",
             "Detected without a usage reading:\n",
-            "  Codex · Additional profile 2  not signed in; no usage\n",
-            "  Gemini                        detected; usage unavailable (OriginLM has no usage source for Gemini CLI)\n",
+            "  Codex · Additional profile 2  no usage: not signed in\n",
+            "  Ollama                        detected; usage unavailable (Ollama's local API reports sign-in and plan, not cloud usage limits)\n",
             "Local token totals: olm usage --history\n",
         ] {
             assert!(
@@ -1136,7 +1303,7 @@ mod tests {
 
     #[test]
     fn a_provider_filter_narrows_the_listing_and_names_what_is_missing() {
-        let filter: BTreeSet<String> = ["gemini_cli", "kiro"].map(String::from).into();
+        let filter: BTreeSet<String> = ["ollama", "kiro"].map(String::from).into();
         let now = time("2026-11-11T16:00:00Z");
         let report = usage_report(
             &snapshot(),
@@ -1149,7 +1316,7 @@ mod tests {
         );
         let rows = report["providers"].as_array().unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0]["providerId"], "gemini_cli");
+        assert_eq!(rows[0]["providerId"], "ollama");
         assert_eq!(report["notFound"], json!(["kiro"]));
     }
 
@@ -1229,6 +1396,76 @@ mod tests {
         assert_eq!(friendly_label("weekly_all"), "Weekly (all models)");
         assert_eq!(friendly_label("7-day Opus"), "7-day Opus");
         assert_eq!(friendly_label("burst · X"), "burst · X");
+    }
+
+    #[test]
+    fn rows_without_a_reading_say_why_from_the_adapter_diagnostics() {
+        let row = |diagnostics: &[&str], auth: &str| json!({"data":{"state":"unavailable"},"auth":auth,"diagnostics":diagnostics});
+        for (codes, expected) in [
+            (&["GEMINI_API_KEY_AUTH_NO_QUOTA"][..], "Gemini API key"),
+            (
+                &["USAGE_NOT_YET_OBSERVED"],
+                "only after this login has run a turn",
+            ),
+            (
+                &[
+                    "CONFIGURATION_DIRECTORY_PRESENT",
+                    "METADATA_RUNTIME_MISSING",
+                ],
+                "runtime is missing",
+            ),
+            (&["COPILOT_GH_LOGIN_UNAVAILABLE"], "gh auth login"),
+            (
+                &["PI_RADIUS_NO_USAGE_SOURCE"],
+                "Pi login `radius` has no usage source",
+            ),
+            (
+                &["USAGE_UNAVAILABLE", "USAGE_READ_FAILED_Timeout"],
+                "did not answer in time",
+            ),
+        ] {
+            let text = status_without_reading(&row(codes, "authenticated"));
+            assert!(text.contains(expected), "{codes:?} -> {text}");
+        }
+        // An unrecognised code is never turned into a guess.
+        assert_eq!(
+            status_without_reading(&row(&["SOMETHING_NEW"], "authenticated")),
+            "detected; no usage reported"
+        );
+        assert_eq!(
+            status_without_reading(
+                &json!({"data":{"state":"no_source"},"noSourceReason":"local runtime; LM Studio has no plan quota"})
+            ),
+            "detected; usage unavailable (local runtime; LM Studio has no plan quota)"
+        );
+    }
+
+    #[test]
+    fn a_failed_read_keeps_the_adapter_reason_codes() {
+        assert_eq!(
+            detail_codes(
+                "Native client timed out [NATIVE_SESSION_METADATA_NO_INFERENCE,GEMINI_API_KEY_AUTH_NO_QUOTA]"
+            ),
+            [
+                "NATIVE_SESSION_METADATA_NO_INFERENCE",
+                "GEMINI_API_KEY_AUTH_NO_QUOTA"
+            ]
+        );
+        // Only well-formed codes are taken; ordinary text is not.
+        assert!(detail_codes("plain message").is_empty());
+        assert!(detail_codes("see [this link]").is_empty());
+        let now = time("2026-11-11T16:00:00Z");
+        let mut probes = BTreeMap::new();
+        probes.insert(
+            "conn-codex-2".to_owned(),
+            ProbeOutcome::Failed(
+                "TIMEOUT".into(),
+                vec!["GEMINI_API_KEY_AUTH_NO_QUOTA".into()],
+            ),
+        );
+        let report = usage_report(&snapshot(), &wanted(), None, &probes, now, now, false);
+        let text = status_without_reading(row(&report, "conn-codex-2"));
+        assert!(text.contains("Gemini API key"), "{text}");
     }
 
     #[test]

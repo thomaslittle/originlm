@@ -63,19 +63,82 @@ pub async fn probe(
                 "Native metadata workspace unavailable",
             )
         })?;
-    let prepared = prepare(profile, workspace.path(), browser)?;
-    let auth = prepared.auth_method.clone();
-    let result = metadata::probe_with_auth(
-        prepared.spec,
-        profile.provider.id(),
-        connection,
-        route,
-        profile_evidence(profile),
-        auth.as_deref(),
-    )
-    .await;
-    drop(prepared.scratch);
-    result
+    let result = match prepare(profile, workspace.path(), browser) {
+        Ok(prepared) => {
+            let auth = prepared.auth_method.clone();
+            let result = metadata::probe_with_auth(
+                prepared.spec,
+                profile.provider.id(),
+                connection,
+                route,
+                profile_evidence(profile),
+                auth.as_deref(),
+            )
+            .await;
+            drop(prepared.scratch);
+            result
+        }
+        Err(error) => Err(error),
+    };
+    // Antigravity and Gemini CLI report quota only through Google Code
+    // Assist, not ACP. Read it with the profile's own saved login even when
+    // the ACP launch or handshake failed: usage does not depend on it.
+    let (mut metadata, acp_error) = match result {
+        Ok(metadata) => (metadata, None),
+        Err(error)
+            if matches!(
+                profile.provider,
+                NativeProvider::Antigravity | NativeProvider::GeminiCli
+            ) =>
+        {
+            (
+                crate::plan_usage::empty_metadata(connection, route, vec![]),
+                Some(error),
+            )
+        }
+        Err(error) => return Err(error),
+    };
+    let usage = match profile.provider {
+        NativeProvider::Antigravity => {
+            Some(crate::plan_usage::antigravity(&profile.profile_home, connection, route).await)
+        }
+        NativeProvider::GeminiCli => {
+            Some(crate::plan_usage::gemini(&profile.profile_home, connection, route).await)
+        }
+        _ => None,
+    };
+    if let Some((pools, tier, diagnostics)) = usage {
+        metadata
+            .diagnostics
+            .retain(|code| code != "ACCOUNT_QUOTA_NOT_REPORTED_BY_ACP");
+        metadata.quota_pools.extend(pools);
+        metadata.diagnostics.extend(diagnostics);
+        if let Some(tier) = tier
+            && !matches!(metadata.plan, Observation::Known { .. })
+        {
+            metadata.plan = tier;
+        }
+    }
+    // A failed handshake stays a failure unless usage alone produced readings;
+    // an empty success would otherwise replace the known catalog.
+    // The usage diagnostics travel in the error text (as `[CODE,...]`), so a
+    // caller can still say why there is no reading.
+    if let Some(mut error) = acp_error {
+        if metadata.quota_pools.is_empty() {
+            if !metadata.diagnostics.is_empty() {
+                error.message = format!("{} [{}]", error.message, metadata.diagnostics.join(","));
+            }
+            return Err(error);
+        }
+        let code = serde_json::to_value(&error.code)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "ERROR".into());
+        metadata
+            .diagnostics
+            .push(format!("NATIVE_METADATA_FAILED_{code}"));
+    }
+    Ok(metadata)
 }
 
 /// Whether the kit can launch this client with every native tool removed.
