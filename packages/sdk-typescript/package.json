@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "Thin permission-aware OriginLM protocol client",
+  "bin": {
+    "originlm": "bin/originlm.mjs",
+    "olm": "bin/originlm.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -31,6 +35,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "node",
     "LICENSE",

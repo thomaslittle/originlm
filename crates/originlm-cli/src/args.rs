@@ -9,6 +9,7 @@ pub enum Action {
     Models,
     Status,
     Serve,
+    Mcp,
     Connect,
     Install(String),
     Auth(String),
@@ -22,6 +23,12 @@ pub struct Args {
     /// Explicit opt-in: run each retained executable with `--version` and add
     /// the raw output to `scan --include-locations`. Never used by passive scans.
     pub probe_versions: bool,
+    /// `usage --history`: local session-history token totals instead of plan quota.
+    pub history: bool,
+    /// `usage --refresh`: bypass the 60-second probe cache.
+    pub refresh: bool,
+    /// `usage`/`mcp --no-usage PROVIDER`: leave a default usage source unread.
+    pub skip_usage: BTreeSet<String>,
     pub home: Option<PathBuf>,
     pub endpoints: Option<PathBuf>,
     pub native_profiles: Option<PathBuf>,
@@ -88,6 +95,7 @@ impl Args {
             Some("models") => Action::Models,
             Some("status") => Action::Status,
             Some("serve") => Action::Serve,
+            Some("mcp") => Action::Mcp,
             Some("install") => {
                 let provider = input
                     .next()
@@ -111,6 +119,9 @@ impl Args {
             json: false,
             include_locations: false,
             probe_versions: false,
+            history: false,
+            refresh: false,
+            skip_usage: BTreeSet::new(),
             home: None,
             endpoints: None,
             native_profiles: None,
@@ -152,6 +163,7 @@ impl Args {
                     "--allow-usage",
                     "--allow-execution",
                     "--executable-only-provider",
+                    "--no-usage",
                 ]
                 .contains(&flag)
             {
@@ -166,6 +178,16 @@ impl Args {
                 {
                     json = true
                 }
+                "--history" if matches!(args.action, Action::Usage) => args.history = true,
+                "--refresh" if matches!(args.action, Action::Usage) => args.refresh = true,
+                "--no-usage" if matches!(args.action, Action::Usage | Action::Mcp) => {
+                    let provider = input
+                        .next()
+                        .and_then(|v| v.into_string().ok())
+                        .filter(|v| DEFAULT_USAGE_PROVIDERS.contains(&v.as_str()))
+                        .ok_or_else(invalid)?;
+                    args.skip_usage.insert(provider);
+                }
                 "--include-locations" if matches!(args.action, Action::Scan) => {
                     args.include_locations = true
                 }
@@ -175,7 +197,7 @@ impl Args {
                 "--home"
                     if matches!(
                         args.action,
-                        Action::Scan | Action::Serve | Action::Usage | Action::Models
+                        Action::Scan | Action::Serve | Action::Usage | Action::Models | Action::Mcp
                     ) =>
                 {
                     args.home = Some(absolute(input.next().ok_or_else(invalid)?)?)
@@ -242,7 +264,9 @@ impl Args {
                 "--allow-passive-discovery" if matches!(args.action, Action::Serve) => {
                     args.allow_passive = true
                 }
-                "--allow-identity" if matches!(args.action, Action::Serve) => {
+                "--allow-identity"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     args.allow_identity = true
                 }
                 "--executable-only-provider"
@@ -260,7 +284,9 @@ impl Args {
                     }
                     args.executable_only_providers.insert(provider);
                 }
-                "--allow-usage" if matches!(args.action, Action::Serve) => {
+                "--allow-usage"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     let provider = input
                         .next()
                         .and_then(|v| v.into_string().ok())
@@ -269,7 +295,9 @@ impl Args {
                     args.usage_providers.insert(provider);
                 }
                 "--allow-metadata" | "--allow-execution"
-                    if matches!(args.action, Action::Serve) =>
+                    if matches!(args.action, Action::Serve)
+                        || (flag == "--allow-metadata"
+                            && matches!(args.action, Action::Mcp | Action::Usage)) =>
                 {
                     let provider = input
                         .next()
@@ -294,7 +322,10 @@ impl Args {
                             ]
                             .contains(&v.as_str())
                                 || (flag == "--allow-metadata"
-                                    && matches!(v.as_str(), "cursor" | "kiro"))
+                                    && matches!(
+                                        v.as_str(),
+                                        "cursor" | "kiro" | "github_copilot" | "pi"
+                                    ))
                         })
                         .ok_or_else(invalid)?;
                     if flag == "--allow-metadata" {
@@ -313,7 +344,9 @@ impl Args {
                 "--warm-metadata" if matches!(args.action, Action::Serve) => {
                     args.warm_metadata = true
                 }
-                "--no-metadata-cache" if matches!(args.action, Action::Serve) => {
+                "--no-metadata-cache"
+                    if matches!(args.action, Action::Serve | Action::Mcp | Action::Usage) =>
+                {
                     args.no_metadata_cache = true
                 }
                 "--workspace" if matches!(args.action, Action::Serve) => {
@@ -350,6 +383,39 @@ impl Args {
             return Err(invalid());
         }
         args.json = json;
+        if matches!(args.action, Action::Usage)
+            && args.history
+            && (args.refresh
+                || args.allow_identity
+                || args.no_metadata_cache
+                || !args.metadata_providers.is_empty()
+                || !args.usage_providers.is_empty()
+                || !args.skip_usage.is_empty())
+        {
+            // History reads local files only; provider grants do not apply.
+            return Err(invalid());
+        }
+        if matches!(args.action, Action::Mcp)
+            || matches!(args.action, Action::Usage) && !args.history
+        {
+            // Usage is read by default from every provider with a usage
+            // source; --no-usage leaves one unread. An explicit
+            // --allow-metadata list replaces the default instead, so the two
+            // are not combined.
+            if args.metadata_providers.is_empty() {
+                args.metadata_providers = DEFAULT_USAGE_PROVIDERS
+                    .iter()
+                    .filter(|p| !args.skip_usage.contains(**p))
+                    .map(|p| (*p).to_owned())
+                    .collect();
+                if args.metadata_providers.contains("cursor") {
+                    args.usage_providers.insert("cursor".into());
+                }
+            } else if !args.skip_usage.is_empty() {
+                return Err(invalid());
+            }
+            args.allow_passive = true;
+        }
         if args.allow_codex_metadata {
             args.metadata_providers.insert("codex".into());
         }
@@ -425,6 +491,20 @@ impl Args {
         Ok(args)
     }
 }
+/// Every provider whose usage `olm usage` and the MCP `usage` tool read by
+/// default. Each has a real usage source; see `mcp::USAGE_SOURCES`.
+pub const DEFAULT_USAGE_PROVIDERS: [&str; 10] = [
+    "claude_code",
+    "codex",
+    "cursor",
+    "muse",
+    "opencode",
+    "grok",
+    "gemini_cli",
+    "antigravity",
+    "github_copilot",
+    "pi",
+];
 fn invalid() -> DomainError {
     DomainError::new(
         ErrorCode::InvalidRequest,
@@ -515,6 +595,33 @@ mod tests {
             .is_ok()
         );
         assert!(parse(&["serve", "--stdio", "--allow-codex-execution"]).is_err());
+    }
+    #[test]
+    fn usage_reads_every_usage_source_by_default_with_a_per_provider_opt_out() {
+        let args = parse(&["mcp"]).unwrap();
+        assert!(matches!(args.action, Action::Mcp));
+        assert!(args.allow_passive);
+        assert_eq!(
+            args.metadata_providers,
+            DEFAULT_USAGE_PROVIDERS.map(String::from).into()
+        );
+        // Cursor's allowance read is part of the default, not a separate step.
+        assert!(args.usage_providers.contains("cursor"));
+        assert!(!args.allow_identity);
+        let args = parse(&["usage", "--no-usage", "cursor", "--no-usage", "grok"]).unwrap();
+        assert!(!args.metadata_providers.contains("cursor"));
+        assert!(!args.metadata_providers.contains("grok"));
+        assert!(args.metadata_providers.contains("claude_code"));
+        assert!(args.usage_providers.is_empty());
+        // Only a default source can be opted out, and not alongside an explicit list.
+        assert!(parse(&["usage", "--no-usage", "ollama"]).is_err());
+        assert!(parse(&["usage", "--no-usage", "grok", "--allow-metadata", "codex"]).is_err());
+        assert!(parse(&["usage", "--history", "--no-usage", "grok"]).is_err());
+        let args = parse(&["mcp", "--allow-metadata", "cursor", "--allow-identity"]).unwrap();
+        assert_eq!(args.metadata_providers, ["cursor"].map(String::from).into());
+        assert!(args.allow_identity);
+        assert!(parse(&["mcp", "--allow-execution", "codex"]).is_err());
+        assert!(parse(&["mcp", "--allow-writes"]).is_err());
     }
     #[test]
     fn cursor_usage_is_a_separate_grant_that_requires_the_metadata_grant() {
