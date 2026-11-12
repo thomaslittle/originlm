@@ -72,7 +72,7 @@ Legend:
   are turned into this turn's delta, with `last` as the reset fallback.
   Cache reads/writes and reasoning tokens are separate units. The old
   thread-wide `session_tokens` fallback remains for older app-servers.
-- **Session-history totals.** `originlm usage --json` reads Claude Code, Codex,
+- **Session-history totals.** `originlm usage --history --json` reads Claude Code, Codex,
   Gemini CLI, Grok, and Kiro history with bounds and explicit diagnostics. It
   never reads prompts, tool output, or credentials. `usage.history` and
   `costs.read.historical` serve the same totals, and the desktop Costs page

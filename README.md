@@ -67,15 +67,35 @@ target/debug/originlm scan --json
 
 To see exactly what discovery finds without touching your real home directory, point it at an empty directory: `scan --json --home /absolute/empty/dir`.
 
+Plan usage for every AI provider detected on this machine. It shows percent
+used and left per 5-hour, weekly and model window, reset times, plan, and
+whether each reading is live or cached. Usage is read from every provider
+that has a usage source: Claude Code, Codex, Cursor, OpenCode, Muse, Grok,
+Antigravity, Gemini CLI, GitHub Copilot and Pi. Every other detected provider
+is listed with the reason it has no reading:
+
+```sh
+npm i -g originlm      # puts `olm` and `originlm` on PATH
+olm usage              # or: target/debug/originlm usage
+```
+
 Session-history token totals are a separate explicit read:
 
 ```sh
-target/debug/originlm usage --json
+olm usage --history --json
 ```
 
 It reads bounded Claude Code, Codex, Gemini CLI, Grok, and Kiro history, never
 prompts, tool output, or credentials. See
 [session-history usage](docs/adapters/usage-history.md).
+Any MCP client (Claude Code, Codex, T3) can ask for the same plan usage from the
+built-in MCP server:
+
+```sh
+claude mcp add originlm -- olm mcp --allow-identity
+```
+
+See [built-in MCP server](docs/integration/mcp-server.md).
 On-disk local models are a separate read:
 
 ```sh

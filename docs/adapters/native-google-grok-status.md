@@ -12,7 +12,7 @@ Metadata probes (`grok models`, and the ACP initialize that follows a logged-in 
 
 If the first `grok models` result is logged out, the probe runs once more. A definite second result replaces the first. An unknown second result stays logged out. Reimplemented from [a2157ece](https://github.com/pingdotgg/t3code/commit/a2157eced708fd25fab7b616f5a68cb65312eaed). Login state still comes from `grok models`; Grok `auth.json` and the billing endpoint are not read.
 
-Metadata-only qualification on September 25, 2026 used Grok CLI **1.0.41 (4220f3b224a6)** on Windows x64. It reused the existing native login and returned an authenticated ACP session, **Grok 4.7** and a native `reasoning_effort` option. No prompt/model turn was sent. Plan and quota remained unknown; the test profile's `subscription` billing value remained explicitly user-supplied evidence. This is not paid-generation qualification.
+Metadata-only qualification on September 25, 2026 used Grok CLI **1.0.41 (4220f3b224a6)** on Windows x64. It reused the existing native login and returned an authenticated ACP session, **Grok 4.7** and a native `reasoning_effort` option. No prompt/model turn was sent. Plan and quota were not part of that qualification (Grok now reports them through `_x.ai/billing`, read by `olm usage`); the test profile's `subscription` billing value remained explicitly user-supplied evidence. This is not paid-generation qualification.
 
 ## Gemini CLI
 
@@ -20,7 +20,7 @@ Gemini CLI uses its documented ACP mode and `GEMINI_CLI_HOME`. Browser authentic
 
 ## Antigravity
 
-Antigravity requires the dedicated `agy_acp_server` runtime plus its sibling `localharness_external`; the desktop IDE's `antigravity.cmd` launcher is intentionally rejected. Discovery finds T3's managed runtime under `~/.t3/tools/antigravity-acp/<platform>/versions/<hash>` and its per-account profiles under `~/.t3/userdata/providers/antigravity/<profile>/antigravity-acp`. The launcher provides the packaged browser blocker, file-backed ACP storage and a profile-local temp directory. Interactive auth URLs are routed to the blocker rather than opened automatically. Windows live qualification on 2026-11-04: two managed profiles initialized, both reported authenticated with 13 native models (Gemini 4 Argon, Gemini 3.8 Flash families), and no Antigravity GUI process launched. Quota remains unknown because the ACP surface does not report it.
+Antigravity requires the dedicated `agy_acp_server` runtime plus its sibling `localharness_external`; the desktop IDE's `antigravity.cmd` launcher is intentionally rejected. Discovery finds T3's managed runtime under `~/.t3/tools/antigravity-acp/<platform>/versions/<hash>` and its per-account profiles under `~/.t3/userdata/providers/antigravity/<profile>/antigravity-acp`. The launcher provides the packaged browser blocker, file-backed ACP storage and a profile-local temp directory. Interactive auth URLs are routed to the blocker rather than opened automatically. Windows live qualification on 2026-11-04: two managed profiles initialized, both reported authenticated with 13 native models (Gemini 4 Argon, Gemini 3.8 Flash families), and no Antigravity GUI process launched. ACP does not report quota; `olm usage` reads it from Code Assist `fetchAvailableModels` with the managed profile's own credential.
 
 ## Safety and billing
 

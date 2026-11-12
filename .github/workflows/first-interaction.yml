@@ -1,5 +1,10 @@
 name: Welcome first-time contributors
 
+# Greets only when GitHub itself labels the author as a first-timer on the event
+# payload (author_association). actions/first-interaction@v3 is deliberately not
+# used: its history check greets every PR author who has not opened a plain issue
+# (see the PR that introduced this change for the root cause).
+
 on:
   issues:
     types: [opened]
@@ -12,12 +17,27 @@ permissions:
 
 jobs:
   welcome:
+    # FIRST_TIMER: first contribution anywhere on GitHub.
+    # FIRST_TIME_CONTRIBUTOR: first contribution to this repository.
+    # OWNER, MEMBER, COLLABORATOR and CONTRIBUTOR never match.
+    if: >-
+      contains(fromJSON('["FIRST_TIMER","FIRST_TIME_CONTRIBUTOR"]'),
+      github.event.issue.author_association || github.event.pull_request.author_association)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/first-interaction@v3
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          issue_message: |
+      - name: Post greeting
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          IS_PR: ${{ github.event_name == 'pull_request_target' }}
+          ISSUE_MESSAGE: |
             Thanks for opening your first issue. Please include a minimal reproduction and redact tokens, account data, and personal paths. See CONTRIBUTING.md.
-          pr_message: |
+          PR_MESSAGE: |
             Thanks for your first pull request. Please fill in the PR template and keep tests synthetic. A maintainer will review soon.
+        run: |
+          if [ "$IS_PR" = "true" ]; then
+            gh pr comment "$NUMBER" --body "$PR_MESSAGE"
+          else
+            gh issue comment "$NUMBER" --body "$ISSUE_MESSAGE"
+          fi

@@ -149,3 +149,22 @@ operation:
 - A future desktop Providers page must reach these operations through the
   administrator surface with an explicit grant, never through the normal
   application token. That integration is not built yet.
+
+## Known limitations
+
+These paths are not verified against real installs and should be treated as
+unproven until each has been exercised on its platform:
+
+- The Homebrew, mise, Volta, pnpm, Bun, Yarn, Vite+, Chocolatey, WinGet and Nix
+  update paths, and the macOS and Linux layouts, are tested only against mocks.
+  Only the Windows-side behavior has been exercised on a real machine.
+- The Unix process-group-kill code has never been compiled (the work was done on
+  Windows), so it is untested on any Unix target.
+- The providers' own self-updaters (`claude update`, `codex`, `grok update` and
+  similar) have never been run against a live CLI by this change. Only
+  `providers check` and `providers update --dry-run` have been run on a real
+  machine.
+- The desktop Providers page is not wired to these operations; they are
+  reachable only through the `originlm providers` CLI.
+- Antigravity's version cannot be read from `--version`, so a real update would
+  skip it (reported as "not updated: the installed version could not be read").

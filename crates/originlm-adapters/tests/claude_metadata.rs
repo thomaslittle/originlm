@@ -55,6 +55,61 @@ fn normalized_usage_does_not_duplicate_legacy_buckets() {
     );
 }
 #[test]
+fn normalized_limits_are_named_from_their_kind_and_scope() {
+    let usage = json!({"rate_limits_available":true,"rate_limits":{"limits":[
+        {"kind":"session","percent":20,"resets_at":"2026-09-25T00:00:00Z"},
+        {"kind":"weekly_all","percent":40},
+        {"kind":"weekly_scoped","percent":5,"scope":{"model":{"display_name":"Example"}}},
+        {"kind":"weekly_scoped","percent":6},
+        {"kind":"mystery_kind","percent":1,"scope":{"model":{"display_name":"Example"}}}
+    ]}});
+    let r = parse_metadata("c", "r", &init(), Some(&usage)).unwrap();
+    let windows = &r.quota_pools[0].windows;
+    let seen: Vec<(&str, &str, Option<u32>)> = windows
+        .iter()
+        .map(|window| {
+            (
+                window.id.as_str(),
+                window.label.as_str(),
+                window.duration_seconds,
+            )
+        })
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            // The kind names no length, so none is claimed.
+            ("session-0", "Session", None),
+            ("weekly_all-1", "Weekly", Some(604_800)),
+            ("weekly_scoped-2", "Weekly · Example", Some(604_800)),
+            ("weekly_scoped-3", "Weekly (scoped)", Some(604_800)),
+            // An unknown kind keeps the provider's word visible.
+            (
+                "mystery_kind-4",
+                "mystery_kind (undocumented) · Example",
+                None
+            ),
+        ]
+    );
+}
+#[test]
+fn legacy_buckets_report_the_length_their_key_states() {
+    let usage = json!({"rate_limits_available":true,"rate_limits":{"five_hour":{"utilization":12,"resets_at":null},"seven_day":{"utilization":3,"resets_at":null},"seven_day_opus":{"utilization":4,"resets_at":null},"iguana_necktie":{"utilization":99,"resets_at":null}}});
+    let r = parse_metadata("c", "r", &init(), Some(&usage)).unwrap();
+    let length = |id: &str| {
+        r.quota_pools[0]
+            .windows
+            .iter()
+            .find(|window| window.id == id)
+            .unwrap()
+            .duration_seconds
+    };
+    assert_eq!(length("five_hour"), Some(18_000));
+    assert_eq!(length("seven_day"), Some(604_800));
+    assert_eq!(length("seven_day_opus"), Some(604_800));
+    assert_eq!(length("iguana_necktie"), None);
+}
+#[test]
 fn private_initialization_fields_and_secrets_do_not_escape() {
     let mut i = init();
     i["authToken"] = json!("TOKEN_SECRET");
