@@ -15,7 +15,8 @@ pub(super) fn parse(
     if !rates.is_object() {
         return Err(invalid());
     }
-    let mut rows: Vec<(String, String, Value)> = vec![];
+    // (id, label, duration in seconds when the key states one, reading)
+    let mut rows: Vec<(String, String, Option<u32>, Value)> = vec![];
     if let Some(limits) = rates["limits"].as_array() {
         if limits.len() > 128 {
             return Err(invalid());
@@ -23,11 +24,13 @@ pub(super) fn parse(
         for (index, limit) in limits.iter().enumerate() {
             let kind = text(&limit["kind"]).ok_or_else(invalid)?;
             let scope = text(&limit["scope"]["model"]["display_name"]);
+            // The id keeps the provider's kind, so a consumer can still tell
+            // a scoped window from an account-wide one without reading the
+            // label.
             rows.push((
                 format!("{kind}-{index}"),
-                scope
-                    .map(|s| format!("{kind} · {s}"))
-                    .unwrap_or_else(|| kind.into()),
+                limit_label(kind, scope),
+                limit_duration(kind),
                 serde_json::json!({"percent":limit["percent"],"resetsAt":limit["resets_at"]}),
             ));
         }
@@ -40,13 +43,14 @@ pub(super) fn parse(
                 rows.push((
                     key.clone(),
                     window_label(key),
+                    window_duration(key),
                     serde_json::json!({"percent":value["utilization"],"resetsAt":value["resets_at"]}),
                 ));
             }
         }
     }
     let mut windows = vec![];
-    for (id, label, row) in rows {
+    for (id, label, duration_seconds, row) in rows {
         let used = row["percent"]
             .as_f64()
             .filter(|n| n.is_finite() && *n >= 0.0 && *n <= 1000.0)
@@ -65,7 +69,7 @@ pub(super) fn parse(
             label,
             reading: Observation::reported(reading, source.clone()),
             resets_at: reset,
-            duration_seconds: None,
+            duration_seconds,
         });
     }
     // Monthly account spend is separate from the rolling session windows.
@@ -121,6 +125,45 @@ fn window_label(key: &str) -> String {
         "omelette_promotional" => "Promotional credit (omelette_promotional)".into(),
         other => format!("{other} (undocumented)"),
     }
+}
+
+const FIVE_HOURS: u32 = 5 * 60 * 60;
+const SEVEN_DAYS: u32 = 7 * 24 * 60 * 60;
+
+/// A window's length, only where the provider's own key states it. Credit
+/// and codename buckets say nothing about a length and stay unknown.
+fn window_duration(key: &str) -> Option<u32> {
+    match key {
+        "five_hour" => Some(FIVE_HOURS),
+        key if key == "seven_day" || key.starts_with("seven_day_") => Some(SEVEN_DAYS),
+        _ => None,
+    }
+}
+
+/// Labels for the normalized `limits` list. `kind` is the provider's own
+/// word; a kind this adapter does not know keeps that word visible, like an
+/// undocumented bucket key.
+fn limit_label(kind: &str, scope: Option<&str>) -> String {
+    let name = match kind {
+        "session" => "Session".to_owned(),
+        "weekly_all" => "Weekly".to_owned(),
+        // Limits one model family; the scope names it.
+        "weekly_scoped" => match scope {
+            Some(scope) => return format!("Weekly · {scope}"),
+            None => return "Weekly (scoped)".to_owned(),
+        },
+        other => format!("{other} (undocumented)"),
+    };
+    match scope {
+        Some(scope) => format!("{name} · {scope}"),
+        None => name,
+    }
+}
+
+/// `weekly_*` states a week. `session` states no length, so it stays
+/// unknown rather than assumed to be five hours.
+fn limit_duration(kind: &str) -> Option<u32> {
+    (kind == "weekly_all" || kind == "weekly_scoped").then_some(SEVEN_DAYS)
 }
 
 fn amount_percent(used: &Value, limit: &Value) -> Option<f64> {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix(claude): name the normalized usage windows from their kind and scope instead of the raw provider words. `session` reads "Session", `weekly_all` reads "Weekly" and `weekly_scoped` with a model scope reads "Weekly · <scope>"; a kind the adapter does not know keeps the provider's word, marked undocumented. Window ids are unchanged and still carry the kind. Windows whose key states a length now report `durationSeconds`: `five_hour`, `seven_day*` and `weekly_*`. `session` states none and stays unknown.
+
 ## 0.1.0-alpha.28 - 2026-11-11
 
 - Expose the `originlm` helper entry point as a library: `originlm_cli::run()` and `run_from()`. A Rust host can now build the helper from the published crate with its own lockfile and toolchain, so no prebuilt archive, pinned checksum or out-of-band compile is needed. No behavior, argument or protocol change.

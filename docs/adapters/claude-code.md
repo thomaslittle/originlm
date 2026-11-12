@@ -1,6 +1,6 @@
 # Claude Code native adapter
 
-The adapter uses the unmodified installed native Claude Code client and its own sign-in. Metadata uses its structured control initialization and optional `get_usage` control request; no user prompt is sent. Account/plan fields and native model/effort values are normalized with source evidence. Structured normalized usage windows take precedence over legacy aliases to avoid duplicated capacity. Missing information remains unknown.
+The adapter uses the unmodified installed native Claude Code client and its own sign-in. Metadata uses its structured control initialization and optional `get_usage` control request; no user prompt is sent. Account/plan fields and native model/effort values are normalized with source evidence. Structured normalized usage windows take precedence over legacy aliases to avoid duplicated capacity. Normalized windows are labelled from their kind and scope ("Session", "Weekly", "Weekly · <model scope>"); the window id keeps the provider's kind. A window reports a duration only when its key states one (`five_hour`, `seven_day*`, `weekly_*`); `session` states none. Missing information remains unknown.
 
 CLI grants: `--allow-metadata claude_code` and, separately, `--allow-execution claude_code --workspace ABSOLUTE_DIRECTORY`. Multiple `--allow-metadata` and `--allow-execution` flags can be supplied. The older Codex-specific flags remain supported.
 
