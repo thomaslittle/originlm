@@ -6729,6 +6729,7 @@ dependencies = [
 name = "originlm-cli"
 version = "0.1.0-alpha.28"
 dependencies = [
+ "fs4",
  "originlm-adapters",
  "originlm-chatgpt-auth",
  "originlm-contracts",
@@ -6738,9 +6739,13 @@ dependencies = [
  "originlm-kit",
  "originlm-platform",
  "originlm-service",
+ "originlm-store",
  "originlm-transports",
+ "reqwest",
+ "semver",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tempfile",
  "tokio",
 ]

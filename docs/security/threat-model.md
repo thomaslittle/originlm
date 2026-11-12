@@ -14,8 +14,22 @@ Native commands are structured arguments with owned-process cleanup. Wrappers ne
 
 Artifacts are bounded memory-only bytes, expire, and are private to their owner/session. Reading them never accepts a filesystem path. Browser downloads must not execute returned content. Cursor metadata comes from the installed `cursor-agent` CLI. Its dashboard allowance request is off by default; with `--allow-usage cursor` the adapter sends the session token Cursor already stored locally, keeps it in memory for that request only, and never logs, serializes, exports or writes it anywhere else. Without that grant the app shows the cached identity/plan as explicitly stale.
 
+Provider CLI updates (`originlm providers update`) are the only operation that
+runs a package manager or provider updater. They are reachable only from the
+local CLI, never from a broker, SDK, MCP or browser request, and never run
+automatically. An installer runs only when the binary's real path proves it
+owns the install. Ownership is re-read immediately before running, and a change
+is refused. Commands are structured arguments with stdin at EOF, one lock per
+install location, and a 30-minute timeout that kills the process tree. The
+re-probed version must be current for the update to count as success.
+Manual-only commands are displayed and never executed.
+
 ## Known limits
 
+A provider updater runs with the operator's privileges and downloads code from
+that provider's registry or release channel. OriginLM proves which installer
+owns a binary, not who published the update. A same-user attacker who can
+replace the package manager or provider binary can also subvert an update.
 A malicious application running as the same OS user can often inspect or replace that user's processes/files; checksums do not establish publisher authenticity. Native provider startup may honor user-configured extensions, hooks, or tools unless a supported isolated recipe is used. Unsupported provider policies fail closed rather than becoming a fictitious read-only mode.
 
 Live inference and macOS execution remain separate qualification requirements. The current native Google/Grok execution integration is not registered; its experimental recipes are not a supported authentication bypass. No compatibility with every installed client version is promised.

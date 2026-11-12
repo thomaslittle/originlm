@@ -24,6 +24,25 @@ This matrix separates implemented mechanics from provider facts that may be unkn
 | xAI API | Explicit API route configuration | API credential reference is route configuration, not Grok subscription evidence | API plan/quota unknown unless explicitly reported | Reported catalog/capability evidence | Implemented | Adapter sends Responses `input_image` parts (fixture-tested shape), but the catalog reports no `input.image`, so image turns are rejected | No provider tool execution; owned request cancellation | No | Separate from native Grok profiles. |
 | Compatible API | Explicit user-configured endpoint | Endpoint and API-key route configuration only | Unknown unless the endpoint reports supported fields | User-supplied or endpoint-reported metadata | Implemented for the documented text subset | Adapter sends Chat Completions `image_url` parts (fixture-tested shape), but no endpoint metadata reports `input.image`, so image turns are rejected | No provider tool execution; owned request cancellation | No | No model-name heuristics, assumed prices, or silent fallback. |
 
+## Provider CLI updates
+
+`originlm providers check` reports each discovered provider CLI's installed
+version, the latest version from its owning installer, and `current`,
+`behind_latest`, `manual_only` or `unknown`. `originlm providers update`
+runs only an installer proven to own the binary. It is explicit,
+CLI-only, and supports `--dry-run`. The per-provider support is:
+
+| Provider | Update support |
+|---|---|
+| Claude Code, Codex, OpenCode, Gemini CLI | Installer when the owner is proven (npm, Homebrew, mise, Volta, pnpm/Bun/Yarn/Vite+, or the provider's native layout). Otherwise manual-only with the reason shown. Chocolatey and WinGet Claude, Nix, the OpenCode desktop bundle and the T3-managed Gemini CLI are manual |
+| Grok, Pi | Installer through mise or Homebrew when proven, otherwise their own self-detecting updater (`grok update`, `pi update --self`). Nix and unverified Grok casks are manual |
+| Muse Code | mise or the official launcher on macOS/Linux. Manual on Windows |
+| Cursor, Antigravity, Kiro, fx | Manual-only. No updater is invented, and the real reason is reported |
+| Ollama, LM Studio, GitHub Copilot | Unsupported |
+
+See [provider CLI updates](provider-updates.md) for the ownership proofs,
+latest-version sources, runner safety and grant boundary.
+
 ## Unix executable command links
 
 Known Unix command candidates can resolve bounded executable symlinks while retaining logical and resolved identity. This is executable discovery, not publisher or account verification. See [supported behavior and platform evidence](unix-executable-links.md); macOS and live-account qualification are separate.

@@ -140,8 +140,10 @@ boundaries, not silent misses:
    credential-file or provider-billing endpoint access outside OriginLM's
    policy; native quota surfaces that are already published remain in
    `usage.read`.
-4. **Claude update status.** OriginLM does not report client update status, so
-   no native-release update check is performed.
+4. **Claude update status.** Passive discovery and the broker still do not
+   report client update status. The explicit `originlm providers check` command
+   does: for a native Claude install it reads Claude's own release channel.
+   See [provider CLI updates](../adapters/provider-updates.md).
 5. **macOS interactive qualification.** CI runs detection, the full verify
    matrix, and real installs on both macOS runners, but this Linux host cannot
    run a human interactive macOS session.

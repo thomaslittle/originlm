@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `originlm providers check|update` for provider CLI binaries (Claude Code, Codex, OpenCode, Gemini CLI, Grok, Pi, Muse Code; others report manual or unsupported with the reason). `check` reports the installed version, the latest version from the installer that owns the binary, and `current` / `behind_latest` / `manual_only` / `unknown`. `update` is explicit and CLI-only, and supports `--dry-run`. It runs only an installer proven to own the binary by its real path, one at a time per install, after re-reading ownership. Success requires the re-probed version to be current. Afterwards the provider's cached model metadata is dropped. No broker, SDK or MCP method exposes either command. See `docs/adapters/provider-updates.md`.
+
 ## 0.1.0-alpha.28 - 2026-11-11
 
 - Expose the `originlm` helper entry point as a library: `originlm_cli::run()` and `run_from()`. A Rust host can now build the helper from the published crate with its own lockfile and toolchain, so no prebuilt archive, pinned checksum or out-of-band compile is needed. No behavior, argument or protocol change.

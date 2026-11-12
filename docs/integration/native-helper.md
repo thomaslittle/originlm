@@ -22,6 +22,13 @@ originlm serve --stdio --allow-passive-discovery
 
 Imports, handshake, and cached snapshot reads do not scan. `--allow-passive-discovery` permits metadata-only requests. `--home ABSOLUTE_DIRECTORY` isolates roots/PATH/home overrides for deterministic tests and never falls back to the real home.
 
+`originlm providers check [--json]` reports each discovered provider CLI's
+installed version, the latest version from its owning installer, and its
+update status. `originlm providers update (--provider PROVIDER | --all)
+[--dry-run]` runs only an installer proven to own the binary. These are
+local-operator commands, and no broker, SDK or MCP method reaches them. See
+[provider CLI updates](../adapters/provider-updates.md).
+
 Stdio uses bounded UTF-8 newline JSON-RPC. The host supplies caller identity; request parameters cannot grant permissions or choose an arbitrary executable. Handshake precedes other operations. Subscribe to native events only when advertised. Large model catalogs can be read with [bounded pages](catalog-pages.md).
 
 ## TypeScript
