@@ -1,6 +1,6 @@
 # Session-history usage totals
 
-`originlm usage --json [--home ABSOLUTE_DIRECTORY]` reports token totals from
+`originlm usage --history [--json] [--home ABSOLUTE_DIRECTORY]` (also `olm usage --history` from npm) reports token totals from
 the local Claude Code, Codex, Gemini CLI, Grok, and Kiro session stores. The
 authenticated broker also serves the same report as `usage.history`, and the
 desktop Costs page shows the provider totals from `costs.read.historical`. It is an explicit, bounded,
@@ -55,7 +55,7 @@ total input over 512 MiB, more than 4096 files, or more than one line over
 
 A shared synthetic home with two Claude streaming writes and two Codex
 `token_count` events (one per model) was read by Tokscale `v4.21.0` and by
-`originlm usage`. Per-category results reconcile:
+`originlm usage --history`. Per-category results reconcile:
 
 | Category | OriginLM | Tokscale | Explanation |
 | --- | --- | --- | --- |

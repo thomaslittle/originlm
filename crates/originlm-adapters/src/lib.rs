@@ -17,6 +17,7 @@ pub mod muse;
 pub mod opencode;
 
 pub mod cursor;
+pub mod plan_usage;
 
 pub mod native_clients;
 

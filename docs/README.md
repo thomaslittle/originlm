@@ -52,6 +52,8 @@ tests, nextest settings, and the OS-level checks that are not PR gates.
 
 [CONTRIBUTING.md](../CONTRIBUTING.md), [Code of Conduct](../CODE_OF_CONDUCT.md), and [migration guide](integration/migration.md).
 
-## Cache-only MCP integration
+## MCP
+
+[Built-in MCP server: `originlm mcp` usage tools for Claude Code, Codex and T3](integration/mcp-server.md).
 
 [Cached usage MCP, host and remote handlers](integration/cached-usage-mcp.md).
