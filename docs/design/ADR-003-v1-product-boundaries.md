@@ -26,6 +26,29 @@ local control plane. Some granted metadata adapters access provider-owned
 credentials in memory; do not claim that only the native CLI ever reads them.
 The security policy and adapter evidence describe those boundaries precisely.
 
+### Provider CLI updates (2026-11-12)
+
+OriginLM can update provider CLI binaries on the host
+(`originlm providers update`). This is the first operation that mutates the
+host outside OriginLM's own state, so its boundary is recorded here:
+
+- It is explicit and local-operator-only: a CLI command, with `--dry-run`. It
+  never runs automatically, in the background, or on discovery or refresh.
+- No broker method, SDK call or MCP tool exposes it, so a connected
+  application cannot reach host mutation. The normal application token is not
+  widened. A desktop control-center surface, if added, must be
+  administrator-gated and explicitly granted.
+- It runs only an installer proven to own the binary by its real path.
+  Manual-only installs show a command and never run it. Success requires the
+  re-probed version to be current.
+- `originlm providers check` contacts package registries and release channels
+  only when the operator runs it. Imports, scans and broker startup still make
+  no network request.
+
+This does not change the self-update path (`originlm-update`), which keeps its
+Ed25519 verification. Third-party CLIs are not signed by OriginLM, and
+OriginLM does not claim to verify their publisher.
+
 ## Consequences
 
 Human-facing headings and navigation use OriginLM. Code snippets and commands

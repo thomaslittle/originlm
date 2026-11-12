@@ -10,6 +10,8 @@ mod endpoints;
 mod host;
 mod image_cli;
 mod native_profiles;
+mod provider_updates;
+mod providers_cli;
 mod status;
 use args::{Action, Args};
 use originlm_contracts::{DomainError, ErrorCode, Result};
@@ -78,6 +80,7 @@ Usage:
       `providers` (connected clients) and `usage_history` (local token totals).
       Reads the same providers as `usage` by default; --no-usage and --allow-metadata as there.
       Reads quota through the installed clients; never starts a model turn.
+  originlm providers check|update ...   (see below)
   originlm --version
 
 Metadata observations are kept in the broker-owned state directory (state.db,
@@ -105,7 +108,10 @@ tool access, native approval review, and paid options each require their own fla
 Native policy delegates tool and filesystem/network limits to the installed client;
 it is not a Kit sandbox. HTTP is loopback-only
 and requires explicit single-use browser pairing. No tokens are printed.
---home isolates all discovery roots and excludes the inherited PATH/overrides.";
+--home isolates all discovery roots and excludes the inherited PATH/overrides.
+
+Provider CLI updates (local operator only; no broker, SDK or MCP method runs them):
+";
 
 /// Host-initiated warm-up (opt-in). It uses only what the host already permitted for browsers:
 /// one passive scan, then metadata checks. Different providers run concurrently; the profiles of
@@ -763,10 +769,16 @@ pub fn run_from(arguments: impl IntoIterator<Item = std::ffi::OsString>) -> std:
         if arguments.first().is_some_and(|command| command == "image") {
             return image_cli::run(arguments.into_iter().skip(1));
         }
+        if arguments
+            .first()
+            .is_some_and(|command| command == "providers")
+        {
+            return providers_cli::run(arguments.into_iter().skip(1));
+        }
         let args = Args::parse(arguments)?;
         match args.action {
             Action::Help => {
-                println!("{HELP}");
+                println!("{HELP}{}", providers_cli::HELP);
                 return Ok(0);
             }
             Action::Version => {
