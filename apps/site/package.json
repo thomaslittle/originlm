@@ -6,7 +6,8 @@
   "description": "OriginLM landing page: one local runtime for AI usage and for apps built on the user's own AI.",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5177 --strictPort",
-    "build": "tsc -p tsconfig.json --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir .prerender && node scripts/prerender.mjs",
+    "fetch:versions": "node scripts/fetch_versions.mjs",
+    "build": "node scripts/fetch_versions.mjs && tsc -p tsconfig.json --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir .prerender && node scripts/prerender.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 5177 --strictPort",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:contrast": "node scripts/check_contrast.mjs"

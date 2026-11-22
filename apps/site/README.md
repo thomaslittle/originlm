@@ -16,7 +16,7 @@ npm run check:contrast
 - `src/App.tsx`: Six-section landing page (Hero → Problem & Architecture → How it works → SDKs → Control center → Install).
 - `src/RouteWorkbench.tsx`: Interactive 3-stage flow (`01 Installed agents → 02 OriginLM runtime & SDK → 03 Your app output`) showing route resolution, explicit execution grants (`requires_host_approval`), live SDK code, and streamed events.
 - `src/styles/site.css`: Flat matte surfaces, 1px hairline borders, signal-only accents, 35/35 WCAG AA verified contrast pairs.
-- `src/data/facts.ts` & `src/data/providers.ts`: Copy and provider metadata (Antigravity covers Gemini models).
+- `src/data/facts.ts`, `src/data/providers.ts`, & `src/data/versions.generated.ts`: Copy, provider metadata (Antigravity covers Gemini 4 Neon), and build-time published versions fetched by `scripts/fetch_versions.mjs` from npm (`alpha` dist-tag), PyPI, and crates.io (`max_version`), with repo-file fallback and an unpublished-version guardrail.
 
 ## Deploying to Cloudflare Pages
 
