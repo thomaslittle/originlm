@@ -627,9 +627,7 @@ fn antigravity_t3_managed_acp_runtime_is_discovered() {
     fs::write(runtime.join("agy_acp_server.exe"), b"ACP_SERVER").unwrap();
     fs::write(runtime.join("localharness_external.exe"), b"HARNESS").unwrap();
     fs::create_dir_all(tmp.path().join(".gemini/antigravity")).unwrap();
-    let profile = tmp
-        .path()
-        .join(".t3/userdata/providers/antigravity/profile/antigravity-acp");
+    let profile = tmp.path().join(".gemini/antigravity-acp");
     fs::create_dir_all(&profile).unwrap();
     let env = environment(tmp.path(), HostPlatform::Windows);
     let result = scan(&env);

@@ -79,7 +79,7 @@ source that provider's own client uses. No model turn is started.
 | OpenCode | The local OpenCode service's workspace limits | Rolling, weekly and monthly OpenCode Go limits |
 | Muse Code | Muse `usage/read` | Plan windows once Muse has observed usage for the login; until then the row says so |
 | Grok | Grok's ACP `_x.ai/billing` extension | Credit usage for the current period (weekly for SuperGrok) and the tier |
-| Antigravity | Google Code Assist `fetchAvailableModels`, with the managed profile's own `acp_token.json` | Remaining quota per model family (Claude, Gemini, GPT-OSS) and the Google tier |
+| Antigravity | Google Code Assist `retrieveUserQuotaSummary`, with the login the `agy` CLI saved in the OS credential store (`gemini:antigravity`) | 5-hour and weekly windows for Gemini, Gemini 4 Argon and Claude and GPT (shared), and the Google tier |
 | Gemini CLI | Google Code Assist `retrieveUserQuota` with the CLI's saved Google login | Per-model quota for a Google-login profile. A Gemini API key or Vertex AI profile has no plan quota, and the row says which |
 | GitHub Copilot | `api.github.com/copilot_internal/user` for the GitHub account signed in to `gh` | Premium requests, chat and completions allowances, monthly reset |
 | Pi | OpenRouter `/api/v1/key` for an OpenRouter login saved in Pi | Dollars used on the key, and the limit when one is set. Other Pi logins have no usage call |

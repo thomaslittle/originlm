@@ -6694,6 +6694,7 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "keyring",
  "originlm-contracts",
  "originlm-discovery",
  "originlm-platform",

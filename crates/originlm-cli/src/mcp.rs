@@ -571,8 +571,8 @@ fn reading_missing_reason(row: &Value) -> Option<String> {
             "Pi login `{}` has no usage source",
             name.to_ascii_lowercase()
         )
-    } else if has("ANTIGRAVITY_LOGIN_REFRESH_FAILED") {
-        "Antigravity's saved login could not be refreshed".to_owned()
+    } else if has("ANTIGRAVITY_LOGIN_EXPIRED") {
+        "Antigravity's saved login has expired; open the agy CLI to renew it".to_owned()
     } else if has("ANTIGRAVITY_CREDENTIAL") {
         "no saved Antigravity login for this profile".to_owned()
     } else if has("GROK_BILLING_UNAVAILABLE") {
