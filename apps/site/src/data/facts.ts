@@ -4,7 +4,7 @@
 export { PROVIDERS, OP_LABELS } from "./providers";
 export type { ProviderEntry, OpState } from "./providers";
 
-export const VERSION = "0.1.0-alpha.28";
+export const VERSION = "0.1.0-alpha.29";
 export const REPO = "https://github.com/thomaslittle/originlm";
 export const DOCS = {
   quickstarts: `${REPO}/blob/main/docs/integration/quickstarts.md`,
@@ -20,12 +20,12 @@ export const DOCS = {
 
 export const INSTALL = [
   { id: "npm", label: "npm", cmd: "npm install originlm@alpha" },
-  { id: "pip", label: "pip", cmd: "pip install originlm==0.1.0a28" },
+  { id: "pip", label: "pip", cmd: "pip install originlm==0.1.0a29" },
   { id: "cargo", label: "cargo", cmd: "cargo add originlm@=0.1.0-alpha.28" },
   { id: "cli", label: "cli", cmd: "npm i -g originlm@alpha && olm usage" },
 ] as const;
 export const STATUS = "Published alpha · MIT";
-export const STATUS_LONG = "Published alpha at 0.1.0-alpha.28 on npm (Linux x64/arm64, Windows x64), PyPI and crates.io (build from source on macOS). The olm CLI / MCP launcher is on main for the next alpha. MIT licensed.";
+export const STATUS_LONG = "Published alpha at 0.1.0-alpha.29 on npm (Linux x64/arm64, Windows x64, with olm/originlm on PATH) and PyPI (0.1.0a29); crates.io is at 0.1.0-alpha.28. Build from source on macOS. MIT licensed.";
 
 export const TAGLINE = "See your AI. Build with it.";
 export const ONE_LINER = "A local control center for the AI you already have, and the developer platform that lets your applications use it.";
