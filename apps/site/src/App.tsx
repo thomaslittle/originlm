@@ -219,6 +219,7 @@ export default function App() {
           <nav aria-label="Footer">
             <ul>
               <li><a href={DOCS.quickstarts}>Quickstarts</a></li>
+              <li><a href={DOCS.mcp}>CLI &amp; MCP</a></li>
               <li><a href={DOCS.broker}>Shared broker</a></li>
               <li><a href={DOCS.matrix}>Support matrix</a></li>
               <li><a href={DOCS.threat}>Threat model</a></li>
@@ -237,7 +238,8 @@ const STEP_CODE: Record<(typeof HOW)[number]["id"], string> = {
   discover: `const { connections, quotaPools } =
   await ai.snapshot.get();`,
   grant: `await ai.grants.request({
-  connectionIds: [pick.connectionId],
+  connectionIds: [connection.id],
+  workspaceId: "notes",
   allowPaid: false,
 }); // never approves itself`,
   call: `await ai.turns.start({
@@ -480,8 +482,13 @@ function ControlCenterSection() {
         <div className="sb-cc-actions">
           <div className="sb-cmd-bar">
             <span className="sb-ps1" aria-hidden="true">$</span>
+            <code>{CONTROL_CENTER.cli}</code>
+            <Copy value={CONTROL_CENTER.cli} label="Copy the olm usage CLI command" />
+          </div>
+          <div className="sb-cmd-bar">
+            <span className="sb-ps1" aria-hidden="true">$</span>
             <code>{CONTROL_CENTER.run}</code>
-            <Copy value={CONTROL_CENTER.run} label="Copy the desktop app command" />
+            <Copy value={CONTROL_CENTER.run} label="Copy the desktop app build command" />
           </div>
           <div>
             <button type="button" className="sb-btn sb-btn--sm" aria-expanded={showShot} onClick={() => setShowShot((s) => !s)}>
@@ -490,6 +497,24 @@ function ControlCenterSection() {
           </div>
         </div>
       </div>
+
+      {showShot && (
+        <figure className="sb-shot-box">
+          <img
+            src="/screens/desktop-overview.webp"
+            srcSet="/screens/desktop-overview-800.webp 800w, /screens/desktop-overview.webp 1440w"
+            sizes="(max-width: 760px) 100vw, 1080px"
+            alt="OriginLM desktop control center in example mode showing per-account allowance windows and unknown readings."
+            width={1440}
+            height={920}
+            loading="lazy"
+          />
+          <figcaption>
+            <span>Control center overview · example mode (synthetic data, no accounts inspected).</span>
+            <a href="/screens/desktop-overview.webp" target="_blank" rel="noreferrer">Open full size ↗</a>
+          </figcaption>
+        </figure>
+      )}
 
       <div className="sb-allow-head">
         <span className="sb-label">Allowances · percent left in each reported window</span>
@@ -536,24 +561,6 @@ function ControlCenterSection() {
           );
         })}
       </ul>
-
-      {showShot && (
-        <figure className="sb-shot-box">
-          <img
-            src="/screens/desktop-overview.webp"
-            srcSet="/screens/desktop-overview-800.webp 800w, /screens/desktop-overview.webp 1440w"
-            sizes="(max-width: 760px) 100vw, 1080px"
-            alt="OriginLM desktop control center in example mode showing per-account allowance windows and unknown readings."
-            width={1440}
-            height={920}
-            loading="lazy"
-          />
-          <figcaption>
-            <span>Control center overview · example mode (synthetic data, no accounts inspected).</span>
-            <a href="/screens/desktop-overview.webp" target="_blank" rel="noreferrer">Open full size ↗</a>
-          </figcaption>
-        </figure>
-      )}
     </div>
   );
 }

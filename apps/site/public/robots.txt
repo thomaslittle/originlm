@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://originlm.dev/sitemap.xml
+Sitemap: https://originlm.pages.dev/sitemap.xml

@@ -4,11 +4,12 @@
 export { PROVIDERS, OP_LABELS } from "./providers";
 export type { ProviderEntry, OpState } from "./providers";
 
-export const VERSION = "0.1.0-alpha.25";
+export const VERSION = "0.1.0-alpha.28";
 export const REPO = "https://github.com/thomaslittle/originlm";
 export const DOCS = {
   quickstarts: `${REPO}/blob/main/docs/integration/quickstarts.md`,
   install: `${REPO}/blob/main/docs/integration/install.md`,
+  mcp: `${REPO}/blob/main/docs/integration/mcp-server.md`,
   broker: `${REPO}/blob/main/docs/integration/shared-broker.md`,
   matrix: `${REPO}/blob/main/docs/adapters/SUPPORT-MATRIX.md`,
   threat: `${REPO}/blob/main/docs/security/threat-model.md`,
@@ -19,11 +20,12 @@ export const DOCS = {
 
 export const INSTALL = [
   { id: "npm", label: "npm", cmd: "npm install originlm@alpha" },
-  { id: "pip", label: "pip", cmd: "pip install originlm==0.1.0a25" },
-  { id: "cargo", label: "cargo", cmd: "cargo add originlm@=0.1.0-alpha.25" },
+  { id: "pip", label: "pip", cmd: "pip install originlm==0.1.0a28" },
+  { id: "cargo", label: "cargo", cmd: "cargo add originlm@=0.1.0-alpha.28" },
+  { id: "cli", label: "cli", cmd: "npm i -g originlm@alpha && olm usage" },
 ] as const;
 export const STATUS = "Published alpha · MIT";
-export const STATUS_LONG = "Published alpha on npm (the alpha tag), PyPI and crates.io at 0.1.0-alpha.25. The API can change between alpha revisions. MIT licensed.";
+export const STATUS_LONG = "Published alpha at 0.1.0-alpha.28 on npm (Linux x64/arm64, Windows x64), PyPI and crates.io (build from source on macOS). The olm CLI / MCP launcher is on main for the next alpha. MIT licensed.";
 
 export const TAGLINE = "See your AI. Build with it.";
 export const ONE_LINER = "A local control center for the AI you already have, and the developer platform that lets your applications use it.";
@@ -71,10 +73,11 @@ export const SESSION_FEATURES = [
 ] as const;
 
 export const CONTROL_CENTER = {
-  line: "The control center: a native desktop app and a terminal UI over the same public API.",
+  line: "The control center: a CLI (olm usage and olm mcp), a terminal UI, and a native desktop app over the same public API.",
   views: ["Overview", "Providers", "Models", "Usage charts", "Connected apps", "Sessions", "Playground", "Diagnostics"],
-  note: "It shows quota windows only as the client reports them. Unknown stays unknown, never a guessed zero.",
-  run: "cargo run -p originlm-desktop",
+  note: "It shows quota windows only as the client reports them. Unknown stays unknown, never a guessed zero. Install globally for olm usage / olm mcp, or build the desktop app from source:",
+  cli: "npm i -g originlm@alpha && olm usage",
+  run: "git clone https://github.com/thomaslittle/originlm && cd originlm && cargo run -p originlm-desktop",
 };
 
 export type DemoRoute = { id: string; name: string; providerId: string; query: string; model: string; kind: "subscription" | "local"; reply: string };
@@ -88,26 +91,43 @@ export const DEMO_ROUTES: DemoRoute[] = [
 export function tsCall(route: DemoRoute, prompt = "Summarize the open questions in these notes."): string {
   return `import { createLocalAI } from "originlm";
 
-const ai = await createLocalAI();
-const [pick] = await ai.selection.resolve({
-  query: "${route.query}",
-  requiredCapabilities: ["generation.text"],
-  eligibleOnly: true,
+const ai = await createLocalAI({
+  auto: {
+    probeProviders: ["${route.providerId}"],
+    executionProviders: ["${route.providerId}"],
+    workspace: { notes: process.cwd() },
+  },
 });
-const session = await ai.sessions.create({
-  selection: pick.selection,
-  workspaceId: "notes",
-  permissionMode: "read_only",
-});
-const events = ai.events.subscribe({ sessionId: session.id });
-await ai.turns.start({
-  sessionId: session.id,
-  requestId: crypto.randomUUID(),
-  prompt: "${prompt}",
-});
-for await (const { payload } of events) {
-  if (payload.type === "text_delta") render(payload.text);
-  if (payload.type === "final") break;
+try {
+  await ai.discovery.refresh({ level: "passive" });
+  const conns = (await ai.connections.list()).filter((c) => c.providerId === "${route.providerId}");
+  for (const c of conns) await ai.connections.probe({ connectionId: c.id }).catch(() => {});
+  const [pick] = await ai.selection.resolve({
+    query: "${route.query}",
+    requiredCapabilities: ["generation.text"],
+    eligibleOnly: true,
+  });
+  if (!pick) {
+    console.log("No eligible ${route.query} route yet — sign in to ${route.name} first.");
+  } else {
+    const session = await ai.sessions.create({
+      selection: pick.selection,
+      workspaceId: "notes",
+      permissionMode: "read_only",
+    });
+    const events = ai.events.subscribe({ sessionId: session.id });
+    await ai.turns.start({
+      sessionId: session.id,
+      requestId: crypto.randomUUID(),
+      prompt: "${prompt}",
+    });
+    for await (const { payload } of events) {
+      if (payload.type === "text_delta") process.stdout.write(payload.text);
+      if (payload.type === "final") break;
+    }
+  }
+} finally {
+  await ai.close();
 }`;
 }
 

@@ -46,19 +46,26 @@ function grantRequestSnippet(agent: Agent): string {
   return `import { createLocalAI } from "originlm";
 
 const ai = await createLocalAI();
-const { connections } = await ai.snapshot.get();
-const pick = connections.find(
-  (c) => c.providerId === "${agent.route.providerId}",
-);
-
-// Discovery is not permission. Ask the host first:
-const res = await ai.grants.request({
-  connectionIds: [pick.connectionId],
-  workspaceId: "notes",
-  allowPaid: false,
-});
-// -> { status: "requires_host_approval" }
-// Changes nothing until the host grants execution.`;
+try {
+  await ai.discovery.refresh({ level: "passive" });
+  const { connections } = await ai.snapshot.get();
+  const pick = connections.find(
+    (c) => c.providerId === "${agent.route.providerId}",
+  );
+  if (!pick) {
+    console.log("${agent.name} not detected on this machine.");
+  } else {
+    // Discovery is not permission. Ask the host first:
+    const res = await ai.grants.request({
+      connectionIds: [pick.id],
+      workspaceId: "notes",
+      allowPaid: false,
+    });
+    console.log(res); // -> { status: "requires_host_approval" }
+  }
+} finally {
+  await ai.close();
+}`;
 }
 
 type LogEvent = { n: string; k: string; v: string; tone?: "ok" | "hold" };
@@ -288,7 +295,7 @@ export function RouteWorkbench() {
             ) : agent.state === "refused" ? (
               <span><strong>{agent.name}:</strong> metadata only — <code>selection.resolve</code> returns <code>[]</code>.</span>
             ) : (
-              <span><strong className="is-ok">One integration:</strong> switch agents and only line 5 (<code>query</code>) changes.</span>
+              <span><strong className="is-ok">One integration:</strong> switch agents and only the provider and <code>query</code> change.</span>
             )}
           </div>
         </figure>
