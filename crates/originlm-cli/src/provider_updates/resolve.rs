@@ -170,7 +170,30 @@ fn text(path: &Path) -> String {
 fn parent(path: &str) -> Option<String> {
     let trimmed = path.trim_end_matches(['/', '\\']);
     let index = trimmed.rfind(['/', '\\'])?;
-    Some(trimmed[..index].to_owned())
+    if index == 0 {
+        Some("/".to_owned())
+    } else if index == 2 && trimmed.as_bytes().get(1) == Some(&b':') {
+        Some(trimmed[..3].to_owned())
+    } else {
+        Some(trimmed[..index].to_owned())
+    }
+}
+
+fn join_segments(base: &str, segments: &[&str], windows: bool) -> PathBuf {
+    let sep = if windows { '\\' } else { '/' };
+    let mut out = base.trim_end_matches(['/', '\\']).to_owned();
+    if out.is_empty() && base.starts_with('/') {
+        out.push('/');
+    } else if out.len() == 2 && out.as_bytes().get(1) == Some(&b':') {
+        out.push(sep);
+    }
+    for segment in segments {
+        if !out.is_empty() && !out.ends_with(['/', '\\']) {
+            out.push(sep);
+        }
+        out.push_str(segment);
+    }
+    PathBuf::from(out)
 }
 
 fn is_under(path: &str, directory: &str) -> bool {
@@ -179,10 +202,8 @@ fn is_under(path: &str, directory: &str) -> bool {
 }
 
 fn command_name(path: &Path) -> String {
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
+    let normalized = layout::normalize(&text(path));
+    let name = normalized.rsplit('/').next().unwrap_or("").to_owned();
     for extension in [".exe", ".cmd", ".bat", ".ps1"] {
         if let Some(stem) = name.strip_suffix(extension) {
             return stem.to_owned();
@@ -692,13 +713,11 @@ fn resolve_package_managed(
         );
     }
     if layout::is_volta_shim(&real_text)
-        && let Some(volta_home) = configured.parent().and_then(Path::parent)
+        && let Some(volta_home) = parent(&configured_text).and_then(|dir| parent(&dir))
     {
-        let image = package
-            .split('/')
-            .fold(volta_home.join("tools/image/packages"), |dir, part| {
-                dir.join(part)
-            });
+        let mut parts = vec!["tools", "image", "packages"];
+        parts.extend(package.split('/'));
+        let image = join_segments(&volta_home, &parts, windows);
         if host.is_dir(&image) {
             return global(
                 "volta",
@@ -723,14 +742,14 @@ fn resolve_package_managed(
             return None;
         }
         // Windows npm shims sit beside `node_modules`.
-        let shim_dir = configured.parent()?;
-        let manifest = package
-            .split('/')
-            .fold(shim_dir.join("node_modules"), |dir, part| dir.join(part))
-            .join("package.json");
+        let shim_dir = parent(&configured_text)?;
+        let mut parts = vec!["node_modules"];
+        parts.extend(package.split('/'));
+        parts.push("package.json");
+        let manifest = join_segments(&shim_dir, &parts, true);
         host.is_file(&manifest).then(|| {
             (
-                text(shim_dir),
+                shim_dir,
                 format!(
                     "{configured_text} is an npm shim beside {}",
                     text(&manifest)
