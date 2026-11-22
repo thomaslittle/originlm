@@ -76,7 +76,7 @@ export const PROVIDERS: ProviderEntry[] = [
     kind: "Native client",
     glyph: "AG",
     ops: ops({ auth: "partial", models: "yes", text: "partial", images: "partial", approvals: "yes", resume: "yes" }),
-    note: "Native client for Gemini models. Needs a dedicated ACP runtime profile; the IDE launcher is rejected, and text-only sessions are refused when read tools cannot be disabled.",
+    note: "Native client for Gemini 4 Neon. Needs a dedicated ACP runtime profile; the IDE launcher is rejected, and text-only sessions are refused when read tools cannot be disabled.",
   },
   {
     id: "muse",

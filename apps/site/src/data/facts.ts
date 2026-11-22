@@ -81,7 +81,7 @@ export type DemoRoute = { id: string; name: string; providerId: string; query: s
 export const DEMO_ROUTES: DemoRoute[] = [
   { id: "codex", name: "Codex", providerId: "codex", query: "codex", model: "gpt-5-codex", kind: "subscription", reply: "Three notes mention the launch. Two are drafts; one has a date: Thursday." },
   { id: "claude", name: "Claude Code", providerId: "claude_code", query: "claude", model: "sonnet", kind: "subscription", reply: "Found 4 TODOs across 2 files. The oldest is in sync.ts, line 88." },
-  { id: "gemini", name: "Antigravity", providerId: "antigravity", query: "antigravity", model: "gemini-2.5-pro", kind: "subscription", reply: "The meeting notes list two owners for the same task. Pick one?" },
+  { id: "gemini", name: "Antigravity", providerId: "antigravity", query: "antigravity", model: "gemini-4-neon", kind: "subscription", reply: "The meeting notes list two owners for the same task. Pick one?" },
   { id: "ollama", name: "Ollama", providerId: "ollama", query: "ollama", model: "llama3.2", kind: "local", reply: "Summary: the photo set has 212 images, 31 near-duplicates." },
 ];
 

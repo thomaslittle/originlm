@@ -26,7 +26,7 @@ const AGENTS: Agent[] = [
   { id: "codex", name: "Codex", sub: "subscription", state: "exec", route: route("codex") },
   { id: "claude", name: "Claude Code", sub: "subscription", state: "exec", route: route("claude") },
   { id: "ollama", name: "Ollama", sub: "local runtime", state: "exec", route: route("ollama") },
-  { id: "gemini", name: "Antigravity", sub: "Gemini · conditional", state: "partial", route: route("gemini"), note: note("antigravity") },
+  { id: "gemini", name: "Antigravity", sub: "Gemini 4 Neon · conditional", state: "partial", route: route("gemini"), note: note("antigravity") },
   { id: "cursor", name: "Cursor", sub: "metadata only", state: "refused", route: bare("cursor", "Cursor", "cursor"), note: note("cursor") },
   { id: "copilot", name: "GitHub Copilot", sub: "detected only", state: "refused", route: bare("copilot", "GitHub Copilot", "copilot"), note: note("copilot") },
 ];

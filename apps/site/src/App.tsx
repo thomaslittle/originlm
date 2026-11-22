@@ -56,7 +56,7 @@ const ALLOWANCES: AllowanceCard[] = [
   {
     id: "antigravity",
     name: "Antigravity",
-    sub: "Google workspace · Gemini models",
+    sub: "Google workspace · Gemini 4 Neon",
     status: "Signed in",
     statusTone: "signal",
     windowLabel: "Count without a published total",
