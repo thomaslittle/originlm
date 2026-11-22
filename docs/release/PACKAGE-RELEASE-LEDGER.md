@@ -1,17 +1,27 @@
 # Official package release ledger
 
-Updated 2026-10-30. This ledger records what is actually built, verified and
+Updated 2026-11-22. This ledger records what is actually built, verified and
 published; it does not claim consumer migration before that happens.
 
 ## Registry status
 
-| Registry | Published state | Notes |
-| --- | --- | --- |
-| npm | `originlm@0.1.0-alpha.25` and the five `originlm-cli-*` helpers live under the `alpha` dist-tag | `latest` still points at `0.1.0-alpha.20`; moving it is a maintainer decision. The Windows package is `originlm-cli-windows-x64` |
-| crates.io | **14 of 14 live at `0.1.0-alpha.25`** | The `originlm` facade and the `originlm-cli` helper crate are published; `originlm-update` is not published |
-| PyPI | `originlm==0.1.0a25` live | manylinux 2.28 x86_64/aarch64, macOS Intel/ARM64, Windows x64 |
+Re-checked 2026-11-22 against the public npm, crates.io and PyPI APIs, the GitHub
+releases API and https://originlm.pages.dev/. `python scripts/release_dispatch.py
+verify` repeats this check.
 
-Registry status re-checked 2026-11-04 against the public npm, crates.io and PyPI APIs.
+| Channel | Published state | Notes |
+| --- | --- | --- |
+| npm | `originlm@0.1.0-alpha.29` on both `alpha` and `latest` | Its optional dependencies are the `originlm-cli-linux-x64`, `-linux-arm64` and `-windows-x64` helpers at `0.1.0-alpha.29` (`alpha` tag). The helpers' own `latest` tag still reads `0.1.0-alpha.20`, which no install resolves because the SDK pins exact versions. `originlm-cli-darwin-x64`/`-arm64` stopped at `0.1.0-alpha.27`; macOS builds from source |
+| crates.io | 14-crate closure at `0.1.0-alpha.29` | Published by `publish-crates.yml` run `45001371796` from `bce5fc1`; `originlm-update` is not published |
+| PyPI | `originlm==0.1.0a29` | Three wheels: manylinux 2.28 x86_64/aarch64 and Windows x64. No macOS wheel |
+| GitHub release | **No `v0.1.0-alpha.29` release** | Newest published prerelease is `v0.1.0-alpha.28` (no assets). Two stale drafts exist (`v0.1.0-alpha.24` and an untitled one) |
+| Site | https://originlm.pages.dev/ shows `0.1.0-alpha.29` / `0.1.0a29` | Deployed from `feat/switchboard-v2`, which is not merged into `main` |
+
+alpha.29 was prepared from `bce5fc1` (`chore(release): prepare 0.1.0-alpha.29`,
+preparation runs `44995197266` release, `44995197185` wheels, `44995197115`
+crates). Two channels were missed at first and dispatched by hand: npm `latest`
+and crates.io. [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md) and
+`scripts/release_dispatch.py` exist so that cannot recur.
 
 Publication uses the protected `release-npm`, `release-crates` and `release-pypi`
 environments. The preparation workflows remain read-only and secret-free.
