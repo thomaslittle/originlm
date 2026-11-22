@@ -107,7 +107,7 @@ EvidenceSource = TypedDict('EvidenceSource', {'adapterId': Required[str], 'adapt
 
 Freshness: TypeAlias = Literal['fresh', 'stale']
 
-GrantParams = TypedDict('GrantParams', {'allowPaid': NotRequired[bool], 'connectionIds': NotRequired[List[str]], 'scopes': NotRequired[List[str]]}, total=False)
+GrantParams = TypedDict('GrantParams', {'allowPaid': NotRequired[bool], 'connectionIds': NotRequired[List[str]], 'scopes': NotRequired[List[str]], 'workspaceId': NotRequired[Union[str, None]]}, total=False)
 
 HandshakeParams = TypedDict('HandshakeParams', {'clientName': NotRequired[Union[str, None]], 'protocolVersion': NotRequired[Union[str, None]]}, total=False)
 

@@ -130,6 +130,8 @@ pub struct GrantParams {
     pub scopes: Vec<String>,
     #[serde(default)]
     pub connection_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
     #[serde(default)]
     pub allow_paid: bool,
 }

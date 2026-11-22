@@ -2,13 +2,15 @@
 
 OriginLM has two equal entry points: a control center to see your AI, and SDKs
 for apps built on the AI a user already has. Neither requires an OriginLM account.
-All three registries carry `0.1.0-alpha.25` (checked 2026-11-04): npm under the `alpha` dist-tag (npm's `latest` tag still points at `0.1.0-alpha.20`, so install with `@alpha` or an exact version), the 14 Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a25` on PyPI:
+All three registries carry `0.1.0-alpha.28`: npm (`originlm@alpha`, also tagged `latest`), the Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a28` on PyPI. Prebuilt native helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a25
-cargo add originlm@=0.1.0-alpha.25
+pip install originlm==0.1.0a28
+cargo add originlm@=0.1.0-alpha.28
 ```
+
+For the terminal CLI (`olm usage`, `olm mcp`), install globally (`npm i -g originlm@alpha` once the `bin` launcher on `main` is published, or `cargo install originlm-cli`). See [CLI usage & MCP](mcp-server.md).
 
 There are no signed app installers or hosted one-line downloads yet. The source
 build below is for development and offline use; compilation is not a 60-second
@@ -77,8 +79,9 @@ Ctrl+Shift+M opens a mini-view inside its window. See the [dashboard guide](../u
 
 Use [the SDK and framework quickstarts](quickstarts.md) with the published
 packages, or with local packed artifacts for source development. Rust can use
-`originlm = "=0.1.0-alpha.25"` or a path dependency; Node/Electron and Python can
-auto-start the packaged helper. Explicit local helper paths are also supported.
+`originlm = "=0.1.0-alpha.28"` or a path dependency; Node/Electron and Python can
+auto-start the packaged helper on Linux (x64, arm64) and Windows (x64). Explicit
+local helper paths (`LAI_HELPER_PATH`) are also supported (required on macOS).
 
 The SDK does not install the dashboard or a background service. A granted,
 compatible shared broker is preferred; otherwise the app owns a private helper.

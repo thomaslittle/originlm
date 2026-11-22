@@ -14,8 +14,6 @@ const require = createRequire(import.meta.url);
 const PLATFORM_PACKAGES = {
   'linux-x64': 'originlm-cli-linux-x64',
   'linux-arm64': 'originlm-cli-linux-arm64',
-  'darwin-arm64': 'originlm-cli-darwin-arm64',
-  'darwin-x64': 'originlm-cli-darwin-x64',
   'win32-x64': 'originlm-cli-windows-x64',
 };
 
@@ -101,12 +99,48 @@ function uniqueAddress() {
   return Buffer.byteLength(candidate) <= 100 ? candidate : join('/tmp', name);
 }
 
+function validWorkspacePath(value) {
+  return typeof value === 'string' && value.length > 0 && value.length <= 4096
+    && isAbsolute(value) && !value.includes('\0')
+    && !value.startsWith('\\\\') && !value.startsWith('//')
+    && !/[\x00-\x1f\x7f]/.test(value);
+}
+
 function probeArgs(options) {
   const args = ['serve', '--ipc', options.address];
   if (options.passive !== false) args.push('--allow-passive-discovery');
+  const metadata = new Set();
   for (const provider of options.probeProviders ?? []) {
     if (typeof provider !== 'string' || !/^[a-z0-9_]{1,32}$/.test(provider)) throw fail('INVALID_REQUEST');
-    args.push('--allow-metadata', provider);
+    metadata.add(provider);
+  }
+  const execution = new Set();
+  for (const provider of options.executionProviders ?? []) {
+    if (typeof provider !== 'string' || !/^[a-z0-9_]{1,32}$/.test(provider)) throw fail('INVALID_REQUEST');
+    execution.add(provider);
+    metadata.add(provider);
+  }
+  for (const provider of metadata) args.push('--allow-metadata', provider);
+  for (const provider of execution) args.push('--allow-execution', provider);
+  if (execution.size > 0) {
+    if (options.workspace === undefined) throw fail('INVALID_REQUEST');
+    if (typeof options.workspace === 'string') {
+      if (!validWorkspacePath(options.workspace)) throw fail('INVALID_REQUEST');
+      args.push('--workspace', options.workspace);
+    } else if (options.workspace && typeof options.workspace === 'object' && !Array.isArray(options.workspace)) {
+      const entries = Object.entries(options.workspace);
+      if (entries.length === 0 || entries.length > 16) throw fail('INVALID_REQUEST');
+      for (const [id, path] of entries) {
+        if (!/^[A-Za-z0-9._-]{1,128}$/.test(id) || !validWorkspacePath(path)) throw fail('INVALID_REQUEST');
+        args.push('--workspace', `${id}=${path}`);
+      }
+    } else {
+      throw fail('INVALID_REQUEST');
+    }
+    if (options.allowPaid === true) args.push('--allow-paid-options');
+    if (options.allowWrites === true) args.push('--allow-writes');
+  } else if (options.workspace !== undefined || options.allowPaid === true || options.allowWrites === true) {
+    throw fail('INVALID_REQUEST');
   }
   return args;
 }

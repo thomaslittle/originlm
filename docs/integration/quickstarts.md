@@ -1,20 +1,104 @@
 # SDK and framework quickstarts
 
-All three registries carry `0.1.0-alpha.25` (checked 2026-11-04): npm under the `alpha` dist-tag (npm's `latest` tag still points at `0.1.0-alpha.20`, so install with `@alpha` or an exact version), the 14 Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a25` on PyPI:
+All three registries carry `0.1.0-alpha.28`: npm (`originlm@alpha`), the Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a28` on PyPI. Prebuilt native helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a25
-cargo add originlm@=0.1.0-alpha.25
+pip install originlm==0.1.0a28
+cargo add originlm@=0.1.0-alpha.28
 ```
 
-The local-artifact flow below remains for source development and offline
-verification. Use a synthetic home for verification; these examples never request
-inference.
+For the local-artifact source build workflow, see [Prepare local Node and Python artifacts](#prepare-local-node-and-python-artifacts) below. Use a synthetic home for verification; these examples never request inference unless you explicitly pass `executionProviders` and `workspace`.
+
+## Plain Node
+
+Install from npm:
+
+```sh
+npm install originlm@alpha
+```
+
+`hello.mjs`:
+
+```js
+import { createLocalAI } from 'originlm';
+const ai = await createLocalAI();
+try {
+  await ai.discovery.refresh({ level: 'passive' });
+  const snapshot = await ai.snapshot.get();
+  console.log(ai.mode, snapshot.revision, snapshot.connections.length);
+} finally {
+  await ai.close();
+}
+```
+
+No helper-path override is needed on Linux (x64, arm64) or Windows (x64) when the optional platform package is present. On macOS or for source-only iteration, set `LAI_HELPER_PATH` to an absolute helper executable. To grant explicit execution on a private helper, pass `auto: { probeProviders: ['codex'], executionProviders: ['codex'], workspace: { notes: process.cwd() } }` to `createLocalAI()`.
+
+For offline or source development, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
+
+```sh
+npm init -y
+npm install --offline --ignore-scripts "$ORIGINLM_ARTIFACTS"/originlm-*.tgz
+node hello.mjs
+```
+
+## Python
+
+Install from PyPI:
+
+```sh
+python -m pip install originlm==0.1.0a28
+```
+
+For offline or source development, install the matching wheel by its actual path:
+
+```sh
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a28-py3-none-PLATFORM.whl
+python hello.py
+```
+
+`PLATFORM` stands for the filename printed by the build; it is not a literal tag.
+`hello.py`:
+
+```python
+from originlm import Client
+with Client.auto() as ai:
+    print(ai.mode, ai.snapshot.get()['revision'])
+```
+
+For an async application, use `async with await AsyncClient.auto() as ai` and await
+RPC methods. Both forms own and close their private helper.
+
+## Rust
+
+```sh
+cargo new originlm-hello
+cd originlm-hello
+cargo add originlm@=0.1.0-alpha.28
+cargo run
+```
+
+For source development, use a path dependency instead:
+`cargo add originlm --path /absolute/path/to/originlm/crates/originlm`.
+
+`src/main.rs`:
+
+```rust
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut ai = originlm::LocalAi::start()?;
+    let snapshot = ai.snapshot()?;
+    println!("{:?}: {}", ai.mode(), snapshot.revision);
+    Ok(())
+}
+```
+
+Rust embeds the runtime if no helper exists. Use `ai.scan()?` for an explicit passive
+refresh. Metadata probes and execution need additional policy; a discovery signal is
+not permission to run a provider.
 
 ## Prepare local Node and Python artifacts
 
-From the checkout on macOS/Linux, after installing CONTRIBUTING's prerequisites:
+For source development and offline verification, after installing CONTRIBUTING's prerequisites:
 
 ```sh
 cargo build --locked --release -p originlm-cli --bin originlm
@@ -39,93 +123,6 @@ Use the manylinux 2.28 qualification workflow for a publishable Linux wheel;
 `--release` is required to remove the private publication guard. Windows can use the
 preparation workflow's x64 artifacts; the helper filename ends in `.exe`.
 [Release preparation](../release/PUBLISHING.md) lists the exact target set.
-
-## Plain Node
-
-Install from the registry:
-
-```sh
-npm install originlm
-```
-
-For offline or source development, set `ORIGINLM_ARTIFACTS` to the absolute artifact directory:
-
-```sh
-npm init -y
-npm install --offline --ignore-scripts "$ORIGINLM_ARTIFACTS"/originlm-*.tgz
-node hello.mjs
-```
-
-`hello.mjs`:
-
-```js
-import { createLocalAI } from 'originlm';
-const ai = await createLocalAI();
-try {
-  const snapshot = await ai.snapshot.get();
-  console.log(ai.mode, snapshot.revision);
-} finally {
-  await ai.close();
-}
-```
-
-Install both SDK and matching platform tarballs in that command. No helper-path
-override is needed when the optional platform package is present. For source-only
-iteration, `LAI_HELPER_PATH` can point at an absolute executable instead.
-
-## Python
-
-Install from the registry:
-
-```sh
-python -m pip install originlm==0.1.0a25
-```
-
-For offline or source development, install the matching wheel by its actual path:
-
-```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a25-py3-none-PLATFORM.whl
-python hello.py
-```
-
-`PLATFORM` stands for the filename printed by the build; it is not a literal tag.
-`hello.py`:
-
-```python
-from originlm import Client
-with Client.auto() as ai:
-    print(ai.mode, ai.snapshot.get()['revision'])
-```
-
-For an async application, use `async with await AsyncClient.auto() as ai` and await
-RPC methods. Both forms own and close their private helper.
-
-## Rust
-
-```sh
-cargo new originlm-hello
-cd originlm-hello
-cargo add originlm@=0.1.0-alpha.25
-cargo run
-```
-
-For source development, use a path dependency instead:
-`cargo add originlm --path /absolute/path/to/originlm/crates/originlm`.
-
-`src/main.rs`:
-
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut ai = originlm::LocalAi::start()?;
-    let snapshot = ai.snapshot()?;
-    println!("{:?}: {}", ai.mode(), snapshot.revision);
-    Ok(())
-}
-```
-
-Rust embeds the runtime if no helper exists. Use `ai.scan()?` for an explicit passive
-refresh. Metadata probes and execution need additional policy; a discovery signal is
-not permission to run a provider.
 
 ## Tauri
 
@@ -186,7 +183,8 @@ finally { await ai.close(); }
 
 A plain hosted website cannot use that API. No page-facing extension content bridge
 ships yet. The implemented alternative is the dashboard served by the helper at its
-own loopback origin: start `originlm serve --http --port 47821 --allow-passive-discovery`,
+own loopback origin: build the demo (`npm run build:demo`), start
+`originlm serve --http --port 47821 --assets /absolute/path/to/apps/demo/dist --allow-passive-discovery`,
 open the served dashboard, and exchange its one-time code. Cross-origin hosted-site
 pairing/PNA is not enabled. See [pairing](pairing.md) for the actual transport API.
 
@@ -194,5 +192,6 @@ pairing/PNA is not enabled. See [pairing](pairing.md) for the actual transport A
 
 The generated API is [protocol/methods.json](../../protocol/methods.json),
 [OpenAPI](../../protocol/openapi.json), TypeScript declarations and Python stubs.
-Negotiate methods through `runtime.handshake`; generated shapes do not grant access.
+Check negotiated methods through `ai.handshake.methods` (`runtime.handshake` on the wire);
+generated shapes do not grant access.
 See [troubleshooting and FAQ](troubleshooting.md) for missing helpers, grants and costs.

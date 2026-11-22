@@ -154,7 +154,7 @@ Or in `.mcp.json`. On Windows, npm's shim is `olm.cmd`, so run it through
 }
 ```
 
-On macOS and Linux, use `"command": "olm", "args": ["mcp", "--allow-identity"]`.
+On Linux (and macOS after building `originlm-cli` from source and setting `LAI_HELPER_PATH`), use `"command": "olm", "args": ["mcp", "--allow-identity"]`.
 
 **Codex** (`~/.codex/config.toml`):
 

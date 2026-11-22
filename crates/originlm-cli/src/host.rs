@@ -2,7 +2,6 @@ use crate::args::{Action, Args};
 use originlm_core::ClientPolicy;
 pub use originlm_kit::default_state_dir;
 use originlm_service::ExecutionGrant;
-use std::collections::BTreeMap;
 pub fn validate_executable_only_sources(
     args: &Args,
     registry: &originlm_adapters::http_provider::config::Registry,
@@ -35,12 +34,12 @@ pub fn policy(args: &Args) -> ClientPolicy {
     policy
 }
 pub fn execution_grant(args: &Args) -> Option<ExecutionGrant> {
-    if !args.allow_execution {
+    if !args.allow_execution || args.workspaces.is_empty() {
         return None;
     }
     Some(ExecutionGrant {
         provider_ids: args.execution_providers.clone(),
-        workspaces: BTreeMap::from([("default".into(), args.workspace.clone()?)]),
+        workspaces: args.workspaces.clone(),
         allow_paid: args.allow_paid,
         allow_writes: args.allow_writes,
         review_native: args.review_requests,

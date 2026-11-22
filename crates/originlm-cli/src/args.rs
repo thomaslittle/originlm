@@ -1,5 +1,9 @@
 use originlm_contracts::{DomainError, ErrorCode, Result};
-use std::{collections::BTreeSet, ffi::OsString, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ffi::OsString,
+    path::PathBuf,
+};
 #[derive(Debug)]
 pub enum Action {
     Help,
@@ -50,7 +54,7 @@ pub struct Args {
     pub port: u16,
     pub assets: Option<PathBuf>,
     pub allow_execution: bool,
-    pub workspace: Option<PathBuf>,
+    pub workspaces: BTreeMap<String, PathBuf>,
     pub allow_writes: bool,
     pub review_requests: bool,
     pub allow_native_policy: bool,
@@ -72,6 +76,23 @@ fn absolute(value: OsString) -> Result<PathBuf> {
     } else {
         Ok(path)
     }
+}
+fn valid_workspace_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+}
+fn parse_workspace(value: OsString) -> Result<(String, PathBuf)> {
+    if let Ok(text) = value.clone().into_string()
+        && let Some((name, rest)) = text.split_once('=')
+        && valid_workspace_id(name)
+        && !rest.is_empty()
+    {
+        return Ok((name.to_owned(), absolute(OsString::from(rest))?));
+    }
+    Ok(("default".to_owned(), absolute(value)?))
 }
 impl Args {
     pub fn parse(input: impl IntoIterator<Item = OsString>) -> Result<Self> {
@@ -143,7 +164,7 @@ impl Args {
             port: 4499,
             assets: None,
             allow_execution: false,
-            workspace: None,
+            workspaces: BTreeMap::new(),
             allow_writes: false,
             review_requests: false,
             allow_native_policy: false,
@@ -164,6 +185,7 @@ impl Args {
                     "--allow-execution",
                     "--executable-only-provider",
                     "--no-usage",
+                    "--workspace",
                 ]
                 .contains(&flag)
             {
@@ -350,7 +372,10 @@ impl Args {
                     args.no_metadata_cache = true
                 }
                 "--workspace" if matches!(args.action, Action::Serve) => {
-                    args.workspace = Some(absolute(input.next().ok_or_else(invalid)?)?)
+                    let (id, path) = parse_workspace(input.next().ok_or_else(invalid)?)?;
+                    if args.workspaces.len() >= 16 || args.workspaces.insert(id, path).is_some() {
+                        return Err(invalid());
+                    }
                 }
                 "--assets" if matches!(args.action, Action::Serve) => {
                     args.assets = Some(absolute(input.next().ok_or_else(invalid)?)?)
@@ -453,7 +478,7 @@ impl Args {
                 || args.http
                 || args.independent
                 || args.allow_execution
-                || args.workspace.is_some()
+                || !args.workspaces.is_empty()
                 || args.grants_file.is_some()
                 || args.admin_token_file.is_some()
                 || args.warm_metadata
@@ -468,14 +493,14 @@ impl Args {
                 && args.native_profiles.is_none()
                 && args.billing_declarations.is_none())
             || (args.allow_execution
-                && (args.workspace.is_none()
+                && (args.workspaces.is_empty()
                     || !args.execution_providers.is_subset(&args.metadata_providers)))
             || (!args.allow_execution
                 && (args.allow_writes
                     || args.review_requests
                     || args.allow_native_policy
                     || args.allow_paid
-                    || args.workspace.is_some()))
+                    || !args.workspaces.is_empty()))
             || (args.independent
                 && (args.ipc.is_none()
                     || (args.token_file.is_none() && args.grants_file.is_none())))
@@ -894,6 +919,52 @@ mod additional_provider_tests {
                 "--workspace",
                 workspace.to_str().unwrap()
             ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn serve_accepts_named_and_default_workspaces() {
+        let workspace = std::env::temp_dir();
+        let named = format!("notes={}", workspace.to_str().unwrap());
+        let parsed = Args::parse(
+            [
+                "serve",
+                "--ipc",
+                "originlm-test",
+                "--allow-passive-discovery",
+                "--allow-metadata",
+                "codex",
+                "--allow-execution",
+                "codex",
+                "--workspace",
+                &named,
+                "--workspace",
+                workspace.to_str().unwrap(),
+            ]
+            .into_iter()
+            .map(OsString::from),
+        )
+        .unwrap();
+        assert_eq!(parsed.workspaces.get("notes"), Some(&workspace));
+        assert_eq!(parsed.workspaces.get("default"), Some(&workspace));
+        assert!(
+            Args::parse(
+                [
+                    "serve",
+                    "--ipc",
+                    "originlm-test",
+                    "--allow-metadata",
+                    "codex",
+                    "--allow-execution",
+                    "codex",
+                    "--workspace",
+                    &named,
+                    "--workspace",
+                    &named,
+                ]
+                .into_iter()
+                .map(OsString::from),
+            )
             .is_err()
         );
     }

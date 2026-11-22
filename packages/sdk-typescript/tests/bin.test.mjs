@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 const launcher = new URL('../bin/originlm.mjs', import.meta.url);
-const PLATFORMS = {'linux-x64':'linux-x64','linux-arm64':'linux-arm64','darwin-arm64':'darwin-arm64','darwin-x64':'darwin-x64','win32-x64':'windows-x64'};
+const PLATFORMS = {'linux-x64':'linux-x64','linux-arm64':'linux-arm64','win32-x64':'windows-x64'};
 const platform = PLATFORMS[`${process.platform}-${process.arch}`];
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 

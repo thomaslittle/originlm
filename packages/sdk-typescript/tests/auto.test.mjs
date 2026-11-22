@@ -16,12 +16,12 @@ function helper() {
   return {directory, binary};
 }
 
-test('platform packages mirror esbuild and Biome', () => {
+test('platform packages match published npm targets (Linux x64/arm64 and Windows x64)', () => {
   assert.equal(platformPackage('linux', 'x64'), 'originlm-cli-linux-x64');
   assert.equal(platformPackage('linux', 'arm64'), 'originlm-cli-linux-arm64');
-  assert.equal(platformPackage('darwin', 'arm64'), 'originlm-cli-darwin-arm64');
-  assert.equal(platformPackage('darwin', 'x64'), 'originlm-cli-darwin-x64');
   assert.equal(platformPackage('win32', 'x64'), 'originlm-cli-windows-x64');
+  assert.equal(platformPackage('darwin', 'arm64'), undefined);
+  assert.equal(platformPackage('darwin', 'x64'), undefined);
   assert.equal(platformPackage('freebsd', 'x64'), undefined);
 });
 
@@ -197,4 +197,54 @@ test('Electron packaged helpers resolve to the real unpacked tree',async()=>{
   if(previous===undefined)delete process.env.LAI_HELPER_PATH;else process.env.LAI_HELPER_PATH=previous;
   rmSync(directory,{recursive:true,force:true});
  }
+});
+
+test('openAutoTransport rejects executionProviders without an explicit workspace', async () => {
+  const {directory, binary} = helper();
+  try {
+    await assert.rejects(
+      openAutoTransport({executable: binary, token: '', executionProviders: ['codex']}),
+      /INVALID_REQUEST/,
+    );
+    await assert.rejects(
+      openAutoTransport({executable: binary, token: '', workspace: directory}),
+      /INVALID_REQUEST/,
+    );
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
+});
+
+test('openAutoTransport forwards explicit executionProviders and named workspaces', {skip: process.platform === 'win32'}, async () => {
+  const {directory, binary} = helper();
+  const observed = join(directory, 'argv.json');
+  writeFileSync(
+    binary,
+    `#!/usr/bin/env node
+import {writeFileSync} from 'node:fs';
+writeFileSync(process.env.LAI_ARGV_OUT, JSON.stringify(process.argv.slice(2)));
+process.exit(1);
+`,
+  );
+  try {
+    await assert.rejects(
+      openAutoTransport({
+        executable: binary,
+        token: '',
+        probeProviders: ['codex'],
+        executionProviders: ['codex'],
+        workspace: {notes: directory},
+        env: {LAI_ARGV_OUT: observed},
+      }),
+      /RUNTIME_MISSING/,
+    );
+    const argv = JSON.parse(readFileSync(observed, 'utf8'));
+    assert.ok(argv.includes('--allow-passive-discovery'));
+    assert.ok(argv.includes('--allow-metadata'));
+    assert.ok(argv.includes('--allow-execution'));
+    assert.ok(argv.includes('--workspace'));
+    assert.ok(argv.includes(`notes=${directory}`));
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
 });

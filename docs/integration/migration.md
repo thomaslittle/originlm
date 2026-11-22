@@ -1,6 +1,6 @@
 # Migrating to OriginLM
 
-This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. The 14 Rust crates (including `originlm-cli`), npm (`alpha` dist-tag) and PyPI are published at `0.1.0-alpha.25` as of 2026-11-04 (npm's `latest` tag is still `0.1.0-alpha.20`); signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
+This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. The published Rust crates (including `originlm-cli`), npm (`originlm@alpha`, Linux x64/arm64 and Windows x64 helpers) and PyPI (`originlm==0.1.0a28`) are at `0.1.0-alpha.28`; signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
 
 ## Provisional package identities
 
@@ -11,7 +11,7 @@ This repository is a fresh source distribution of the integrated Local AI Kit wo
 | React hooks | `@originlm/react` |
 | Framework independent selection | `@originlm/selector-core` |
 | React selectors | `@originlm/ui-react` |
-| Native helper npm packages | `originlm-cli-linux-x64`, `originlm-cli-linux-arm64`, `originlm-cli-darwin-x64`, `originlm-cli-darwin-arm64`, `originlm-cli-windows-x64` |
+| Native helper npm packages | `originlm-cli-linux-x64`, `originlm-cli-linux-arm64`, `originlm-cli-windows-x64` (macOS builds from source via `cargo install originlm-cli`) |
 | Python distribution and import | `originlm` / `import originlm` |
 | Public Rust facade | `originlm` / `use originlm::LocalAi` |
 | Rust implementation crates | `originlm-adapters`, `originlm-chatgpt-auth`, `originlm-cli`, `originlm-contracts`, `originlm-control`, `originlm-core`, `originlm-desktop`, `originlm-discovery`, `originlm-kit`, `originlm-platform`, `originlm-runtime`, `originlm-service`, `originlm-store`, `originlm-transports`, `originlm-update` |

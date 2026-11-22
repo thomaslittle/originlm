@@ -11,6 +11,12 @@ requires-python = ">=3.11"
 license = {text = "MIT"}
 classifiers = ["Private :: Do Not Upload"]
 
+[project.urls]
+Homepage = "https://originlm.pages.dev/"
+Repository = "https://github.com/thomaslittle/originlm"
+Documentation = "https://github.com/thomaslittle/originlm/blob/main/docs/integration/quickstarts.md"
+Issues = "https://github.com/thomaslittle/originlm/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

@@ -13,13 +13,25 @@ operation-specific.
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
 
-> **Published alpha.** The API can change between `0.1.0-alpha.N` revisions. The Rust `originlm` facade, the `originlm-cli` helper and their 14-crate closure are published at `0.1.0-alpha.22`; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run. Start with the [install guide](docs/integration/install.md) or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+> **Published alpha (`0.1.0-alpha.28`).** The API can change between `0.1.0-alpha.N` revisions. npm, PyPI, and crates.io are published at `0.1.0-alpha.28` (`0.1.0a28` on PyPI). Prebuilt npm helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`. Start with the [install guide](docs/integration/install.md), [CLI usage & MCP guide](docs/integration/mcp-server.md), or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
 
 ```sh
-npm install originlm
-pip install originlm==0.1.0a21
-cargo add originlm@=0.1.0-alpha.22
+npm install originlm@alpha
+pip install originlm==0.1.0a28
+cargo add originlm@=0.1.0-alpha.28
 ```
+
+### Instant CLI & MCP (`olm usage` / `olm mcp`)
+
+Install globally to check live plan allowances across every detected provider from your terminal or expose them over MCP (ships on `PATH` from the next alpha built from `main`, or today via `cargo install originlm-cli`):
+
+```sh
+npm i -g originlm@alpha
+olm usage
+olm mcp
+```
+
+See [CLI usage & built-in MCP server](docs/integration/mcp-server.md).
 
 ## What it does
 
@@ -211,9 +223,9 @@ try {
 
 | Platform | Status |
 |---|---|
-| Windows x64 | Runtime host implemented; unsigned x64 helper archive prepared by the release workflow. Older Windows versions are not independently qualified. |
-| Linux x64 | Runtime host supported; unsigned x86_64 and ARM64 glibc archives prepared on Ubuntu 24.04. Manylinux and older-glibc compatibility are not claimed. |
-| macOS | Intel and Apple-silicon helpers built and smoke-tested in CI with a macOS 15 deployment target; not manually qualified. |
+| Windows x64 | Runtime host implemented; prebuilt npm (`originlm-cli-windows-x64`) and PyPI (`win_amd64`) helpers published (unsigned). Older Windows versions are not independently qualified. |
+| Linux x64 / arm64 | Runtime host supported; prebuilt npm (`originlm-cli-linux-x64`, `originlm-cli-linux-arm64`) and manylinux 2.28 PyPI helpers published (unsigned). |
+| macOS | Build from source only (`cargo install originlm-cli` + `LAI_HELPER_PATH`). Prebuilt macOS release artifacts are not currently shipped on npm or in the release pipeline. |
 
 Status words in this repository are deliberate: **planned**, **implemented**, **fixture-tested**, **platform-executed**, and **live-qualified** mean different things. Most provider paths are fixture-tested; live qualification is called out per provider in the [support matrix](docs/adapters/SUPPORT-MATRIX.md).
 
@@ -242,6 +254,6 @@ Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the
 
 OriginLM is released under the [MIT License](LICENSE). It builds on and credits several open-source projects; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Provider and product names are trademarks of their owners; their use here does not imply affiliation or endorsement.
 
-## Distribution status
+## Brand & migration
 
-Names are provisional until reservation and registry access are confirmed. Source packages remain private/unpublishable. See [migration and package identities](docs/integration/migration.md). The user-supplied replacement artwork is recorded in [logo provenance](brand/PROVENANCE.md).
+Package identities and registry details are documented in [migration and package identities](docs/integration/migration.md). The replacement artwork is recorded in [logo provenance](brand/PROVENANCE.md).

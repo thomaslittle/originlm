@@ -6,6 +6,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage = "https://originlm.pages.dev/"
+documentation = "https://github.com/thomaslittle/originlm/blob/main/docs/integration/quickstarts.md"
 publish = true
 
 [lib]
