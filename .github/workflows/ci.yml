@@ -111,6 +111,7 @@ jobs:
         if: matrix.phase == 'verify'
         run: |
           npx --no-install playwright install --with-deps chromium
+          python -m playwright install chromium
       - name: Full deterministic verification (no provider inference)
         if: matrix.phase == 'verify'
         run: python scripts/verify.py --profile all
