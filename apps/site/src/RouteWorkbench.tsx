@@ -1,8 +1,10 @@
 /* Clean 3-stage logical request flow:
    01 Installed agents  ->  02 OriginLM runtime & SDK (route + grant + code)  ->  03 Your app output */
 import { useEffect, useState } from "react";
+import horizontalLogo from "./assets/brand/originlm-horizontal-dark.svg";
 import { DEMO_ROUTES, PROVIDERS, VERSION, tsCall, type DemoRoute } from "./data/facts";
 import { highlight } from "./lib/highlight";
+import { ProviderIcon } from "./ProviderIcon";
 
 type AgentState = "exec" | "partial" | "refused";
 type Agent = {
@@ -162,23 +164,23 @@ export function RouteWorkbench() {
         <ul className="sb-agent-list" role="listbox" aria-label="Select an installed agent">
           {AGENTS.map((a) => {
             const active = a.id === agent.id;
-            const dotClass = a.state === "exec" ? "sb-dot--signal" : a.state === "partial" ? "sb-dot--amber" : "sb-dot--none";
             return (
               <li key={a.id}>
                 <button
                   type="button"
                   role="option"
                   aria-selected={active}
+                  data-state={a.state}
                   className={`sb-agent${active ? " is-active" : ""}${active && isGranted ? " is-granted" : ""}${active && !isGranted ? " is-hold" : ""}`}
                   onClick={() => setSelectedId(a.id)}
                 >
-                  <span className="sb-agent-top">
-                    <span className="sb-agent-name">{a.name}</span>
-                    <span className="sb-agent-arrow" aria-hidden="true">{active ? "→" : ""}</span>
-                  </span>
-                  <span className="sb-agent-sub">
-                    <span className={`sb-dot ${dotClass}`} aria-hidden="true" />
-                    {a.sub}
+                  <ProviderIcon id={a.id} className="sb-agent-icon" />
+                  <span className="sb-agent-body">
+                    <span className="sb-agent-top">
+                      <span className="sb-agent-name">{a.name}</span>
+                      <span className="sb-agent-arrow" aria-hidden="true">{active ? "→" : ""}</span>
+                    </span>
+                    <span className="sb-agent-sub">{a.sub}</span>
                   </span>
                 </button>
               </li>
@@ -195,8 +197,17 @@ export function RouteWorkbench() {
 
       {/* STAGE 02: ORIGINLM RUNTIME & SDK */}
       <div className="sb-stage sb-stage--runtime">
-        <div className="sb-stage-head">
-          <span className="sb-label">02 · OriginLM runtime &amp; SDK</span>
+        <div className="sb-stage-head sb-stage-head--brand">
+          <span className="sb-stage-brand">
+            <span className="sb-label" aria-hidden="true">02 ·</span>
+            <img
+              src={horizontalLogo}
+              alt="OriginLM"
+              className="sb-stage-logo"
+              width={87}
+              height={20}
+            />
+          </span>
           <span className={`sb-tag${waitingForGrant ? " sb-tag--amber" : ""}`}>
             {waitingForGrant ? "requires_host_approval" : `SDK ${VERSION}`}
           </span>
