@@ -271,20 +271,15 @@ body.sb-body { margin: 0; background: #0b0d0c; overflow-x: clip; }
   display: block; height: 18px; width: auto; flex: none;
 }
 
-/* Directional connectors between stages */
+/* Directional connectors between stages: single geometric SVG line + centered arrowhead */
 .sb-link {
-  display: flex; align-items: center; justify-content: center; position: relative;
-  color: var(--rule-strong); font-family: var(--mono); font-size: var(--t-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--rule-strong);
 }
-.sb-link-line {
-  position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--rule);
-}
-.sb-link-arrow {
-  position: relative; z-index: 1; padding: 0 3px; background: var(--bg); line-height: 1;
-}
-.sb-link--signal .sb-link-line { background: var(--signal); }
+.sb-link-svg { display: block; flex: none; overflow: visible; }
+.sb-link-svg--h { width: 28px; height: 16px; }
+.sb-link-svg--v { display: none; width: 16px; height: 28px; }
 .sb-link--signal { color: var(--signal); }
-.sb-link--amber .sb-link-line { background: var(--amber); }
 .sb-link--amber { color: var(--amber); }
 
 /* Stage 01: Agent Selector */
@@ -453,7 +448,7 @@ body.sb-body { margin: 0; background: #0b0d0c; overflow-x: clip; }
 .sb-fig { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-2); min-width: 0; }
 .sb-fig svg { width: 100%; height: auto; display: block; }
 .sb-fig figcaption { display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: baseline; color: var(--ink-2); font-size: var(--t-sm); text-align: left; }
-.sb-fig-line { fill: none; stroke-width: 1.4; }
+.sb-fig-line { fill: none; stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: butt; }
 .sb-fig-line--amber { stroke: var(--amber); opacity: 0.45; }
 .sb-fig-line--signal { stroke: var(--signal); stroke-width: 1.8; }
 .sb-fig-line--dim { stroke: var(--rule-strong); }
@@ -682,8 +677,8 @@ body.sb-body { margin: 0; background: #0b0d0c; overflow-x: clip; }
   .sb-wb { grid-template-columns: minmax(0, 1fr); }
   .sb-agent-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sb-link { height: 28px; }
-  .sb-link-line { left: 50%; right: auto; top: 0; bottom: 0; width: 1px; height: auto; }
-  .sb-link-arrow { transform: rotate(90deg); padding: 2px 0; }
+  .sb-link-svg--h { display: none; }
+  .sb-link-svg--v { display: block; }
   .sb-problem, .sb-sdk, .sb-cc-top { grid-template-columns: minmax(0, 1fr); }
   .sb-steps { grid-template-columns: minmax(0, 1fr); }
   .sb-arch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

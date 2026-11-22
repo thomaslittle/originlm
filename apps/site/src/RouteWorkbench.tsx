@@ -72,6 +72,21 @@ function initialEvents(agent: Agent): LogEvent[] {
   ];
 }
 
+function StageConnector({ tone }: { tone: "signal" | "amber" }) {
+  return (
+    <div className={`sb-link sb-link--${tone}`} aria-hidden="true">
+      <svg className="sb-link-svg sb-link-svg--h" viewBox="0 0 28 16" fill="none">
+        <line x1="0" y1="8" x2="28" y2="8" stroke="currentColor" strokeWidth="1.5" />
+        <polyline points="12,4 16.5,8 12,12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <svg className="sb-link-svg sb-link-svg--v" viewBox="0 0 16 28" fill="none">
+        <line x1="8" y1="0" x2="8" y2="28" stroke="currentColor" strokeWidth="1.5" />
+        <polyline points="4,12 8,16.5 12,12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
 export function RouteWorkbench() {
   const [selectedId, setSelectedId] = useState<string>("codex");
   /* Codex starts granted so first paint streams/renders immediately; switching to another
@@ -190,10 +205,7 @@ export function RouteWorkbench() {
       </div>
 
       {/* CONNECTOR 1 -> 2 */}
-      <div className={`sb-link sb-link--${flowTone}`} aria-hidden="true">
-        <span className="sb-link-line" />
-        <span className="sb-link-arrow">→</span>
-      </div>
+      <StageConnector tone={flowTone} />
 
       {/* STAGE 02: ORIGINLM RUNTIME & SDK */}
       <div className="sb-stage sb-stage--runtime">
@@ -283,10 +295,7 @@ export function RouteWorkbench() {
       </div>
 
       {/* CONNECTOR 2 -> 3 */}
-      <div className={`sb-link sb-link--${flowTone}`} aria-hidden="true">
-        <span className="sb-link-line" />
-        <span className="sb-link-arrow">→</span>
-      </div>
+      <StageConnector tone={flowTone} />
 
       {/* STAGE 03: YOUR APP OUTPUT */}
       <div className="sb-stage sb-stage--output" aria-live="polite">

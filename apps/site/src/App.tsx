@@ -283,7 +283,7 @@ const CLIENTS = ["Claude Code", "Codex", "Antigravity", "Cursor", "Ollama"];
 
 function ManyToMany() {
   const ay = (i: number) => 56 + i * 74;
-  const cy = (j: number) => 30 + j * 48;
+  const cy = (j: number) => 34 + j * 48;
   return (
     <figure className="sb-fig">
       <svg viewBox="0 0 420 260" role="img" aria-labelledby="sb-m2m-t">
@@ -294,13 +294,13 @@ function ManyToMany() {
         {APPS.map((a, i) => (
           <g key={a}>
             <rect x="12" y={ay(i) - 13} width="104" height="26" rx="3" className="sb-fig-box" />
-            <text x="20" y={ay(i) + 4} className="sb-fig-label">{a}</text>
+            <text x="20" y={ay(i)} dominantBaseline="central" className="sb-fig-label">{a}</text>
           </g>
         ))}
         {CLIENTS.map((c, j) => (
           <g key={c}>
             <rect x="298" y={cy(j) - 13} width="110" height="26" rx="3" className="sb-fig-box" />
-            <text x="306" y={cy(j) + 4} className="sb-fig-label">{c}</text>
+            <text x="306" y={cy(j)} dominantBaseline="central" className="sb-fig-label">{c}</text>
           </g>
         ))}
       </svg>
@@ -310,31 +310,36 @@ function ManyToMany() {
 }
 
 function SingleRuntime() {
+  /* Every card center is symmetric around y = 130 (hub center):
+     Apps: 56, 130, 204 | Hub: y=106..154 (center 130) | Clients: 34, 82, 130, 178, 226.
+     Single non-overlapping bus paths ensure uniform stroke weight and clean 90-degree junctions. */
   const ay = (i: number) => 56 + i * 74;
-  const cy = (j: number) => 30 + j * 48;
+  const cy = (j: number) => 34 + j * 48;
   return (
     <figure className="sb-fig">
       <svg viewBox="0 0 420 260" role="img" aria-labelledby="sb-one-t">
         <title id="sb-one-t">With OriginLM: three apps each integrate once with OriginLM, which connects to all clients.</title>
-        {APPS.map((a, i) => (
-          <path key={a} className="sb-fig-line sb-fig-line--signal" d={`M116,${ay(i)} H144 V130 H164`} />
-        ))}
-        {CLIENTS.map((c, j) => (
-          <path key={c} className="sb-fig-line sb-fig-line--dim" d={`M256,130 H276 V${cy(j)} H298`} />
-        ))}
+        <path
+          className="sb-fig-line sb-fig-line--signal"
+          d={`M116,${ay(0)} H144 V${ay(2)} H116 M116,${ay(1)} H164`}
+        />
+        <path
+          className="sb-fig-line sb-fig-line--dim"
+          d={`M298,${cy(0)} H276 V${cy(4)} H298 M256,130 H298 M276,${cy(1)} H298 M276,${cy(3)} H298`}
+        />
         <rect x="164" y="106" width="92" height="48" rx="4" className="sb-fig-hub" />
-        <text x="210" y="128" textAnchor="middle" className="sb-fig-label sb-fig-label--ink">OriginLM</text>
-        <text x="210" y="143" textAnchor="middle" className="sb-fig-sub">local runtime</text>
+        <text x="210" y="124" textAnchor="middle" dominantBaseline="central" className="sb-fig-label sb-fig-label--ink">OriginLM</text>
+        <text x="210" y="139" textAnchor="middle" dominantBaseline="central" className="sb-fig-sub">local runtime</text>
         {APPS.map((a, i) => (
           <g key={a}>
             <rect x="12" y={ay(i) - 13} width="104" height="26" rx="3" className="sb-fig-box sb-fig-box--on" />
-            <text x="20" y={ay(i) + 4} className="sb-fig-label">{a}</text>
+            <text x="20" y={ay(i)} dominantBaseline="central" className="sb-fig-label">{a}</text>
           </g>
         ))}
         {CLIENTS.map((c, j) => (
           <g key={c}>
             <rect x="298" y={cy(j) - 13} width="110" height="26" rx="3" className="sb-fig-box" />
-            <text x="306" y={cy(j) + 4} className="sb-fig-label">{c}</text>
+            <text x="306" y={cy(j)} dominantBaseline="central" className="sb-fig-label">{c}</text>
           </g>
         ))}
       </svg>
