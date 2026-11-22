@@ -3,9 +3,9 @@
 //! uses:
 //!
 //! - Grok: the ACP `_x.ai/billing` extension (called from the ACP probe).
-//! - Antigravity: Google Code Assist `fetchAvailableModels` per-model quota,
-//!   authorized by the managed profile's own `acp_token.json` (refreshed in
-//!   memory with that file's own client; never written back).
+//! - Antigravity: Google Code Assist `retrieveUserQuotaSummary`, authorized by
+//!   the login the `agy` CLI saved in the operating system's credential store
+//!   (`gemini:antigravity`; read in memory, never refreshed or written back).
 //! - Gemini CLI: Code Assist `retrieveUserQuota` with the access token the CLI
 //!   saved in `oauth_creds.json`, only while it is unexpired. The file carries
 //!   no refresh client, so an expired login is reported, not refreshed.
@@ -18,10 +18,7 @@
 //! numbers.
 use originlm_contracts::*;
 use serde_json::{Value, json};
-use std::{
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{path::Path, time::Duration};
 
 const MAX_BODY: usize = 4 * 1024 * 1024;
 const MAX_FILE: u64 = 256 * 1024;
@@ -30,7 +27,6 @@ const CODE_ASSIST: &str = "https://cloudcode-pa.googleapis.com/v1internal";
 /// production host answers the same call with a freshly reset (all 100%)
 /// view for a login whose real consumption is tracked on the daily host.
 const CODE_ASSIST_DAILY: &str = "https://daily-cloudcode-pa.googleapis.com/v1internal";
-const GOOGLE_TOKEN_URI: &str = "https://oauth2.googleapis.com/token";
 
 fn unavailable(message: &str) -> DomainError {
     DomainError::new(ErrorCode::ProviderUnavailable, message)
@@ -404,86 +400,75 @@ async fn code_assist_at(
     .await
 }
 
-/// Where a managed Antigravity profile keeps its Google credential.
-pub fn antigravity_token_file(profile_home: &Path) -> Option<PathBuf> {
-    let mut candidates = vec![
-        profile_home.join("acp_token.json"),
-        profile_home.join("antigravity-acp").join("acp_token.json"),
-    ];
-    if let Some(parent) = profile_home.parent() {
-        candidates.push(parent.join("antigravity-acp").join("acp_token.json"));
-    }
-    candidates.into_iter().find(|path| path.is_file())
+/// The Google login the `agy` CLI itself saved: one JSON entry
+/// (`token.access_token`, `token.expiry`, ...) in the operating system's
+/// credential store under the target `gemini:antigravity`. Read in memory for
+/// one request; never refreshed (the CLI keeps it fresh), logged or written.
+#[cfg(windows)]
+fn antigravity_cli_login() -> Option<Value> {
+    let bytes = keyring::Entry::new_with_target("gemini:antigravity", "gemini", "antigravity")
+        .ok()?
+        .get_secret()
+        .ok()?;
+    (bytes.len() <= MAX_FILE as usize)
+        .then(|| serde_json::from_slice(&bytes).ok())
+        .flatten()
 }
 
-/// Per-model Antigravity quota for one managed profile.
+#[cfg(not(windows))]
+fn antigravity_cli_login() -> Option<Value> {
+    None
+}
+
+/// Antigravity quota for the account the `agy` CLI is signed in to.
 pub async fn antigravity(
     profile_home: &Path,
     connection: &str,
     route: &str,
 ) -> (Vec<QuotaPool>, Option<Observation<Plan>>, Vec<String>) {
-    let Some(path) = antigravity_token_file(profile_home) else {
+    // The CLI's login is per operating-system user, so it belongs to the
+    // CLI's own profile only; the IDE's and ACP profiles keep theirs elsewhere.
+    if profile_home.file_name().and_then(|name| name.to_str()) != Some("antigravity-cli") {
+        return (
+            vec![],
+            None,
+            vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
+        );
+    }
+    let Some(login) = tokio::task::spawn_blocking(antigravity_cli_login)
+        .await
+        .ok()
+        .flatten()
+    else {
         return (
             vec![],
             None,
             vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
         );
     };
-    let Some(file) = read_json(&path).await else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_CREDENTIAL_UNREADABLE".into()],
-        );
-    };
-    let fields = ["client_id", "client_secret", "refresh_token", "project_id"].map(|key| {
-        file[key]
-            .as_str()
-            .filter(|v| !v.is_empty() && v.len() <= 4096)
-    });
-    let [Some(client_id), Some(secret), Some(refresh), Some(project)] = fields else {
+    let token = login["token"]["access_token"]
+        .as_str()
+        .filter(|t| !t.is_empty() && t.len() <= 4096)
+        .map(|t| zeroize::Zeroizing::new(t.to_owned()));
+    let Some(token) = token else {
         return (
             vec![],
             None,
             vec!["ANTIGRAVITY_CREDENTIAL_INCOMPLETE".into()],
         );
     };
-    // Only Google's token endpoint may receive the client secret.
-    if file["token_uri"]
+    let expired = login["token"]["expiry"]
         .as_str()
-        .is_some_and(|uri| uri != GOOGLE_TOKEN_URI)
-    {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_TOKEN_URI_UNEXPECTED".into()],
-        );
+        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+        .is_some_and(|at| at.timestamp() <= chrono::Utc::now().timestamp() + 30);
+    if expired {
+        return (vec![], None, vec!["ANTIGRAVITY_LOGIN_EXPIRED".into()]);
     }
     let Ok(client) = client_for(Some("antigravity")) else {
         return (
             vec![],
             None,
             vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
-        );
-    };
-    let token = json_response(client.post(GOOGLE_TOKEN_URI).form(&[
-        ("client_id", client_id),
-        ("client_secret", secret),
-        ("refresh_token", refresh),
-        ("grant_type", "refresh_token"),
-    ]))
-    .await
-    .ok()
-    .and_then(|value| {
-        value["access_token"]
-            .as_str()
-            .map(|t| zeroize::Zeroizing::new(t.to_owned()))
-    });
-    let Some(token) = token else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_LOGIN_REFRESH_FAILED".into()],
         );
     };
     let Ok(hub) = antigravity_hub_client() else {
@@ -494,7 +479,7 @@ pub async fn antigravity(
         );
     };
     let requested_at = chrono::Utc::now();
-    let summary_request = json!({"project": project});
+    let summary_request = json!({});
     let (daily, prod, load) = tokio::join!(
         code_assist_at(
             &hub,
@@ -514,8 +499,7 @@ pub async fn antigravity(
             &client,
             &token,
             "loadCodeAssist",
-            json!({"cloudaicompanionProject": project,
-                   "metadata": {"ideType": "ANTIGRAVITY", "pluginType": "GEMINI", "duetProject": project}})
+            json!({"metadata": {"ideType": "ANTIGRAVITY", "pluginType": "GEMINI"}})
         ),
     );
     let evidence = source(
@@ -545,14 +529,7 @@ pub async fn antigravity(
         "antigravity",
         "Code Assist fetchAvailableModels quotaInfo",
     );
-    let Ok(models) = code_assist(
-        &client,
-        &token,
-        "fetchAvailableModels",
-        json!({"project": project}),
-    )
-    .await
-    else {
+    let Ok(models) = code_assist(&client, &token, "fetchAvailableModels", json!({})).await else {
         return (
             vec![],
             tier,
@@ -1201,18 +1178,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn antigravity_refuses_a_foreign_token_endpoint() {
+    async fn antigravity_reads_only_the_cli_profile() {
         let home = tempfile::tempdir().unwrap();
-        std::fs::write(
-            home.path().join("acp_token.json"),
-            json!({"client_id":"a","client_secret":"b","refresh_token":"c","project_id":"d",
-                   "token_uri":"https://example.com/token"})
-            .to_string(),
-        )
-        .unwrap();
         let (pools, _, diagnostics) = antigravity(home.path(), "c", "r").await;
         assert!(pools.is_empty());
-        assert_eq!(diagnostics, ["ANTIGRAVITY_TOKEN_URI_UNEXPECTED"]);
+        assert_eq!(diagnostics, ["ANTIGRAVITY_CREDENTIAL_NOT_FOUND"]);
     }
 
     #[tokio::test]
