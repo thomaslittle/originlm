@@ -117,7 +117,8 @@ impl NativeService {
                 )
             }
             "grants.request" => {
-                params::allow(p, &["scopes", "connectionIds", "allowPaid"])?;
+                params::allow(p, &["scopes", "connectionIds", "workspaceId", "allowPaid"])?;
+                let _: originlm_contracts::GrantParams = params::decode(p.clone())?;
                 // This is an approval request, never a permission mutation.
                 Ok(json!({"status":"requires_host_approval"}))
             }

@@ -49,6 +49,14 @@ export interface AutoTransportOptions {
   token?: string;
   /** Provider ids the private helper may probe (passive discovery is separate). */
   probeProviders?: string[];
+  /** Provider ids the private helper may execute turns on (requires workspace). */
+  executionProviders?: string[];
+  /** Absolute workspace path (registered as "default") or map of workspaceId -> absolute path. */
+  workspace?: string | Record<string, string>;
+  /** Allow paid / metered routes on the private helper (requires executionProviders). */
+  allowPaid?: boolean;
+  /** Allow workspace writes on the private helper (requires executionProviders). */
+  allowWrites?: boolean;
   /** Disable passive discovery in the private helper. */
   passive?: boolean;
   /** Explicit additions to the minimal inherited helper environment. */

@@ -1266,6 +1266,12 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "workspaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"

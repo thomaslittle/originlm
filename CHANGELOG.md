@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.1.0-alpha.29 - 2026-11-22
+
+- Add explicit execution grant options (`executionProviders`, `workspace`, `allowPaid`, `allowWrites`) to `createLocalAI({ auto })`, named/repeatable `--workspace [NAME=]ABSOLUTE_PATH` support in `originlm-cli`, and optional `workspaceId` on `grants.request`. Align npm/PyPI package READMEs, CLI platform tables, and docs with the Linux x64/arm64 + Windows x64 prebuilt target set (macOS build from source).
 - `npm i -g originlm` now puts `olm` and `originlm` on PATH. A dependency-free launcher in the `originlm` package runs the installed `originlm-cli-<platform>` helper with arguments, stdio and exit status unchanged, and prints a clear error if the platform package is missing. Before this, the global install linked no command.
 - **Behavior change:** `originlm usage` (`olm usage`) now prints plan usage for every AI provider and profile detected on this machine: percent used and left per window, reset times, plan, and whether each reading is live or cached with its age. Claude Code and Codex are read by default. Detected providers without a reading are listed with the reason. `--json` prints the same report. The previous output, local session-history token totals, is unchanged under `originlm usage --history [--json]`.
 - `olm usage` and the MCP `usage` tool now read usage by default from every detected provider with a usage source. Claude Code, Codex, Cursor, OpenCode and Muse use their existing readers. New readers:

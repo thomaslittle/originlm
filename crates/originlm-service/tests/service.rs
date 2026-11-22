@@ -153,7 +153,7 @@ async fn browser_request_cannot_grant_itself_more_permissions() {
         .handle(
             "app",
             "grants.request",
-            json!({"scopes":["discovery"],"connectionIds":[]}),
+            json!({"scopes":["discovery"],"connectionIds":[],"workspaceId":"notes","allowPaid":false}),
         )
         .await
         .unwrap();

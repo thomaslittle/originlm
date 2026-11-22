@@ -80,7 +80,7 @@ export type EvidenceSource = { "adapterId": string; "adapterVersion": string; "c
 
 export type Freshness = "fresh" | "stale";
 
-export type GrantParams = { "allowPaid"?: boolean; "connectionIds"?: Array<string>; "scopes"?: Array<string>; };
+export type GrantParams = { "allowPaid"?: boolean; "connectionIds"?: Array<string>; "scopes"?: Array<string>; "workspaceId"?: string | null; };
 
 export type HandshakeParams = { "clientName"?: string | null; "protocolVersion"?: string | null; };
 
