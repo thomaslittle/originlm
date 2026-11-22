@@ -26,6 +26,10 @@ use std::{
 const MAX_BODY: usize = 4 * 1024 * 1024;
 const MAX_FILE: u64 = 256 * 1024;
 const CODE_ASSIST: &str = "https://cloudcode-pa.googleapis.com/v1internal";
+/// The Antigravity hub reads its live quota from this host first: the
+/// production host answers the same call with a freshly reset (all 100%)
+/// view for a login whose real consumption is tracked on the daily host.
+const CODE_ASSIST_DAILY: &str = "https://daily-cloudcode-pa.googleapis.com/v1internal";
 const GOOGLE_TOKEN_URI: &str = "https://oauth2.googleapis.com/token";
 
 fn unavailable(message: &str) -> DomainError {
@@ -245,6 +249,47 @@ pub fn grok_billing(
     }
 }
 
+// ---------------------------------------------------------- Claude Code
+
+const CLAUDE_OAUTH_USAGE: &str = "https://api.anthropic.com/api/oauth/usage";
+/// The endpoint answers only a request whose User-Agent names Claude Code
+/// (anything else gets HTTP 429 at the first call). The product token comes
+/// first and OriginLM after it, like the other provider logins read here.
+const CLAUDE_USAGE_AGENT: &str = "claude-code/2.1.329";
+
+/// Claude Code's plan usage, read with the login the profile already holds.
+///
+/// `claude`'s `get_usage` control request makes this same call, but only after
+/// the client has finished starting, and on a busy machine it answers 15 to 20
+/// seconds late. A read here takes under a second and carries the normalized
+/// `limits` list with the model-scoped weekly window. The token stays in
+/// memory for one request and is never refreshed, logged or serialized; an
+/// expired or missing token returns `None` and the caller asks the client.
+pub async fn claude_oauth_usage(profile_home: &Path) -> Option<Value> {
+    let file = read_json(&profile_home.join(".credentials.json")).await?;
+    let login = &file["claudeAiOauth"];
+    let expires_ms = login["expiresAt"].as_i64()?;
+    if expires_ms <= chrono::Utc::now().timestamp_millis() + 60_000 {
+        return None;
+    }
+    let token = zeroize::Zeroizing::new(
+        login["accessToken"]
+            .as_str()
+            .filter(|t| !t.is_empty() && t.len() <= 4096)?
+            .to_owned(),
+    );
+    let usage = json_response(
+        client_for(Some(CLAUDE_USAGE_AGENT))
+            .ok()?
+            .get(CLAUDE_OAUTH_USAGE)
+            .bearer_auth(&*token)
+            .header("anthropic-beta", "oauth-2025-04-20"),
+    )
+    .await
+    .ok()?;
+    usage.is_object().then_some(usage)
+}
+
 // ------------------------------------------------- Code Assist (Google)
 
 /// One model's remaining fraction from Code Assist, grouped for display.
@@ -340,9 +385,19 @@ async fn code_assist(
     method: &str,
     body: Value,
 ) -> Result<Value> {
+    code_assist_at(client, CODE_ASSIST, token, method, body).await
+}
+
+async fn code_assist_at(
+    client: &reqwest::Client,
+    base: &str,
+    token: &str,
+    method: &str,
+    body: Value,
+) -> Result<Value> {
     json_response(
         client
-            .post(format!("{CODE_ASSIST}:{method}"))
+            .post(format!("{base}:{method}"))
             .bearer_auth(token)
             .json(&body),
     )
@@ -431,12 +486,29 @@ pub async fn antigravity(
             vec!["ANTIGRAVITY_LOGIN_REFRESH_FAILED".into()],
         );
     };
-    let (models, load) = tokio::join!(
-        code_assist(
-            &client,
+    let Ok(hub) = antigravity_hub_client() else {
+        return (
+            vec![],
+            None,
+            vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
+        );
+    };
+    let requested_at = chrono::Utc::now();
+    let summary_request = json!({"project": project});
+    let (daily, prod, load) = tokio::join!(
+        code_assist_at(
+            &hub,
+            CODE_ASSIST_DAILY,
             &token,
-            "fetchAvailableModels",
-            json!({"project": project})
+            "retrieveUserQuotaSummary",
+            summary_request.clone()
+        ),
+        code_assist_at(
+            &hub,
+            CODE_ASSIST,
+            &token,
+            "retrieveUserQuotaSummary",
+            summary_request
         ),
         code_assist(
             &client,
@@ -449,14 +521,38 @@ pub async fn antigravity(
     let evidence = source(
         EvidenceKind::CommunityEndpoint,
         "antigravity",
-        "Code Assist fetchAvailableModels quotaInfo",
+        "Code Assist retrieveUserQuotaSummary",
     );
     let tier = load
         .ok()
         .as_ref()
         .and_then(tier_label)
         .map(|label| plan(&label, &evidence));
-    let Ok(models) = models else {
+    let mut quota = pool(connection, route, None, "antigravity-models");
+    // Daily first: a bucket seen on both hosts keeps the daily reading.
+    let summaries: Vec<Value> = [daily, prod].into_iter().filter_map(Result::ok).collect();
+    quota.windows = summary_windows(&quota.id, &summaries, requested_at, &evidence);
+    if !quota.windows.is_empty() {
+        return (
+            vec![quota],
+            tier,
+            vec!["ANTIGRAVITY_USAGE_FROM_QUOTA_SUMMARY".into()],
+        );
+    }
+    // Older accounts expose only per-model quotas.
+    let evidence = source(
+        EvidenceKind::CommunityEndpoint,
+        "antigravity",
+        "Code Assist fetchAvailableModels quotaInfo",
+    );
+    let Ok(models) = code_assist(
+        &client,
+        &token,
+        "fetchAvailableModels",
+        json!({"project": project}),
+    )
+    .await
+    else {
         return (
             vec![],
             tier,
@@ -479,7 +575,6 @@ pub async fn antigravity(
             })
         })
         .collect();
-    let mut quota = pool(connection, route, None, "antigravity-models");
     quota.windows = model_windows(&quota.id, &quotas, &evidence);
     if quota.windows.is_empty() {
         return (vec![], tier, vec!["ANTIGRAVITY_QUOTA_NOT_REPORTED".into()]);
@@ -489,6 +584,129 @@ pub async fn antigravity(
         tier,
         vec!["ANTIGRAVITY_USAGE_FROM_CODE_ASSIST".into()],
     )
+}
+
+/// Code Assist returns the Gemini 5-hour and weekly windows only to a
+/// request that names the Antigravity hub in its User-Agent; any other agent
+/// receives the Claude/GPT buckets alone. OriginLM stays named after it.
+fn antigravity_hub_client() -> Result<reqwest::Client> {
+    let os = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .user_agent(format!(
+            "antigravity/hub/2.24.0 (aidev_client; os_type={os}; arch={arch}) originlm/{}",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .build()
+        .map_err(|_| unavailable("HTTP client unavailable"))
+}
+
+/// Windows from `retrieveUserQuotaSummary` answers, earlier answers first.
+/// A bucket id seen twice keeps its first reading. The bucket's own `window`
+/// states its length (`5h`, `weekly`); a bucket without one is labelled by
+/// the provider's name for it.
+pub fn summary_windows(
+    pool_id: &str,
+    summaries: &[Value],
+    requested_at: chrono::DateTime<chrono::Utc>,
+    source: &EvidenceSource,
+) -> Vec<UsageWindow> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut windows = vec![];
+    for summary in summaries {
+        let ungrouped = [json!({"buckets": summary["buckets"]})];
+        let groups = summary["groups"]
+            .as_array()
+            .filter(|groups| {
+                groups
+                    .iter()
+                    .any(|g| g["buckets"].as_array().is_some_and(|b| !b.is_empty()))
+            })
+            .map_or(&ungrouped[..], Vec::as_slice);
+        for group in groups {
+            for bucket in group["buckets"].as_array().into_iter().flatten().take(64) {
+                let Some(id) = bucket["bucketId"]
+                    .as_str()
+                    .filter(|id| !id.is_empty() && id.len() <= 128)
+                else {
+                    continue;
+                };
+                if bucket["disabled"] == true || !seen.insert(id.to_owned()) {
+                    continue;
+                }
+                let Some(remaining) = bucket["remainingFraction"]
+                    .as_f64()
+                    .filter(|f| f.is_finite())
+                else {
+                    continue;
+                };
+                let group_name = group["displayName"]
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|n| !n.is_empty());
+                let family = if id.starts_with("gemini-argon-") {
+                    group_name.unwrap_or("Gemini Argon")
+                } else if id.starts_with("gemini-carbon-") {
+                    group_name.unwrap_or("Gemini Carbon")
+                } else if id.starts_with("gemini-") {
+                    "Gemini"
+                } else if id.starts_with("3p-") {
+                    "Claude & GPT (shared)"
+                } else {
+                    group_name.unwrap_or(id)
+                };
+                let (span, duration): (String, Option<u32>) = match bucket["window"].as_str() {
+                    Some("5h") => ("5-hour".into(), Some(5 * 3600)),
+                    Some("weekly") => ("Weekly".into(), Some(7 * 86_400)),
+                    _ => (
+                        bucket["displayName"]
+                            .as_str()
+                            .map(str::trim)
+                            .filter(|n| !n.is_empty())
+                            .unwrap_or("Quota")
+                            .to_owned(),
+                        None,
+                    ),
+                };
+                // A window never drawn on reports a reset exactly one window
+                // length away; that is not a real reset time.
+                let reset_at = bucket["resetTime"]
+                    .as_str()
+                    .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                    .map(|t| t.with_timezone(&chrono::Utc));
+                let untouched = remaining == 1.0
+                    && bucket["description"].is_null()
+                    && duration.zip(reset_at).is_some_and(|(span, at)| {
+                        (at - requested_at).num_seconds().abs_diff(i64::from(span)) <= 60
+                    });
+                let reset = if untouched {
+                    None
+                } else {
+                    reset_at.and_then(|at| Timestamp::try_from(at.to_rfc3339()).ok())
+                };
+                if let Some(window) = percent_window(
+                    pool_id,
+                    id,
+                    format!("{family} · {span}"),
+                    (1.0 - remaining.clamp(0.0, 1.0)) * 100.0,
+                    reset,
+                    duration,
+                    source,
+                ) {
+                    windows.push(window);
+                }
+            }
+        }
+    }
+    windows
 }
 
 /// The auth type Gemini CLI is configured with (`settings.json`).

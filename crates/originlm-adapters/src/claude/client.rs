@@ -165,26 +165,46 @@ pub async fn probe_spec(
     connection: &str,
     route: &str,
 ) -> Result<ConnectionMetadata> {
+    let profile_home = spec
+        .env
+        .get(std::ffi::OsStr::new("CLAUDE_CONFIG_DIR"))
+        .map(std::path::PathBuf::from);
     let mut peer = Peer::spawn(spec).await?;
-    let outcome = tokio::time::timeout(Duration::from_secs(20), async {
+    // A cold Claude Code process takes 5 to 20 seconds to answer the first
+    // control request, and `get_usage` then waits on the network behind it.
+    // This runs in the background, so the budget covers the slow case rather
+    // than turning it into an empty meter.
+    let outcome = tokio::time::timeout(Duration::from_secs(75), async {
         let init = initialize(&mut peer).await?;
-        // A cold Claude Code process can take several seconds to answer the
-        // control request. This runs in the background, so waiting longer does
-        // not delay the window; it only turns a spurious empty meter into the
-        // quota the client already knows.
-        let (usage, usage_error) = match tokio::time::timeout(
-            Duration::from_secs(10),
-            control(&mut peer, json!({"subtype":"get_usage"})),
-        )
-        .await
-        {
-            Ok(Ok(value)) => (Some(value), None),
-            Ok(Err(error)) => (None, Some(format!("{:?}", error.code))),
-            Err(_) => (None, Some("Timeout".to_string())),
+        let direct = match &profile_home {
+            Some(home) => crate::plan_usage::claude_oauth_usage(home).await,
+            None => None,
+        };
+        let from_login = direct.is_some();
+        let (usage, usage_error) = match direct {
+            Some(rates) => (
+                Some(json!({"rate_limits_available":true,"rate_limits":rates})),
+                None,
+            ),
+            None => match tokio::time::timeout(
+                Duration::from_secs(45),
+                control(&mut peer, json!({"subtype":"get_usage"})),
+            )
+            .await
+            {
+                Ok(Ok(value)) => (Some(value), None),
+                Ok(Err(error)) => (None, Some(format!("{:?}", error.code))),
+                Err(_) => (None, Some("Timeout".to_string())),
+            },
         };
         let mut report = parse_metadata(connection, route, &init, usage.as_ref())?;
         if let Some(code) = usage_error {
             report.diagnostics.push(format!("USAGE_READ_FAILED_{code}"));
+        }
+        if from_login {
+            report
+                .diagnostics
+                .push("CLAUDE_USAGE_FROM_OAUTH_ENDPOINT".into());
         }
         if !report
             .diagnostics
