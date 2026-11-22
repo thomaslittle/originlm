@@ -1,6 +1,6 @@
 # Migrating to OriginLM
 
-This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. The published Rust crates (including `originlm-cli`), npm (`originlm@alpha`, Linux x64/arm64 and Windows x64 helpers) and PyPI (`originlm==0.1.0a28`) are at `0.1.0-alpha.28`; signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
+This repository is a fresh source distribution of the integrated Local AI Kit work. The original repository, consumers and running services are unchanged. npm (`originlm@alpha`, `0.1.0-alpha.29`, Linux x64/arm64 and Windows x64 helpers) and PyPI (`originlm==0.1.0a29`) carry the latest alpha helpers, and crates.io carries the Rust crates (`0.1.0-alpha.28`); signed runtime archives are not published yet. Keep existing consumers pinned to their working source until the migration passes packaging and consumer checks.
 
 ## Provisional package identities
 

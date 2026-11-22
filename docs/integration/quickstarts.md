@@ -1,10 +1,10 @@
 # SDK and framework quickstarts
 
-All three registries carry `0.1.0-alpha.28`: npm (`originlm@alpha`), the Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a28` on PyPI. Prebuilt native helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
+npm (`originlm@alpha`, `0.1.0-alpha.29`) and PyPI (`originlm==0.1.0a29`) ship prebuilt native helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io carries the Rust crates at `0.1.0-alpha.28`. On macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a28
+pip install originlm==0.1.0a29
 cargo add originlm@=0.1.0-alpha.28
 ```
 
@@ -47,13 +47,13 @@ node hello.mjs
 Install from PyPI:
 
 ```sh
-python -m pip install originlm==0.1.0a28
+python -m pip install originlm==0.1.0a29
 ```
 
 For offline or source development, install the matching wheel by its actual path:
 
 ```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a28-py3-none-PLATFORM.whl
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a29-py3-none-PLATFORM.whl
 python hello.py
 ```
 

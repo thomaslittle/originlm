@@ -2,15 +2,15 @@
 
 OriginLM has two equal entry points: a control center to see your AI, and SDKs
 for apps built on the AI a user already has. Neither requires an OriginLM account.
-All three registries carry `0.1.0-alpha.28`: npm (`originlm@alpha`, also tagged `latest`), the Rust crates including the `originlm-cli` helper on crates.io, and `originlm==0.1.0a28` on PyPI. Prebuilt native helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
+npm (`originlm@alpha`, `0.1.0-alpha.29`) and PyPI (`originlm==0.1.0a29`) ship prebuilt native helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io carries the Rust crates at `0.1.0-alpha.28`. On macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a28
+pip install originlm==0.1.0a29
 cargo add originlm@=0.1.0-alpha.28
 ```
 
-For the terminal CLI (`olm usage`, `olm mcp`), install globally (`npm i -g originlm@alpha` once the `bin` launcher on `main` is published, or `cargo install originlm-cli`). See [CLI usage & MCP](mcp-server.md).
+For the terminal CLI (`olm usage`, `olm mcp`), install globally (`npm i -g originlm@alpha` or `cargo install originlm-cli`). See [CLI usage & MCP](mcp-server.md).
 
 There are no signed app installers or hosted one-line downloads yet. The source
 build below is for development and offline use; compilation is not a 60-second

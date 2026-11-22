@@ -13,17 +13,17 @@ operation-specific.
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
 
-> **Published alpha (`0.1.0-alpha.28`).** The API can change between `0.1.0-alpha.N` revisions. npm, PyPI, and crates.io are published at `0.1.0-alpha.28` (`0.1.0a28` on PyPI). Prebuilt npm helpers ship for **Linux (x64, arm64)** and **Windows (x64)**; on macOS, build from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`. Start with the [install guide](docs/integration/install.md), [CLI usage & MCP guide](docs/integration/mcp-server.md), or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+> **Published alpha (`0.1.0-alpha.29`).** The API can change between `0.1.0-alpha.N` revisions. npm (`0.1.0-alpha.29`) and PyPI (`0.1.0a29`) ship prebuilt helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io is at `0.1.0-alpha.28`. On macOS, build from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`. Start with the [install guide](docs/integration/install.md), [CLI usage & MCP guide](docs/integration/mcp-server.md), or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a28
+pip install originlm==0.1.0a29
 cargo add originlm@=0.1.0-alpha.28
 ```
 
 ### Instant CLI & MCP (`olm usage` / `olm mcp`)
 
-Install globally to check live plan allowances across every detected provider from your terminal or expose them over MCP (ships on `PATH` from the next alpha built from `main`, or today via `cargo install originlm-cli`):
+Install globally to check live plan allowances across every detected provider from your terminal or expose them over MCP (puts `olm` and `originlm` on `PATH` on Linux x64/arm64 and Windows x64):
 
 ```sh
 npm i -g originlm@alpha
