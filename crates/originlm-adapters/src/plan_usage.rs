@@ -422,6 +422,7 @@ pub async fn antigravity(
     let profile = profile_home.to_path_buf();
     let read = tokio::task::spawn_blocking(move || match owner {
         Owner::Cli => login::cli_login(&profile),
+        Owner::T3 => login::t3_login(&profile),
         Owner::Ide => {
             // `~/.gemini/antigravity` always sits directly under the user home.
             let home = profile.parent()?.parent()?;
@@ -446,18 +447,12 @@ pub async fn antigravity(
         let code = match owner {
             Owner::Cli => "ANTIGRAVITY_LOGIN_EXPIRED",
             Owner::Ide => "ANTIGRAVITY_IDE_LOGIN_EXPIRED",
+            Owner::T3 => "ANTIGRAVITY_T3_LOGIN_EXPIRED",
         };
         return (vec![], None, vec![code.into()]);
     }
     let token = login.access_token;
-    let Ok(client) = client_for(Some("antigravity")) else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
-        );
-    };
-    let Ok(hub) = antigravity_hub_client() else {
+    let Ok(client) = antigravity_hub_client() else {
         return (
             vec![],
             None,
@@ -468,14 +463,14 @@ pub async fn antigravity(
     let summary_request = json!({});
     let (daily, prod, load) = tokio::join!(
         code_assist_at(
-            &hub,
+            &client,
             CODE_ASSIST_DAILY,
             &token,
             "retrieveUserQuotaSummary",
             summary_request.clone()
         ),
         code_assist_at(
-            &hub,
+            &client,
             CODE_ASSIST,
             &token,
             "retrieveUserQuotaSummary",
@@ -551,10 +546,11 @@ pub async fn antigravity(
 
 /// Code Assist returns the Gemini 5-hour and weekly windows only to a
 /// request that names the Antigravity hub in its User-Agent; any other agent
-/// receives the Claude/GPT buckets alone. OriginLM stays named after it.
+/// may receive an incomplete or newly reset view of those windows.
 fn antigravity_hub_client() -> Result<reqwest::Client> {
     let os = match std::env::consts::OS {
         "macos" => "darwin",
+        "windows" => "win32",
         other => other,
     };
     let arch = match std::env::consts::ARCH {
@@ -564,9 +560,9 @@ fn antigravity_hub_client() -> Result<reqwest::Client> {
     };
     reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent(format!(
-            "antigravity/hub/2.24.0 (aidev_client; os_type={os}; arch={arch}) originlm/{}",
-            env!("CARGO_PKG_VERSION")
+            "antigravity/hub/2.24.0 (aidev_client; os_type={os}; arch={arch}; cl=963137146)"
         ))
         .build()
         .map_err(|_| unavailable("HTTP client unavailable"))
@@ -602,7 +598,7 @@ pub fn summary_windows(
                 else {
                     continue;
                 };
-                if bucket["disabled"] == true || !seen.insert(id.to_owned()) {
+                if bucket["disabled"] == true {
                     continue;
                 }
                 let Some(remaining) = bucket["remainingFraction"]
@@ -611,6 +607,9 @@ pub fn summary_windows(
                 else {
                     continue;
                 };
+                if !seen.insert(id.to_owned()) {
+                    continue;
+                }
                 let group_name = group["displayName"]
                     .as_str()
                     .map(str::trim)

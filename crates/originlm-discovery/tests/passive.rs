@@ -679,3 +679,38 @@ fn antigravity_cli_from_its_windows_installer_is_discovered_off_path() {
         "the IDE profile lost its installation, so no usage read"
     );
 }
+
+#[test]
+fn enabled_t3_google_profile_is_discovered_for_usage_without_a_runtime() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = tmp.path().join(".t3/userdata");
+    let profile = state.join(
+        "providers/antigravity/3bceb243777d23fc90ba5d37b473feaf015806ed543f3b0aeb3633ee3c6c51ef",
+    );
+    let profiles_root = state.join("providers/antigravity");
+    fs::create_dir_all(profile.join("antigravity-acp")).unwrap();
+    for key in [
+        "stale",
+        "442a946ddea0f173c6714ca21007733db89722b7d25065a21a06021ce5535c53",
+        "e99e4223dd7e05dcd70244ccdd2a33a61414c31e9ce75ba1d20a71a35795343c",
+    ] {
+        fs::create_dir_all(profiles_root.join(key).join("antigravity-acp")).unwrap();
+    }
+    fs::write(state.join("settings.json"), r#"{"providerInstances":{
+            "antigravity_test_account":{"driver":"antigravity","enabled":true},
+            "antigravity_disabled":{"driver":"antigravity","enabled":true,"config":{"enabled":false}},
+            "antigravity_api_key":{"driver":"antigravity","enabled":true,"config":{"authMethod":"gemini-api-key"}}
+        }}"#).unwrap();
+    let env = environment(tmp.path(), HostPlatform::Windows);
+    let result = Scanner::new(NativeFilesystem)
+        .scan(&env, &AtomicBool::new(false), |_| {})
+        .unwrap();
+    let profiles: Vec<_> = result
+        .locations
+        .values()
+        .filter(|location| location.provider_id == "antigravity")
+        .collect();
+    assert_eq!(profiles.len(), 1);
+    assert_eq!(profiles[0].profile_home, profile);
+    assert!(profiles[0].executable.is_none());
+}

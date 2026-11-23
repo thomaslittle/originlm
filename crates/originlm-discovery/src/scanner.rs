@@ -14,6 +14,47 @@ fn path_key(path: &Path) -> String {
         .map(|b| format!("{b:02x}"))
         .collect()
 }
+// T3 keeps each Google account in a private profile keyed by its instance ID.
+fn t3_antigravity_profiles(
+    filesystem: &impl LocalFilesystem,
+    home: &Path,
+) -> Vec<std::path::PathBuf> {
+    let state = home.join(".t3/userdata");
+    let settings_path = state.join("settings.json");
+    if !matches!(filesystem.probe(&settings_path), Ok(EntryKind::File)) {
+        return vec![];
+    }
+    let Ok(chunk) = filesystem.read_chunk(&settings_path, 0, 1024 * 1024) else {
+        return vec![];
+    };
+    if chunk.truncated {
+        return vec![];
+    }
+    let Ok(settings) = serde_json::from_slice::<serde_json::Value>(&chunk.bytes) else {
+        return vec![];
+    };
+    settings["providerInstances"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(_, instance)| {
+            let config = &instance["config"];
+            instance["driver"] == "antigravity"
+                && instance["enabled"] != false
+                && config["enabled"] != false
+                && (instance["enabled"] == true || config["enabled"] == true)
+                && config["authMethod"].as_str().unwrap_or("oauth-personal") == "oauth-personal"
+        })
+        .map(|(id, _)| {
+            let key: String = Sha256::digest(id.as_bytes())
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect();
+            state.join("providers/antigravity").join(key)
+        })
+        .collect()
+}
+
 fn preferred_executable(
     binaries: &BTreeSet<std::path::PathBuf>,
     platform: HostPlatform,
@@ -393,6 +434,12 @@ impl<F: LocalFilesystem> Scanner<F> {
                 );
             }
             let default_root = roots.first().cloned();
+            let t3_profiles = if definition.id == "antigravity" {
+                t3_antigravity_profiles(&self.filesystem, &env.home)
+            } else {
+                vec![]
+            };
+            roots.extend(t3_profiles.iter().cloned());
             roots.sort();
             roots.dedup();
             if roots.len() > 16 {
@@ -437,7 +484,15 @@ impl<F: LocalFilesystem> Scanner<F> {
                 {
                     continue;
                 }
-                for (installation_index, executable) in executables.iter().cloned().enumerate() {
+                let t3_usage_only = t3_profiles.contains(&root);
+                let profile_executables = if t3_usage_only {
+                    &[None][..]
+                } else {
+                    &executables
+                };
+                for (installation_index, executable) in
+                    profile_executables.iter().cloned().enumerate()
+                {
                     let Some(profile_home) =
                         definition.profile_home_for(executable.as_deref(), &root)
                     else {
@@ -487,12 +542,14 @@ impl<F: LocalFilesystem> Scanner<F> {
                             version: Observation::unknown("VERSION_NOT_PROBED"),
                         });
                     }
-                    let mut label = if Some(&root) == default_root.as_ref() {
+                    let mut label = if t3_usage_only {
+                        format!("T3 Code profile {}", index + 1)
+                    } else if Some(&root) == default_root.as_ref() {
                         "Default profile".into()
                     } else {
                         format!("Additional profile {}", index + 1)
                     };
-                    if executables.len() > 1 {
+                    if profile_executables.len() > 1 {
                         label = format!("{label} · Installation {}", installation_index + 1);
                     }
                     result.snapshot.profiles.push(Profile {

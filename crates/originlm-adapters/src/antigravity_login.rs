@@ -11,6 +11,9 @@
 //!   `antigravityUnifiedStateSync.oauthToken`: base64 of a protobuf whose
 //!   token message holds the access token and its expiry.
 //!
+//! - T3 Code's current Google account sign-in uses the CLI file format in
+//!   its private profile's `antigravity-acp` directory.
+//!
 //! Every read is read-only and in memory. Nothing is refreshed or written back:
 //! the CLI and the IDE renew their own logins, and an expired one is reported.
 use rusqlite::{Connection, OpenFlags, OptionalExtension};
@@ -41,14 +44,33 @@ impl Login {
 pub enum Owner {
     Cli,
     Ide,
+    T3,
 }
 
 pub fn owner(profile_home: &Path) -> Option<Owner> {
     match profile_home.file_name()?.to_str()? {
         "antigravity-cli" => Some(Owner::Cli),
         "antigravity" => Some(Owner::Ide),
+        key if key.len() == 64
+            && key.bytes().all(|byte| byte.is_ascii_hexdigit())
+            && profile_home
+                .parent()?
+                .ends_with("userdata/providers/antigravity") =>
+        {
+            Some(Owner::T3)
+        }
         _ => None,
     }
+}
+
+/// T3's Google account profiles bypass the shared OS credential store.
+pub fn t3_login(profile_home: &Path) -> Option<Login> {
+    let bytes = Zeroizing::new(read_small(
+        &profile_home.join("antigravity-acp").join(CLI_TOKEN_FILE),
+    )?);
+    let login = parse_cli_login(&bytes)?;
+    login.expires_at?;
+    Some(login)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

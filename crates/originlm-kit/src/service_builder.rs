@@ -258,6 +258,22 @@ async fn probe_metadata(
         )
         .await;
     }
+    if located.provider_id == "antigravity"
+        && located.executable.is_none()
+        && originlm_adapters::antigravity_login::owner(&located.profile_home)
+            == Some(originlm_adapters::antigravity_login::Owner::T3)
+    {
+        let (pools, tier, diagnostics) =
+            originlm_adapters::plan_usage::antigravity(&located.profile_home, &connection, &route)
+                .await;
+        let mut metadata =
+            originlm_adapters::plan_usage::empty_metadata(&connection, &route, diagnostics);
+        metadata.quota_pools = pools;
+        if let Some(tier) = tier {
+            metadata.plan = tier;
+        }
+        return Ok(metadata);
+    }
     // A discovered ACP client is already an installed native profile. Probe it
     // with the same adapter instead of requiring a hand-authored
     // --native-profiles file; T3 Code does the equivalent through its ACP
