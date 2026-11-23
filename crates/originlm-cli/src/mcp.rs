@@ -571,6 +571,8 @@ fn reading_missing_reason(row: &Value) -> Option<String> {
             "Pi login `{}` has no usage source",
             name.to_ascii_lowercase()
         )
+    } else if has("ANTIGRAVITY_IDE_LOGIN_EXPIRED") {
+        "the Antigravity app's saved login has expired; open Antigravity to renew it".to_owned()
     } else if has("ANTIGRAVITY_LOGIN_EXPIRED") {
         "Antigravity's saved login has expired; open the agy CLI to renew it".to_owned()
     } else if has("ANTIGRAVITY_CREDENTIAL") {
@@ -661,6 +663,33 @@ pub fn usage_report(
             }
         }
         let probe = probes.get(connection_id);
+        // The connection's own diagnostics, plus any the failed read carried.
+        let mut diagnostics: Vec<Value> = connection["diagnostics"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        if let Some(ProbeOutcome::Failed(_, codes)) = probe {
+            diagnostics.extend(codes.iter().map(|code| json!(code)));
+        }
+        // A previous quota snapshot cannot stand in for a missing login or
+        // for a fallback that was intentionally skipped.
+        if provider == "antigravity"
+            && diagnostics.iter().any(|code| {
+                matches!(
+                    code.as_str(),
+                    Some(
+                        "ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE"
+                            | "ANTIGRAVITY_CREDENTIAL_NOT_FOUND"
+                            | "ANTIGRAVITY_LOGIN_EXPIRED"
+                            | "ANTIGRAVITY_IDE_LOGIN_EXPIRED"
+                            | "ANTIGRAVITY_T3_LOGIN_EXPIRED"
+                    )
+                )
+            })
+        {
+            windows.clear();
+            oldest = None;
+        }
         let age = oldest.map(|observed| (now - observed).num_seconds().max(0));
         let probe_ok = matches!(probe, Some(ProbeOutcome::Ok(_)));
         let source = if granted.contains(provider) {
@@ -693,14 +722,6 @@ pub fn usage_report(
             Some(ProbeOutcome::Failed(code, _)) => data["refreshError"] = json!(code),
             Some(ProbeOutcome::Ok(true)) => data["servedFromProbeCache"] = json!(true),
             _ => {}
-        }
-        // The connection's own diagnostics, plus any the failed read carried.
-        let mut diagnostics: Vec<Value> = connection["diagnostics"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
-        if let Some(ProbeOutcome::Failed(_, codes)) = probe {
-            diagnostics.extend(codes.iter().map(|code| json!(code)));
         }
         rows.push(json!({
             "providerId": provider,
@@ -1186,6 +1207,31 @@ mod tests {
                 ]}
             ]
         })
+    }
+
+    #[test]
+    fn antigravity_auth_diagnostics_hide_cached_quota() {
+        for diagnostic in [
+            "ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE",
+            "ANTIGRAVITY_CREDENTIAL_NOT_FOUND",
+        ] {
+            let mut state = snapshot();
+            state["connections"][1]["providerId"] = json!("antigravity");
+            state["connections"][1]["diagnostics"] = json!([diagnostic]);
+            let granted = BTreeSet::from(["antigravity".into()]);
+            let now = "2026-11-11T16:00:00Z".parse().unwrap();
+            let report = usage_report(
+                &state,
+                &granted,
+                Some(&granted),
+                &Default::default(),
+                now,
+                now,
+                false,
+            );
+            assert_eq!(report["providers"][0]["data"]["state"], "unavailable");
+            assert_eq!(report["providers"][0]["windows"], json!([]));
+        }
     }
 
     fn wanted() -> BTreeSet<String> {

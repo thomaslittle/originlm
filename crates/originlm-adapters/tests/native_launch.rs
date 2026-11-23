@@ -78,6 +78,51 @@ fn google_acp_requires_native_harness_and_blocked_interactive_browser() {
     assert!(launch.scratch.path().is_dir());
 }
 #[test]
+fn antigravity_cli_serves_acp_only_in_the_private_acp_profile() {
+    let root = tempfile::tempdir().unwrap();
+    let exe = if cfg!(windows) { "agy.exe" } else { "agy" };
+    let mut p = profile(root.path(), NativeProvider::Antigravity, exe);
+    file(&p.executable);
+    let blocker = root.path().join(if cfg!(windows) {
+        "originlm-auth-blocker.exe"
+    } else {
+        "originlm-auth-blocker"
+    });
+    file(&blocker);
+    let launch = prepare(&p, root.path(), Some(&blocker)).unwrap();
+    let gemini = root.path().join(".gemini");
+    assert_eq!(
+        launch.spec.args,
+        [
+            std::ffi::OsString::from("acp"),
+            "--gemini-dir".into(),
+            gemini.clone().into_os_string(),
+            "--app-data-dir".into(),
+            "antigravity-acp".into(),
+        ]
+    );
+    assert_eq!(
+        launch.spec.env.get(std::ffi::OsStr::new("GEMINI_HOME")),
+        Some(&gemini.into_os_string())
+    );
+    assert!(
+        !launch
+            .spec
+            .env
+            .contains_key(std::ffi::OsStr::new("ANTIGRAVITY_HARNESS_PATH"))
+    );
+    // The CLI's and the desktop IDE's own profiles are never handed to an ACP
+    // server: their usage is read from the client's saved login instead.
+    for own in ["antigravity-cli", "antigravity"] {
+        p.profile_home = root.path().join(".gemini").join(own);
+        assert_eq!(
+            prepare(&p, root.path(), Some(&blocker)).err().unwrap().code,
+            ErrorCode::RuntimeMissing,
+            "{own}"
+        );
+    }
+}
+#[test]
 fn custom_auth_is_explicit_and_not_a_token_export() {
     let root = tempfile::tempdir().unwrap();
     let mut p = profile(

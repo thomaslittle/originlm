@@ -36,6 +36,10 @@ fn error(code: ErrorCode) -> DomainError {
 fn file(path: &Path) -> bool {
     path.is_absolute() && path.metadata().is_ok_and(|m| m.is_file())
 }
+/// The Antigravity CLI executable (`agy`, `agy.exe` on Windows).
+pub fn is_antigravity_cli(path: &Path) -> bool {
+    name(path) == if cfg!(windows) { "agy.exe" } else { "agy" }
+}
 fn name(path: &Path) -> String {
     path.file_name()
         .and_then(|s| s.to_str())
@@ -244,28 +248,61 @@ fn prepare_for(
             (executable, args)
         }
         NativeProvider::Antigravity => {
-            let expected = if cfg!(windows) {
-                "agy_acp_server.exe"
+            if !file(&profile.executable) {
+                return Err(error(ErrorCode::RuntimeMissing));
+            }
+            let profile_name = name(&profile.profile_home);
+            let mut args = vec![];
+            if is_antigravity_cli(&profile.executable) {
+                // Antigravity CLI 1.5.0+ serves ACP itself (`agy acp`), with no
+                // harness sibling, as T3 Code runs it. It runs only in the
+                // private `antigravity-acp` app-data directory: with file
+                // storage forced, an ACP server pointed at the CLI's own
+                // directory rewrites (and on an expired login, removes) the
+                // CLI's saved sign-in. The CLI and IDE profiles are read for
+                // usage only.
+                if profile_name != "antigravity-acp" {
+                    return Err(error(ErrorCode::RuntimeMissing));
+                }
+                let gemini = profile
+                    .profile_home
+                    .parent()
+                    .ok_or_else(|| error(ErrorCode::IntegrationRestricted))?;
+                args.extend([
+                    "acp".into(),
+                    "--gemini-dir".into(),
+                    gemini.as_os_str().into(),
+                    "--app-data-dir".into(),
+                    profile_name.into(),
+                ]);
             } else {
-                "agy_acp_server.par"
-            };
-            if name(&profile.executable) != expected || !file(&profile.executable) {
-                return Err(error(ErrorCode::RuntimeMissing));
-            }
-            let harness = profile
-                .executable
-                .parent()
-                .ok_or_else(|| error(ErrorCode::RuntimeMissing))?
-                .join(if cfg!(windows) {
-                    "localharness_external.exe"
+                let expected = if cfg!(windows) {
+                    "agy_acp_server.exe"
                 } else {
-                    "localharness_external"
-                });
-            if !file(&harness) {
-                return Err(error(ErrorCode::RuntimeMissing));
-            }
-            if name(&profile.profile_home) != "antigravity-acp" {
-                return Err(error(ErrorCode::IntegrationRestricted));
+                    "agy_acp_server.par"
+                };
+                if name(&profile.executable) != expected {
+                    return Err(error(ErrorCode::RuntimeMissing));
+                }
+                let harness = profile
+                    .executable
+                    .parent()
+                    .ok_or_else(|| error(ErrorCode::RuntimeMissing))?
+                    .join(if cfg!(windows) {
+                        "localharness_external.exe"
+                    } else {
+                        "localharness_external"
+                    });
+                if !file(&harness) {
+                    return Err(error(ErrorCode::RuntimeMissing));
+                }
+                if profile_name != "antigravity-acp" {
+                    return Err(error(ErrorCode::IntegrationRestricted));
+                }
+                env.insert("ANTIGRAVITY_HARNESS_PATH".into(), harness.into_os_string());
+                if cfg!(target_os = "linux") {
+                    args.push("--uid=".into());
+                }
             }
             if auth {
                 env.insert(
@@ -291,7 +328,6 @@ fn prepare_for(
                     .as_os_str()
                     .into(),
             );
-            env.insert("ANTIGRAVITY_HARNESS_PATH".into(), harness.into_os_string());
             env.insert("AGY_ACP_FORCE_FILE_STORAGE".into(), "1".into());
             let temp = profile.profile_home.join("tmp");
             let _ = std::fs::create_dir_all(&temp);
@@ -321,14 +357,7 @@ fn prepare_for(
                     .clone()
                     .or_else(|| cached_auth(&profile.profile_home))
             };
-            (
-                profile.executable.clone(),
-                if cfg!(target_os = "linux") {
-                    vec!["--uid=".into()]
-                } else {
-                    vec![]
-                },
-            )
+            (profile.executable.clone(), args)
         }
         NativeProvider::Grok => {
             let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })

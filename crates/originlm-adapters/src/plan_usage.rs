@@ -4,8 +4,10 @@
 //!
 //! - Grok: the ACP `_x.ai/billing` extension (called from the ACP probe).
 //! - Antigravity: Google Code Assist `retrieveUserQuotaSummary`, authorized by
-//!   the login the `agy` CLI saved in the operating system's credential store
-//!   (`gemini:antigravity`; read in memory, never refreshed or written back).
+//!   the login the profile's own client saved: the `agy` CLI's file or OS
+//!   credential store, or the desktop IDE's state database
+//!   ([`crate::antigravity_login`]; read in memory, never refreshed or
+//!   written back).
 //! - Gemini CLI: Code Assist `retrieveUserQuota` with the access token the CLI
 //!   saved in `oauth_creds.json`, only while it is unexpired. The file carries
 //!   no refresh client, so an expired login is reported, not refreshed.
@@ -400,78 +402,64 @@ async fn code_assist_at(
     .await
 }
 
-/// The Google login the `agy` CLI itself saved: one JSON entry
-/// (`token.access_token`, `token.expiry`, ...) in the operating system's
-/// credential store under the target `gemini:antigravity`. Read in memory for
-/// one request; never refreshed (the CLI keeps it fresh), logged or written.
-#[cfg(windows)]
-fn antigravity_cli_login() -> Option<Value> {
-    let bytes = keyring::Entry::new_with_target("gemini:antigravity", "gemini", "antigravity")
-        .ok()?
-        .get_secret()
-        .ok()?;
-    (bytes.len() <= MAX_FILE as usize)
-        .then(|| serde_json::from_slice(&bytes).ok())
-        .flatten()
-}
-
-#[cfg(not(windows))]
-fn antigravity_cli_login() -> Option<Value> {
-    None
-}
-
-/// Antigravity quota for the account the `agy` CLI is signed in to.
+/// Antigravity quota for the Google account a profile's own client is signed
+/// in to: the `agy` CLI for `~/.gemini/antigravity-cli`, the desktop IDE for
+/// `~/.gemini/antigravity`. See [`crate::antigravity_login`] for where each
+/// keeps its login on each operating system.
 pub async fn antigravity(
     profile_home: &Path,
     connection: &str,
     route: &str,
 ) -> (Vec<QuotaPool>, Option<Observation<Plan>>, Vec<String>) {
-    // The CLI's login is per operating-system user, so it belongs to the
-    // CLI's own profile only; the IDE's and ACP profiles keep theirs elsewhere.
-    if profile_home.file_name().and_then(|name| name.to_str()) != Some("antigravity-cli") {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
-        );
-    }
-    let Some(login) = tokio::task::spawn_blocking(antigravity_cli_login)
-        .await
-        .ok()
-        .flatten()
-    else {
+    use crate::antigravity_login::{self as login, Owner};
+    let Some(owner) = login::owner(profile_home) else {
         return (
             vec![],
             None,
             vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
         );
     };
-    let token = login["token"]["access_token"]
-        .as_str()
-        .filter(|t| !t.is_empty() && t.len() <= 4096)
-        .map(|t| zeroize::Zeroizing::new(t.to_owned()));
-    let Some(token) = token else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_CREDENTIAL_INCOMPLETE".into()],
-        );
+    let profile = profile_home.to_path_buf();
+    let now = chrono::Utc::now().timestamp();
+    let read = tokio::task::spawn_blocking(move || {
+        let unavailable = "ANTIGRAVITY_CREDENTIAL_NOT_FOUND";
+        let credential = match owner {
+            Owner::Cli => login::cli_login(&profile),
+            Owner::Ide => profile
+                .parent()
+                .and_then(Path::parent)
+                .and_then(login::ide_login_for_home),
+            Owner::T3 => {
+                let home = profile.ancestors().nth(5).ok_or(unavailable)?;
+                if login::has_direct_login(home, now) {
+                    return Err("ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE");
+                }
+                login::t3_login(&profile)
+            }
+        };
+        credential.ok_or(unavailable)
+    });
+    let login = match read.await {
+        Ok(Ok(login)) => login,
+        Ok(Err(code)) => return (vec![], None, vec![code.into()]),
+        Err(_) => {
+            return (
+                vec![],
+                None,
+                vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
+            );
+        }
     };
-    let expired = login["token"]["expiry"]
-        .as_str()
-        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
-        .is_some_and(|at| at.timestamp() <= chrono::Utc::now().timestamp() + 30);
-    if expired {
-        return (vec![], None, vec!["ANTIGRAVITY_LOGIN_EXPIRED".into()]);
+    if login.expired(now) {
+        let code = match owner {
+            Owner::Cli => "ANTIGRAVITY_LOGIN_EXPIRED",
+            Owner::Ide => "ANTIGRAVITY_IDE_LOGIN_EXPIRED",
+            Owner::T3 => "ANTIGRAVITY_T3_LOGIN_EXPIRED",
+        };
+        return (vec![], None, vec![code.into()]);
     }
-    let Ok(client) = client_for(Some("antigravity")) else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
-        );
-    };
-    let Ok(hub) = antigravity_hub_client() else {
+    let token = login.access_token;
+    let Ok(client) = antigravity_hub_client() else {
         return (
             vec![],
             None,
@@ -482,14 +470,14 @@ pub async fn antigravity(
     let summary_request = json!({});
     let (daily, prod, load) = tokio::join!(
         code_assist_at(
-            &hub,
+            &client,
             CODE_ASSIST_DAILY,
             &token,
             "retrieveUserQuotaSummary",
             summary_request.clone()
         ),
         code_assist_at(
-            &hub,
+            &client,
             CODE_ASSIST,
             &token,
             "retrieveUserQuotaSummary",
@@ -523,52 +511,16 @@ pub async fn antigravity(
             vec!["ANTIGRAVITY_USAGE_FROM_QUOTA_SUMMARY".into()],
         );
     }
-    // Older accounts expose only per-model quotas.
-    let evidence = source(
-        EvidenceKind::CommunityEndpoint,
-        "antigravity",
-        "Code Assist fetchAvailableModels quotaInfo",
-    );
-    let Ok(models) = code_assist(&client, &token, "fetchAvailableModels", json!({})).await else {
-        return (
-            vec![],
-            tier,
-            vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
-        );
-    };
-    let quotas: Vec<ModelQuota> = models["models"]
-        .as_object()
-        .into_iter()
-        .flatten()
-        .filter_map(|(_, model)| {
-            // Internal ids without a display name (tab completion, routing
-            // buckets) are not models a person picks; they are left out.
-            let name = model["displayName"].as_str().filter(|n| !n.is_empty())?;
-            let quota = &model["quotaInfo"];
-            Some(ModelQuota {
-                name: name.to_owned(),
-                remaining_fraction: quota["remainingFraction"].as_f64()?,
-                reset: quota["resetTime"].as_str().map(str::to_owned),
-            })
-        })
-        .collect();
-    quota.windows = model_windows(&quota.id, &quotas, &evidence);
-    if quota.windows.is_empty() {
-        return (vec![], tier, vec!["ANTIGRAVITY_QUOTA_NOT_REPORTED".into()]);
-    }
-    (
-        vec![quota],
-        tier,
-        vec!["ANTIGRAVITY_USAGE_FROM_CODE_ASSIST".into()],
-    )
+    (vec![], tier, vec!["ANTIGRAVITY_QUOTA_NOT_REPORTED".into()])
 }
 
 /// Code Assist returns the Gemini 5-hour and weekly windows only to a
 /// request that names the Antigravity hub in its User-Agent; any other agent
-/// receives the Claude/GPT buckets alone. OriginLM stays named after it.
+/// may receive an incomplete or newly reset view of those windows.
 fn antigravity_hub_client() -> Result<reqwest::Client> {
     let os = match std::env::consts::OS {
         "macos" => "darwin",
+        "windows" => "win32",
         other => other,
     };
     let arch = match std::env::consts::ARCH {
@@ -578,9 +530,9 @@ fn antigravity_hub_client() -> Result<reqwest::Client> {
     };
     reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent(format!(
-            "antigravity/hub/2.24.0 (aidev_client; os_type={os}; arch={arch}) originlm/{}",
-            env!("CARGO_PKG_VERSION")
+            "antigravity/hub/2.24.0 (aidev_client; os_type={os}; arch={arch}; cl=963137146)"
         ))
         .build()
         .map_err(|_| unavailable("HTTP client unavailable"))
@@ -616,7 +568,7 @@ pub fn summary_windows(
                 else {
                     continue;
                 };
-                if bucket["disabled"] == true || !seen.insert(id.to_owned()) {
+                if bucket["disabled"] == true {
                     continue;
                 }
                 let Some(remaining) = bucket["remainingFraction"]
@@ -625,6 +577,9 @@ pub fn summary_windows(
                 else {
                     continue;
                 };
+                if !seen.insert(id.to_owned()) {
+                    continue;
+                }
                 let group_name = group["displayName"]
                     .as_str()
                     .map(str::trim)
@@ -1178,11 +1133,68 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn antigravity_reads_only_the_cli_profile() {
+    async fn antigravity_reads_only_profiles_with_a_known_owner() {
         let home = tempfile::tempdir().unwrap();
         let (pools, _, diagnostics) = antigravity(home.path(), "c", "r").await;
         assert!(pools.is_empty());
         assert_eq!(diagnostics, ["ANTIGRAVITY_CREDENTIAL_NOT_FOUND"]);
+    }
+
+    #[tokio::test]
+    async fn antigravity_skips_t3_when_its_native_login_is_available() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home
+            .path()
+            .join(".t3/userdata/providers/antigravity")
+            .join("a".repeat(64));
+        std::fs::create_dir_all(&profile).unwrap();
+        let cli = home.path().join(".gemini/antigravity-cli");
+        std::fs::create_dir_all(&cli).unwrap();
+        std::fs::write(
+            cli.join("antigravity-oauth-token"),
+            r#"{"token":{"access_token":"fixture","expiry":"2099-01-01T00:00:00Z"}}"#,
+        )
+        .unwrap();
+
+        let (pools, _, diagnostics) = antigravity(&profile, "c", "r").await;
+        assert!(pools.is_empty());
+        assert_eq!(diagnostics, ["ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE"]);
+    }
+
+    #[tokio::test]
+    async fn antigravity_checks_t3_when_native_profiles_are_absent() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home
+            .path()
+            .join(".t3/userdata/providers/antigravity")
+            .join("a".repeat(64));
+        let acp = profile.join("antigravity-acp");
+        std::fs::create_dir_all(&acp).unwrap();
+        std::fs::write(
+            acp.join("antigravity-oauth-token"),
+            r#"{"token":{"access_token":"fixture","expiry":"2000-01-01T00:00:00Z"}}"#,
+        )
+        .unwrap();
+
+        let (pools, _, diagnostics) = antigravity(&profile, "c", "r").await;
+        assert!(pools.is_empty());
+        assert_eq!(diagnostics, ["ANTIGRAVITY_T3_LOGIN_EXPIRED"]);
+    }
+
+    #[tokio::test]
+    async fn antigravity_never_uses_an_expired_cli_login() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home.path().join("antigravity-cli");
+        std::fs::create_dir(&profile).unwrap();
+        std::fs::write(
+            profile.join("antigravity-oauth-token"),
+            json!({"token":{"access_token":"ya29.old","expiry":"2020-01-01T00:00:00Z"}})
+                .to_string(),
+        )
+        .unwrap();
+        let (pools, _, diagnostics) = antigravity(&profile, "c", "r").await;
+        assert!(pools.is_empty());
+        assert_eq!(diagnostics, ["ANTIGRAVITY_LOGIN_EXPIRED"]);
     }
 
     #[tokio::test]

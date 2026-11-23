@@ -127,10 +127,16 @@ impl ProviderDefinition {
                     crate::join_relative(&env.home, ".gemini/antigravity-acp"),
                     crate::join_relative(&env.home, ".gemini/antigravity-cli/bin"),
                 ];
-                // T3 Code installs a managed Antigravity ACP pair under
-                // ~/.t3/tools/antigravity-acp/<platform>/versions/<hash>.
-                // A discovered desktop launcher is not enough: the ACP server
-                // and its adjacent localharness_external are the runnable pair.
+                // The Antigravity CLI's Windows installer puts `agy.exe` here
+                // and may leave it off PATH (`--skip-path`).
+                if env.platform == HostPlatform::Windows {
+                    dirs.push(env.local_app_data.join("agy/bin"));
+                }
+                // T3 Code installs a managed Antigravity runtime under
+                // ~/.t3/tools/antigravity-acp/<platform>/versions/<hash>: the
+                // `agy` CLI (1.5.0+, which serves ACP itself) or, for older
+                // releases, the agy_acp_server + localharness_external pair.
+                // A discovered desktop launcher is not enough.
                 let tools = crate::join_relative(&env.home, ".t3/tools/antigravity-acp");
                 if let Ok(platforms) = std::fs::read_dir(&tools) {
                     for platform in platforms.flatten() {
