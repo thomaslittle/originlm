@@ -16,6 +16,7 @@
     "dist",
     "README.md",
     "LICENSE",
+    "NOTICE",
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
@@ -27,5 +28,5 @@
   "engines": {
     "node": ">=22.16"
   },
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

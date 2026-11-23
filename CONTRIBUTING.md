@@ -92,4 +92,4 @@ Registry publication, release signing, buying or resetting credits, or modifying
 
 ## License
 
-By contributing you agree that your contribution is licensed under the [MIT License](LICENSE). If you port code from another project, preserve its notice and say where it came from in the pull request.
+By contributing you agree that your contribution is licensed under the [Apache License 2.0](LICENSE). If you port code from another project, preserve its notice and say where it came from in the pull request.

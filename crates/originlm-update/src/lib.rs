@@ -1,6 +1,8 @@
 //! Authenticated, staged executable updates. Checksums detect corruption;
-//! Ed25519 verifies the publisher. This crate never downloads, publishes, or
-//! creates signing credentials.
+//! Ed25519 verifies the publisher. Executable activation never downloads or
+//! creates signing credentials. Optional read-only metadata requests live in `feeds`.
+pub mod feeds;
+
 use originlm_contracts::{DomainError, ErrorCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

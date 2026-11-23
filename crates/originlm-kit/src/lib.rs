@@ -1,6 +1,8 @@
 //! One Rust import for the same adapters/service used by the native helper.
 //! Construction is inert. Scanning, account probes, and execution are explicit and separately granted.
 mod adapter_info;
+mod credits;
+pub use credits::{Credits, CreditsConfig};
 mod service_builder;
 pub use originlm_adapters::billing_declarations::BillingDeclarations;
 pub use originlm_adapters::http_provider::config::Registry as EndpointRegistry;
@@ -35,6 +37,7 @@ use std::{
 static CLIENT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 pub struct Kit {
     service: Arc<NativeService>,
+    credits: CreditsConfig,
 }
 #[derive(Default)]
 pub struct KitBuilder {
@@ -45,6 +48,7 @@ pub struct KitBuilder {
     native_registry: NativeClientRegistry,
     execute: bool,
     cursor_usage: bool,
+    hide_attribution: bool,
 }
 pub struct EmbeddedClient {
     service: Arc<NativeService>,
@@ -52,6 +56,9 @@ pub struct EmbeddedClient {
     closed: AtomicBool,
 }
 impl Kit {
+    pub fn credits(&self) -> Option<Credits> {
+        self.credits.credits()
+    }
     pub fn builder() -> KitBuilder {
         KitBuilder::default()
     }
@@ -86,6 +93,11 @@ impl Kit {
     }
 }
 impl KitBuilder {
+    /// Optional About/credits attribution, on by default. This is not a license condition.
+    pub fn show_attribution(mut self, enabled: bool) -> Self {
+        self.hide_attribution = !enabled;
+        self
+    }
     pub fn home(mut self, home: PathBuf) -> Self {
         self.home = Some(home);
         self
@@ -152,6 +164,9 @@ impl KitBuilder {
             ));
         }
         Ok(Kit {
+            credits: CreditsConfig {
+                show_attribution: !self.hide_attribution,
+            },
             service: service_builder::build_service_with_cursor_usage(
                 inventory,
                 self.execute,

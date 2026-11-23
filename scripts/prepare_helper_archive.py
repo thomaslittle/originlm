@@ -304,7 +304,7 @@ def prepare(binary, target, out, root, source_commit=None, allow_dirty=False, me
             if metadata_out.exists():
                 shutil.rmtree(metadata_out)
             metadata_out.mkdir(parents=True)
-            for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json', 'manifest.json'):
+            for name in ('LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'sbom.cdx.json', 'manifest.json'):
                 shutil.copy2(stage / name, metadata_out / name)
             shutil.copytree(stage / 'licenses', metadata_out / 'licenses')
 

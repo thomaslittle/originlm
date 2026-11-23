@@ -55,7 +55,9 @@ def main():
     cargo = _run(['cargo', f'+{args.toolchain}', '--version'])
     command = [
         'cargo', f'+{args.toolchain}', 'check', '--workspace',
-        '--exclude', 'originlm-desktop', '--all-targets', '--locked',
+        # GPUI crates follow the GPUI toolchain, not the library MSRV.
+        '--exclude', 'originlm-desktop', '--exclude', 'originlm-kit-gpui',
+        '--all-targets', '--locked',
     ]
     check = _run(command)
     evidence = {
