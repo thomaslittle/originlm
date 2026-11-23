@@ -682,7 +682,14 @@ fn antigravity_cli_from_its_windows_installer_is_discovered_off_path() {
 
 #[test]
 fn enabled_t3_google_profile_is_discovered_for_usage_without_a_runtime() {
-    let tmp = tempfile::tempdir().unwrap();
+    // Keep fixture reads under a physical directory, even when TMPDIR is an alias.
+    let temp_base = std::env::temp_dir();
+    let temp_base = if cfg!(target_os = "macos") {
+        fs::canonicalize(temp_base).unwrap()
+    } else {
+        temp_base
+    };
+    let tmp = tempfile::Builder::new().tempdir_in(temp_base).unwrap();
     let state = tmp.path().join(".t3/userdata");
     let profile = state.join(
         "providers/antigravity/3bceb243777d23fc90ba5d37b473feaf015806ed543f3b0aeb3633ee3c6c51ef",
