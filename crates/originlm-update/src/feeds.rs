@@ -166,14 +166,13 @@ impl FeedClient {
         if !(60..=604_800).contains(&config.interval_seconds) {
             return Err(FeedError::InvalidConfiguration);
         }
-        if let Some(app) = &config.app {
-            if !identifier(&app.name)
+        if let Some(app) = &config.app
+            && (!identifier(&app.name)
                 || app.name.contains([':', '/'])
                 || semver::Version::parse(&app.version).is_err()
-                || app.version.len() > 128
-            {
-                return Err(FeedError::InvalidConfiguration);
-            }
+                || app.version.len() > 128)
+        {
+            return Err(FeedError::InvalidConfiguration);
         }
         let mut base = Url::parse(environment.base_url.as_deref().unwrap_or(&config.base_url))
             .map_err(|_| FeedError::InvalidConfiguration)?;
@@ -336,10 +335,10 @@ impl FeedWorker {
                     if receiver.try_recv().is_ok() {
                         break;
                     }
-                    if let PollOutcome::Checked(result) = client.poll_at(Instant::now()) {
-                        if let Ok(mut slot) = output.lock() {
-                            *slot = Some(result)
-                        }
+                    if let PollOutcome::Checked(result) = client.poll_at(Instant::now())
+                        && let Ok(mut slot) = output.lock()
+                    {
+                        *slot = Some(result)
                     }
                     if receiver.recv_timeout(interval) != Err(mpsc::RecvTimeoutError::Timeout) {
                         break;
