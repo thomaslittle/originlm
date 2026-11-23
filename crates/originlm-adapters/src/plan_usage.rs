@@ -420,30 +420,37 @@ pub async fn antigravity(
         );
     };
     let profile = profile_home.to_path_buf();
-    let read = tokio::task::spawn_blocking(move || match owner {
-        Owner::Cli => login::cli_login(&profile),
-        Owner::T3 => login::t3_login(&profile),
-        Owner::Ide => {
-            // `~/.gemini/antigravity` always sits directly under the user home.
-            let home = profile.parent()?.parent()?;
-            let app_data = std::env::var_os("APPDATA").map(std::path::PathBuf::from);
-            let config_home = std::env::var_os("XDG_CONFIG_HOME").map(std::path::PathBuf::from);
-            login::ide_login(&login::ide_state_database(
-                login::Os::current(),
-                home,
-                app_data.as_deref(),
-                config_home.as_deref(),
-            ))
-        }
+    let now = chrono::Utc::now().timestamp();
+    let read = tokio::task::spawn_blocking(move || {
+        let unavailable = "ANTIGRAVITY_CREDENTIAL_NOT_FOUND";
+        let credential = match owner {
+            Owner::Cli => login::cli_login(&profile),
+            Owner::Ide => profile
+                .parent()
+                .and_then(Path::parent)
+                .and_then(login::ide_login_for_home),
+            Owner::T3 => {
+                let home = profile.ancestors().nth(5).ok_or(unavailable)?;
+                if login::has_direct_login(home, now) {
+                    return Err("ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE");
+                }
+                login::t3_login(&profile)
+            }
+        };
+        credential.ok_or(unavailable)
     });
-    let Some(login) = read.await.ok().flatten() else {
-        return (
-            vec![],
-            None,
-            vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
-        );
+    let login = match read.await {
+        Ok(Ok(login)) => login,
+        Ok(Err(code)) => return (vec![], None, vec![code.into()]),
+        Err(_) => {
+            return (
+                vec![],
+                None,
+                vec!["ANTIGRAVITY_CREDENTIAL_NOT_FOUND".into()],
+            );
+        }
     };
-    if login.expired(chrono::Utc::now().timestamp()) {
+    if login.expired(now) {
         let code = match owner {
             Owner::Cli => "ANTIGRAVITY_LOGIN_EXPIRED",
             Owner::Ide => "ANTIGRAVITY_IDE_LOGIN_EXPIRED",
@@ -504,44 +511,7 @@ pub async fn antigravity(
             vec!["ANTIGRAVITY_USAGE_FROM_QUOTA_SUMMARY".into()],
         );
     }
-    // Older accounts expose only per-model quotas.
-    let evidence = source(
-        EvidenceKind::CommunityEndpoint,
-        "antigravity",
-        "Code Assist fetchAvailableModels quotaInfo",
-    );
-    let Ok(models) = code_assist(&client, &token, "fetchAvailableModels", json!({})).await else {
-        return (
-            vec![],
-            tier,
-            vec!["ANTIGRAVITY_USAGE_REQUEST_FAILED".into()],
-        );
-    };
-    let quotas: Vec<ModelQuota> = models["models"]
-        .as_object()
-        .into_iter()
-        .flatten()
-        .filter_map(|(_, model)| {
-            // Internal ids without a display name (tab completion, routing
-            // buckets) are not models a person picks; they are left out.
-            let name = model["displayName"].as_str().filter(|n| !n.is_empty())?;
-            let quota = &model["quotaInfo"];
-            Some(ModelQuota {
-                name: name.to_owned(),
-                remaining_fraction: quota["remainingFraction"].as_f64()?,
-                reset: quota["resetTime"].as_str().map(str::to_owned),
-            })
-        })
-        .collect();
-    quota.windows = model_windows(&quota.id, &quotas, &evidence);
-    if quota.windows.is_empty() {
-        return (vec![], tier, vec!["ANTIGRAVITY_QUOTA_NOT_REPORTED".into()]);
-    }
-    (
-        vec![quota],
-        tier,
-        vec!["ANTIGRAVITY_USAGE_FROM_CODE_ASSIST".into()],
-    )
+    (vec![], tier, vec!["ANTIGRAVITY_QUOTA_NOT_REPORTED".into()])
 }
 
 /// Code Assist returns the Gemini 5-hour and weekly windows only to a
@@ -1168,6 +1138,47 @@ mod tests {
         let (pools, _, diagnostics) = antigravity(home.path(), "c", "r").await;
         assert!(pools.is_empty());
         assert_eq!(diagnostics, ["ANTIGRAVITY_CREDENTIAL_NOT_FOUND"]);
+    }
+
+    #[tokio::test]
+    async fn antigravity_skips_t3_when_its_native_login_is_available() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home
+            .path()
+            .join(".t3/userdata/providers/antigravity")
+            .join("a".repeat(64));
+        std::fs::create_dir_all(&profile).unwrap();
+        let cli = home.path().join(".gemini/antigravity-cli");
+        std::fs::create_dir_all(&cli).unwrap();
+        std::fs::write(
+            cli.join("antigravity-oauth-token"),
+            r#"{"token":{"access_token":"fixture","expiry":"2099-01-01T00:00:00Z"}}"#,
+        )
+        .unwrap();
+
+        let (pools, _, diagnostics) = antigravity(&profile, "c", "r").await;
+        assert!(pools.is_empty());
+        assert_eq!(diagnostics, ["ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE"]);
+    }
+
+    #[tokio::test]
+    async fn antigravity_checks_t3_when_native_profiles_are_absent() {
+        let home = tempfile::tempdir().unwrap();
+        let profile = home
+            .path()
+            .join(".t3/userdata/providers/antigravity")
+            .join("a".repeat(64));
+        let acp = profile.join("antigravity-acp");
+        std::fs::create_dir_all(&acp).unwrap();
+        std::fs::write(
+            acp.join("antigravity-oauth-token"),
+            r#"{"token":{"access_token":"fixture","expiry":"2000-01-01T00:00:00Z"}}"#,
+        )
+        .unwrap();
+
+        let (pools, _, diagnostics) = antigravity(&profile, "c", "r").await;
+        assert!(pools.is_empty());
+        assert_eq!(diagnostics, ["ANTIGRAVITY_T3_LOGIN_EXPIRED"]);
     }
 
     #[tokio::test]

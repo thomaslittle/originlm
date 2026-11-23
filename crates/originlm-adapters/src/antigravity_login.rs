@@ -63,6 +63,30 @@ pub fn owner(profile_home: &Path) -> Option<Owner> {
     }
 }
 
+/// Read the IDE login for a home using the OS-specific state directory.
+pub fn ide_login_for_home(home: &Path) -> Option<Login> {
+    let app_data = std::env::var_os("APPDATA").map(PathBuf::from);
+    let config_home = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
+    ide_login(&ide_state_database(
+        Os::current(),
+        home,
+        app_data.as_deref(),
+        config_home.as_deref(),
+    ))
+}
+
+/// A T3 account is eligible only when the machine has no usable native login.
+pub fn has_direct_login(home: &Path, now: i64) -> bool {
+    let gemini_home = std::env::var_os("GEMINI_CLI_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| home.join(".gemini"));
+    let cli = gemini_home.join("antigravity-cli");
+    (cli.is_dir() && cli_login(&cli).is_some_and(|login| !login.expired(now)))
+        || (home.join(".gemini/antigravity").is_dir()
+            && ide_login_for_home(home).is_some_and(|login| !login.expired(now)))
+}
+
 /// T3's Google account profiles bypass the shared OS credential store.
 pub fn t3_login(profile_home: &Path) -> Option<Login> {
     let bytes = Zeroizing::new(read_small(

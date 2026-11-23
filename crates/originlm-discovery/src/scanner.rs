@@ -485,7 +485,16 @@ impl<F: LocalFilesystem> Scanner<F> {
                     continue;
                 }
                 let t3_usage_only = t3_profiles.contains(&root);
-                let profile_executables = if t3_usage_only {
+                let native_antigravity_usage_only = definition.id == "antigravity"
+                    && root
+                        .file_name()
+                        .is_some_and(|name| name == "antigravity-cli" || name == "antigravity")
+                    && executables.iter().all(|executable| {
+                        definition
+                            .profile_home_for(executable.as_deref(), &root)
+                            .is_none()
+                    });
+                let profile_executables = if t3_usage_only || native_antigravity_usage_only {
                     &[None][..]
                 } else {
                     &executables

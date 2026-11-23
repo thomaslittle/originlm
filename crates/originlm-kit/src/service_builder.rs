@@ -260,8 +260,7 @@ async fn probe_metadata(
     }
     if located.provider_id == "antigravity"
         && located.executable.is_none()
-        && originlm_adapters::antigravity_login::owner(&located.profile_home)
-            == Some(originlm_adapters::antigravity_login::Owner::T3)
+        && originlm_adapters::antigravity_login::owner(&located.profile_home).is_some()
     {
         let (pools, tier, diagnostics) =
             originlm_adapters::plan_usage::antigravity(&located.profile_home, &connection, &route)
