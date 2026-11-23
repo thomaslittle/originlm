@@ -1,6 +1,6 @@
 # Release preparation and publication
 
-**The Rust crates are published at `0.1.0-alpha.22`, including the `originlm-cli` helper; npm and PyPI remain at `0.1.0-alpha.20` until their publishers run.** The `Prepare release artifacts`
+**Live state is in [PACKAGE-RELEASE-LEDGER.md](PACKAGE-RELEASE-LEDGER.md); every release follows [RELEASE-CHECKLIST.md](RELEASE-CHECKLIST.md).** The `Prepare release artifacts`
 workflow builds local-installable **unsigned** runtime artifacts. It has read-only
 repository permissions, uses no signing or registry secrets, and cannot publish. A
 tag or draft release does not publish packages.
