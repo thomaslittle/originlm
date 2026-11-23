@@ -9,7 +9,7 @@ description = "Native and HTTP provider adapters for OriginLM"
 publish = true
 
 [dependencies]
-rusqlite = { version = "0.41.1", features = ["bundled", "limits"] }
+rusqlite = { version = "0.43.0", features = ["bundled", "limits"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls", "multipart"] }
 zeroize = "1"
 base64 = "0.22"
