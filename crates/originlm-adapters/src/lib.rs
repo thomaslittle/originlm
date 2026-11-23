@@ -7,6 +7,7 @@ pub mod host_mcp;
 pub mod process;
 
 pub mod acp;
+pub mod antigravity_login;
 
 pub mod grok;
 

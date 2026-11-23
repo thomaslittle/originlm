@@ -571,6 +571,8 @@ fn reading_missing_reason(row: &Value) -> Option<String> {
             "Pi login `{}` has no usage source",
             name.to_ascii_lowercase()
         )
+    } else if has("ANTIGRAVITY_IDE_LOGIN_EXPIRED") {
+        "the Antigravity app's saved login has expired; open Antigravity to renew it".to_owned()
     } else if has("ANTIGRAVITY_LOGIN_EXPIRED") {
         "Antigravity's saved login has expired; open the agy CLI to renew it".to_owned()
     } else if has("ANTIGRAVITY_CREDENTIAL") {

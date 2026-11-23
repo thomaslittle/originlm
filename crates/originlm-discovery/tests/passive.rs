@@ -647,3 +647,35 @@ fn antigravity_t3_managed_acp_runtime_is_discovered() {
         "managed T3 Antigravity ACP runtime was not paired with its profile"
     );
 }
+
+#[test]
+fn antigravity_cli_from_its_windows_installer_is_discovered_off_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let env = environment(tmp.path(), HostPlatform::Windows);
+    let bin = env.local_app_data.join("agy/bin");
+    fs::create_dir_all(&bin).unwrap();
+    fs::write(bin.join("agy.exe"), b"AGY_CLI").unwrap();
+    let cli = tmp.path().join(".gemini/antigravity-cli");
+    let ide = tmp.path().join(".gemini/antigravity");
+    fs::create_dir_all(&cli).unwrap();
+    fs::create_dir_all(&ide).unwrap();
+    let result = scan(&env);
+    let paired = |profile: &Path| {
+        result.locations.values().any(|location| {
+            location.provider_id == "antigravity"
+                && location.profile_home == profile
+                && location
+                    .executable
+                    .as_deref()
+                    .is_some_and(|path| path == bin.join("agy.exe"))
+        })
+    };
+    assert!(
+        paired(&cli),
+        "the agy CLI was not paired with its own profile"
+    );
+    assert!(
+        paired(&ide),
+        "the IDE profile lost its installation, so no usage read"
+    );
+}

@@ -124,6 +124,18 @@ pub async fn probe(
     // The usage diagnostics travel in the error text (as `[CODE,...]`), so a
     // caller can still say why there is no reading.
     if let Some(mut error) = acp_error {
+        // The Antigravity CLI's and IDE's own profiles never get an ACP server
+        // (see `launch`): they have no catalog to protect, and their usage
+        // diagnostics are the answer rather than a runtime failure.
+        let usage_only = profile.provider == NativeProvider::Antigravity
+            && error.code == ErrorCode::RuntimeMissing
+            && crate::antigravity_login::owner(&profile.profile_home).is_some();
+        if usage_only {
+            metadata
+                .diagnostics
+                .push("ANTIGRAVITY_PROFILE_USAGE_ONLY".into());
+            return Ok(metadata);
+        }
         if metadata.quota_pools.is_empty() {
             if !metadata.diagnostics.is_empty() {
                 error.message = format!("{} [{}]", error.message, metadata.diagnostics.join(","));
