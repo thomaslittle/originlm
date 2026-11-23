@@ -71,20 +71,12 @@ export const PROVIDERS: ProviderEntry[] = [
     note: "Requires an explicit native profile. Every launch removes native tools. Resume only when the ACP peer advertises loadSession.",
   },
   {
-    id: "gemini-cli",
-    name: "Gemini CLI",
-    kind: "Native client",
-    glyph: "GM",
-    ops: ops({ auth: "partial", models: "yes", text: "partial", images: "partial", approvals: "yes", resume: "yes" }),
-    note: "Text-only sessions are refused because its read tools cannot be disabled. Availability depends on a compatible ACP client.",
-  },
-  {
     id: "antigravity",
     name: "Antigravity",
     kind: "Native client",
     glyph: "AG",
     ops: ops({ auth: "partial", models: "yes", text: "partial", images: "partial", approvals: "yes", resume: "yes" }),
-    note: "Needs a dedicated ACP runtime profile; the IDE launcher is rejected. Text-only sessions are restricted like Gemini CLI.",
+    note: "Native client for Gemini 4 Neon. Needs a dedicated ACP runtime profile; the IDE launcher is rejected, and text-only sessions are refused when read tools cannot be disabled.",
   },
   {
     id: "muse",
@@ -164,7 +156,7 @@ export const PROVIDERS: ProviderEntry[] = [
     kind: "API route",
     glyph: "GA",
     ops: ops({ auth: "partial", models: "yes", text: "yes" }, "none"),
-    note: "Separate from Gemini CLI and Antigravity profiles. Catalog capability evidence decides what can run.",
+    note: "Separate metered API route from native Antigravity profiles. Catalog capability evidence decides what can run.",
   },
   {
     id: "xai-api",

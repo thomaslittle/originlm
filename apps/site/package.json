@@ -6,14 +6,11 @@
   "description": "OriginLM landing page: one local runtime for AI usage and for apps built on the user's own AI.",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5177 --strictPort",
-    "build": "tsc -p tsconfig.json --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir .prerender && node scripts/prerender.mjs",
+    "fetch:versions": "node scripts/fetch_versions.mjs",
+    "build": "node scripts/fetch_versions.mjs && tsc -p tsconfig.json --noEmit && vite build && vite build --ssr src/entry-server.tsx --outDir .prerender && node scripts/prerender.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 5177 --strictPort",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check:samples": "node scripts/check_samples.mjs",
-    "check:contrast": "node scripts/check_contrast.mjs",
-    "capture:stills": "node scripts/capture_stills.mjs",
-    "capture:frames": "node scripts/capture_frames.mjs",
-    "capture:concepts": "node scripts/capture_concepts.mjs"
+    "check:contrast": "node scripts/check_contrast.mjs"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",
