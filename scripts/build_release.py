@@ -5,12 +5,12 @@ from release_support import make_manifest,verify_manifest,create_archive,sha256
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 PACKAGES=('sdk-typescript','selector-core','react','ui-react')
 
-def run(command,*,cwd=ROOT):
+def run(command,*,cwd=ROOT,timeout=1200):
     exe=shutil.which(command[0])
     if not exe:raise RuntimeError('Missing build tool: '+command[0])
     args=[exe,*map(str,command[1:])]
     if os.name=='nt' and exe.lower().endswith(('.cmd','.bat')):args=[os.environ.get('COMSPEC','cmd.exe'),'/d','/c',*args]
-    result=subprocess.run(args,cwd=cwd,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=1200)
+    result=subprocess.run(args,cwd=cwd,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=timeout)
     if result.returncode:raise RuntimeError('Build command failed: '+command[0]+'\n'+result.stdout[-6000:]+result.stderr[-6000:])
     return result.stdout
 
@@ -45,7 +45,7 @@ def dependency_inventory(stage,target,head):
     write_assets(stage,collection,head)
 
 def build(profile):
-    run(['cargo','build','--locked','-p','originlm-cli','-p','originlm-control',*(['--release'] if profile=='release' else [])])
+    run(['cargo','build','--locked','-p','originlm-cli','-p','originlm-control',*(['--release'] if profile=='release' else [])], timeout=2700)
     run(['npm','run','build']);run(['node','scripts/build_demo.mjs']);run(['node','scripts/build_extension.mjs'])
     head=run(['git','rev-parse','HEAD']).strip();dirty=bool(run(['git','status','--porcelain']).strip())
     version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
