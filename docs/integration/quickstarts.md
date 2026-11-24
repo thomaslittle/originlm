@@ -1,11 +1,11 @@
 # SDK and framework quickstarts
 
-npm (`originlm@alpha`, `0.1.0-alpha.29`) and PyPI (`originlm==0.1.0a29`) ship prebuilt native helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io carries the Rust crates at `0.1.0-alpha.28`. On macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
+npm (`originlm@alpha`, `0.1.0-alpha.30`) and PyPI (`originlm==0.1.0a30`) ship prebuilt native helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io carries the Rust crates at `0.1.0-alpha.30`. On macOS, build the helper from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`:
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a29
-cargo add originlm@=0.1.0-alpha.28
+pip install originlm==0.1.0a30
+cargo add originlm@=0.1.0-alpha.30
 ```
 
 For the local-artifact source build workflow, see [Prepare local Node and Python artifacts](#prepare-local-node-and-python-artifacts) below. Use a synthetic home for verification; these examples never request inference unless you explicitly pass `executionProviders` and `workspace`.
@@ -47,13 +47,13 @@ node hello.mjs
 Install from PyPI:
 
 ```sh
-python -m pip install originlm==0.1.0a29
+python -m pip install originlm==0.1.0a30
 ```
 
 For offline or source development, install the matching wheel by its actual path:
 
 ```sh
-python -m pip install --no-index /absolute/path/to/originlm-0.1.0a29-py3-none-PLATFORM.whl
+python -m pip install --no-index /absolute/path/to/originlm-0.1.0a30-py3-none-PLATFORM.whl
 python hello.py
 ```
 
@@ -74,7 +74,7 @@ RPC methods. Both forms own and close their private helper.
 ```sh
 cargo new originlm-hello
 cd originlm-hello
-cargo add originlm@=0.1.0-alpha.28
+cargo add originlm@=0.1.0-alpha.30
 cargo run
 ```
 

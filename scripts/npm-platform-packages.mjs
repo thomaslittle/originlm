@@ -7,8 +7,8 @@
  *     --target x86_64-unknown-linux-gnu \
  *     --out npm-out --metadata prepared/metadata/<target>
  *
- * Each package contains exactly one binary, a manifest with `os`/`cpu` and a
- * `bin` entry, plus the qualified native manifest/SBOM/notices/license texts.
+ * Each package contains one binary, an `os`/`cpu` manifest, and the qualified
+ * native manifest/SBOM/notices/license texts. Only the SDK owns command shims.
  * The SDK resolves `originlm-cli-<platform>/package.json` and the binary next to
  * it, so no postinstall script or download is involved.
  */
@@ -63,7 +63,7 @@ const manifest = {
   description: `OriginLM helper for ${spec.os}/${spec.cpu}`,
   os: [spec.os],
   cpu: [spec.cpu],
-  bin: { 'originlm': `bin/${executable}` },
+  originlmBinary: `bin/${executable}`,
   files: ['bin', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'sbom.cdx.json', 'licenses'],
   license: 'MIT',
   repository: 'https://github.com/thomaslittle/originlm',

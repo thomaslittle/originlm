@@ -3,7 +3,7 @@
 ## Install
 
 ```sh
-npm i -g originlm
+npm i -g originlm@alpha
 ```
 
 This puts two names for the same command on your PATH, `olm` and `originlm`.
@@ -73,7 +73,7 @@ source that provider's own client uses. No model turn is started.
 
 | Provider | Usage source | What is shown |
 | --- | --- | --- |
-| Claude Code | Claude Code control protocol `get_usage` | 5-hour session, weekly (all models), weekly per model, monthly spend when enabled |
+| Claude Code | Anthropic OAuth usage endpoint with Claude Code’s saved login, falling back to the Claude Code control protocol `get_usage` when the direct reading is unavailable | 5-hour session, weekly (all models), weekly per model, monthly spend when enabled |
 | Codex | Codex app-server rate limits | Each window Codex reports, named by its length (`5 hr`, `Weekly`), monthly credits |
 | Cursor | Cursor dashboard `GetCurrentPeriodUsage`, with the session token Cursor stores | Included usage (and API usage when non-zero) |
 | OpenCode | The local OpenCode service's workspace limits | Rolling, weekly and monthly OpenCode Go limits |

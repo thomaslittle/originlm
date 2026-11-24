@@ -38,11 +38,12 @@ function packagedBinary() {
     fail(
       `the platform package ${name} is not installed. npm installs it as an optional ` +
         'dependency of originlm. Reinstall without --omit=optional / --no-optional ' +
-        `(npm i -g originlm), or install it directly: npm i -g ${name}`,
+        `(npm i -g originlm@alpha), or install it directly: npm i -g ${name}`,
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const relative = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.originlm;
+  const relative = manifest.originlmBinary
+    ?? (typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.originlm);
   if (typeof relative !== 'string' || !relative) fail(`${name} declares no originlm binary`);
   const binary = join(dirname(manifestPath), relative);
   if (!existsSync(binary)) fail(`${name} is installed but its binary is missing: ${binary}`);

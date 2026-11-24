@@ -649,35 +649,44 @@ fn antigravity_t3_managed_acp_runtime_is_discovered() {
 }
 
 #[test]
-fn antigravity_cli_from_its_windows_installer_is_discovered_off_path() {
+fn antigravity_native_usage_profiles_are_distinct_from_windows_acp_installations() {
     let tmp = tempfile::tempdir().unwrap();
     let env = environment(tmp.path(), HostPlatform::Windows);
     let bin = env.local_app_data.join("agy/bin");
     fs::create_dir_all(&bin).unwrap();
     fs::write(bin.join("agy.exe"), b"AGY_CLI").unwrap();
     let cli = tmp.path().join(".gemini/antigravity-cli");
-    let ide = tmp.path().join(".gemini/antigravity");
+    let classic = tmp.path().join(".gemini/antigravity");
+    let ide = tmp.path().join(".gemini/antigravity-ide");
     fs::create_dir_all(&cli).unwrap();
+    fs::create_dir_all(&classic).unwrap();
     fs::create_dir_all(&ide).unwrap();
+    let acp = tmp.path().join(".gemini/antigravity-acp");
+    fs::create_dir_all(&acp).unwrap();
+    fs::write(acp.join("agy_acp_server.exe"), b"ACP_SERVER").unwrap();
     let result = scan(&env);
-    let paired = |profile: &Path| {
-        result.locations.values().any(|location| {
-            location.provider_id == "antigravity"
-                && location.profile_home == profile
-                && location
-                    .executable
-                    .as_deref()
-                    .is_some_and(|path| path == bin.join("agy.exe"))
-        })
-    };
-    assert!(
-        paired(&cli),
-        "the agy CLI was not paired with its own profile"
-    );
-    assert!(
-        paired(&ide),
-        "the IDE profile lost its installation, so no usage read"
-    );
+    assert!(result.locations.values().any(|location| {
+        location.profile_home == acp && location.executable.as_deref() == Some(&bin.join("agy.exe"))
+    }));
+    for (profile, label) in [
+        (cli, "agy CLI"),
+        (classic, "Classic IDE · Default profile"),
+        (ide, "IDE · Default profile"),
+    ] {
+        let profiles: Vec<_> = result
+            .locations
+            .iter()
+            .filter(|(_, location)| {
+                location.provider_id == "antigravity" && location.profile_home == profile
+            })
+            .collect();
+        assert_eq!(profiles.len(), 1);
+        let (connection, location) = profiles[0];
+        assert!(location.executable.is_none());
+        assert!(result.snapshot.connections.iter().any(|row| {
+            &row.id == connection && row.display_name == format!("Antigravity · {label}")
+        }));
+    }
 }
 
 #[test]
