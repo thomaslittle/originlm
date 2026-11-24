@@ -11,7 +11,7 @@ name = "originlm-desktop"
 path = "src/main.rs"
 
 [dependencies]
-gpui-kit = { version = "0.9.0", features = ["gpui-fast"] }
+gpui-kit = { version = "0.10.0", features = ["gpui-fast"] }
 # SPIKE: Longbridge NSH's GPUI backend. `js` only (no webview/video) so the
 # spike does not drag wry/GTK/GStreamer into the desktop build.
 nsh-platform-gpui = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fababe6b575f24dd1a344ad81e9044f", default-features = false, features = ["js"] }
@@ -38,7 +38,7 @@ nsh-bundler = { git = "https://github.com/longbridge/nsh", rev = "341db7a20fabab
 [dev-dependencies]
 # `test-support` provides the headless TestAppContext used by the in-process
 # GPUI view tests. It is enabled only for test targets.
-gpui-kit = { version = "0.9.0", features = ["gpui-fast", "test-support"] }
+gpui-kit = { version = "0.10.0", features = ["gpui-fast", "test-support"] }
 originlm-runtime = { version = "0.1.0-alpha.30", path = "../originlm-runtime" }
 originlm-service = { version = "0.1.0-alpha.30", path = "../originlm-service" }
 tempfile = "3"
