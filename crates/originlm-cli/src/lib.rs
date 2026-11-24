@@ -371,6 +371,9 @@ async fn execute(args: Args) -> Result<()> {
             // Plan quota from the same probes as the MCP `usage` tool.
             const CLIENT: &str = "usage-cli";
             service.register_client(CLIENT, policy)?;
+            if !args.json {
+                eprintln!("Checking provider usage. This can take up to a minute.");
+            }
             let report = mcp::collect_usage(
                 &service,
                 CLIENT,

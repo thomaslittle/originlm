@@ -485,16 +485,18 @@ impl<F: LocalFilesystem> Scanner<F> {
                     continue;
                 }
                 let t3_usage_only = t3_profiles.contains(&root);
-                let native_antigravity_usage_only = definition.id == "antigravity"
-                    && root
-                        .file_name()
-                        .is_some_and(|name| name == "antigravity-cli" || name == "antigravity")
-                    && executables.iter().all(|executable| {
-                        definition
-                            .profile_home_for(executable.as_deref(), &root)
-                            .is_none()
-                    });
-                let profile_executables = if t3_usage_only || native_antigravity_usage_only {
+                let native_antigravity_label = if definition.id == "antigravity" {
+                    match root.file_name().and_then(|name| name.to_str()) {
+                        Some("antigravity") => Some("IDE · Default profile"),
+                        Some("antigravity-cli") => Some("agy CLI"),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                // The IDE and CLI own one login each. Their quota does not
+                // depend on an ACP executable or on how many were discovered.
+                let profile_executables = if t3_usage_only || native_antigravity_label.is_some() {
                     &[None][..]
                 } else {
                     &executables
@@ -553,6 +555,8 @@ impl<F: LocalFilesystem> Scanner<F> {
                     }
                     let mut label = if t3_usage_only {
                         format!("T3 Code profile {}", index + 1)
+                    } else if let Some(label) = native_antigravity_label {
+                        label.into()
                     } else if Some(&root) == default_root.as_ref() {
                         "Default profile".into()
                     } else {

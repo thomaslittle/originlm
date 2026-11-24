@@ -221,6 +221,20 @@ def smoke(release_dir, version, source_commit=None, timeout=240):
             )
             if unexpected:
                 raise RegistryError(f'unexpected platform packages installed: {unexpected}')
+        shim_dir = project / 'node_modules' / '.bin'
+        shim_env = npm_consumer_smoke._clean_env(home)
+        node = shutil.which('node')
+        if not node:
+            raise RegistryError('missing executable: node')
+        shim_env['PATH'] = str(pathlib.Path(node).parent)
+        for alias in ('originlm', 'olm'):
+            shim = shim_dir / (f'{alias}.cmd' if sys.platform == 'win32' else alias)
+            if not shim.is_file():
+                raise RegistryError(f'local install did not create the {alias} shim')
+            result = _run([str(shim), '--version'], project, shim_env, timeout,
+                          f'{alias} version')
+            if result.strip() != f'originlm {version}':
+                raise RegistryError(f'{alias} did not report the packaged version: {result.strip()}')
         (project / 'consumer.mjs').write_text(npm_consumer_smoke.CONSUMER, encoding='utf-8')
         output = _run(['node', 'consumer.mjs'], project, npm_consumer_smoke._clean_env(home),
                       timeout, 'registry consumer')

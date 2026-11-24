@@ -4,8 +4,8 @@
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a29
-cargo add originlm@=0.1.0-alpha.28
+pip install originlm==0.1.0a30
+cargo add originlm@=0.1.0-alpha.30
 ```
 
 The npm package is the universal SDK; its three `originlm-cli-*` optional
@@ -13,8 +13,8 @@ dependencies carry the prebuilt platform helpers (`linux-x64`, `linux-arm64`,
 `windows-x64`). PyPI publishes matching wheels (`manylinux_2_28_x86_64`,
 `manylinux_2_28_aarch64`, `win_amd64` starting from the post-macOS-drop pipeline).
 On macOS, build the helper from source (`cargo install originlm-cli`) and set
-`LAI_HELPER_PATH`. npm (`0.1.0-alpha.29`) and PyPI (`0.1.0a29`) ship the latest
-prebuilt helpers; the Rust crate facade closure is on crates.io (`0.1.0-alpha.28`).
+`LAI_HELPER_PATH`. npm (`0.1.0-alpha.30`) and PyPI (`0.1.0a30`) ship the latest
+prebuilt helpers; the Rust crate facade closure is on crates.io (`0.1.0-alpha.30`).
 
 ## Local bundle (offline/development)
 

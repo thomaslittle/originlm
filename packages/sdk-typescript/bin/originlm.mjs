@@ -38,7 +38,7 @@ function packagedBinary() {
     fail(
       `the platform package ${name} is not installed. npm installs it as an optional ` +
         'dependency of originlm. Reinstall without --omit=optional / --no-optional ' +
-        `(npm i -g originlm), or install it directly: npm i -g ${name}`,
+        `(npm i -g originlm@alpha), or install it directly: npm i -g ${name}`,
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));

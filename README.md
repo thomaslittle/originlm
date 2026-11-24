@@ -13,12 +13,12 @@ operation-specific.
 
 OriginLM is a Rust toolkit with an embedded library, a standalone native helper, authenticated local transports, TypeScript and Python SDKs, and optional React selectors. Your application does not have to reproduce client-specific paths, metadata parsers, or streaming protocols for each AI client a user might have installed.
 
-> **Published alpha (`0.1.0-alpha.29`).** The API can change between `0.1.0-alpha.N` revisions. npm (`0.1.0-alpha.29`) and PyPI (`0.1.0a29`) ship prebuilt helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io is at `0.1.0-alpha.28`. On macOS, build from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`. Start with the [install guide](docs/integration/install.md), [CLI usage & MCP guide](docs/integration/mcp-server.md), or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
+> **Published alpha (`0.1.0-alpha.30`).** The API can change between `0.1.0-alpha.N` revisions. npm (`0.1.0-alpha.30`) and PyPI (`0.1.0a30`) ship prebuilt helpers for **Linux (x64, arm64)** and **Windows (x64)**; crates.io is at `0.1.0-alpha.30`. On macOS, build from source (`cargo install originlm-cli`) and set `LAI_HELPER_PATH`. Start with the [install guide](docs/integration/install.md), [CLI usage & MCP guide](docs/integration/mcp-server.md), or [SDK quickstarts](docs/integration/quickstarts.md). Runtime archives remain unsigned; provider coverage is operation-specific: read the [support matrix](docs/adapters/SUPPORT-MATRIX.md) before relying on a provider.
 
 ```sh
 npm install originlm@alpha
-pip install originlm==0.1.0a29
-cargo add originlm@=0.1.0-alpha.28
+pip install originlm==0.1.0a30
+cargo add originlm@=0.1.0-alpha.30
 ```
 
 ### Instant CLI & MCP (`olm usage` / `olm mcp`)
@@ -87,7 +87,7 @@ Antigravity, Gemini CLI, GitHub Copilot and Pi. Every other detected provider
 is listed with the reason it has no reading:
 
 ```sh
-npm i -g originlm      # puts `olm` and `originlm` on PATH
+npm i -g originlm@alpha      # puts `olm` and `originlm` on PATH
 olm usage              # or: target/debug/originlm usage
 ```
 

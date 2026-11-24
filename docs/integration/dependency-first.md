@@ -278,6 +278,6 @@ temporary directory with an owner-restricted, per-process name.
 ## Publishing
 
 Registry publication is handled by the gated release workflows. The packages are
-published on npm (`originlm@alpha` `0.1.0-alpha.29`, Linux x64/arm64 and Windows x64), PyPI (`0.1.0a29`), and crates.io (`0.1.0-alpha.28`); the preparation workflow itself still produces
+published on npm (`originlm@alpha` `0.1.0-alpha.30`, Linux x64/arm64 and Windows x64), PyPI (`0.1.0a30`), and crates.io (`0.1.0-alpha.30`); the preparation workflow itself still produces
 unsigned local artifacts only and has no publication authority. See
 [release gates](../release/PUBLISHING.md).

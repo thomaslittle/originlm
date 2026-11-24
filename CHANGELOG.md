@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.30
+
+- Keep both local npm command shims under the SDK package and verify both start the packaged helper.
+- Show Antigravity IDE and agy CLI quota as distinct profiles, and show progress while the CLI checks provider usage.
+- Align the install and usage guides with the alpha release and current provider behavior.
+
 ## Unreleased
 
 - fix(claude): `olm usage` returned no Claude Code reading on a machine where the client starts slowly. The probe asked the client for `get_usage` with a 10 second budget, but a cold client takes 5 to 20 seconds to start and then about as long to answer, so the read ended as `USAGE_READ_FAILED_Timeout` and only a 3-day-old cached reading remained. The probe now reads the plan usage from the profile's own saved Claude login (`.credentials.json`, in memory for one request, never refreshed or written back; the endpoint answers only a `claude-code/…` User-Agent, with OriginLM named after it). That read takes under a second, reports the model-scoped weekly window (for example "Weekly · Fable") that the client's own answer lacks, and is marked `CLAUDE_USAGE_FROM_OAUTH_ENDPOINT`. An expired or missing login falls back to the client's `get_usage` with a 45 second budget inside a 75 second probe.
