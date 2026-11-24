@@ -571,6 +571,10 @@ fn reading_missing_reason(row: &Value) -> Option<String> {
             "Pi login `{}` has no usage source",
             name.to_ascii_lowercase()
         )
+    } else if has("ANTIGRAVITY_DIRECT_LOGIN_AVAILABLE") {
+        "skipped because a native Antigravity login is available".to_owned()
+    } else if has("ANTIGRAVITY_T3_LOGIN_EXPIRED") {
+        "the saved T3 Code login has expired; open T3 Code to renew it".to_owned()
     } else if has("ANTIGRAVITY_IDE_LOGIN_EXPIRED") {
         "the Antigravity app's saved login has expired; open Antigravity to renew it".to_owned()
     } else if has("ANTIGRAVITY_LOGIN_EXPIRED") {

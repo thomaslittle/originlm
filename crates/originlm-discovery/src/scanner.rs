@@ -487,7 +487,8 @@ impl<F: LocalFilesystem> Scanner<F> {
                 let t3_usage_only = t3_profiles.contains(&root);
                 let native_antigravity_label = if definition.id == "antigravity" {
                     match root.file_name().and_then(|name| name.to_str()) {
-                        Some("antigravity") => Some("IDE · Default profile"),
+                        Some("antigravity") => Some("Classic IDE · Default profile"),
+                        Some("antigravity-ide") => Some("IDE · Default profile"),
                         Some("antigravity-cli") => Some("agy CLI"),
                         _ => None,
                     }

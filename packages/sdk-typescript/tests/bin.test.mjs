@@ -23,7 +23,7 @@ function install({withPlatform}) {
     const dir = join(pkg, 'node_modules', name);
     const executable = process.platform === 'win32' ? 'originlm.exe' : 'originlm';
     mkdirSync(join(dir, 'bin'), {recursive: true});
-    writeFileSync(join(dir, 'package.json'), JSON.stringify({name, bin: {originlm: `bin/${executable}`}}));
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({name, originlmBinary: `bin/${executable}`}));
     // The fake helper is this Node binary, so the test can observe argv/stdio/exit.
     try { linkSync(process.execPath, join(dir, 'bin', executable)); }
     catch { copyFileSync(process.execPath, join(dir, 'bin', executable)); }

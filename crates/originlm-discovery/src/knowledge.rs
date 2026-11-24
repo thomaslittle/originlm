@@ -316,6 +316,7 @@ pub fn profile_roots(provider_id: &str, env: &ScanEnvironment) -> Vec<PathBuf> {
                 .unwrap_or_else(|| join_relative(&env.home, ".gemini"));
             let mut roots = vec![
                 join_relative(&env.home, ".gemini/antigravity"),
+                join_relative(&env.home, ".gemini/antigravity-ide"),
                 join_relative(&gemini, "antigravity-cli"),
                 join_relative(&gemini, "antigravity-acp"),
             ];

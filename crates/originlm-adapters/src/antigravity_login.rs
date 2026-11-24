@@ -6,8 +6,10 @@
 //!   `antigravity`): Windows Credential Manager target `gemini:antigravity`
 //!   and the macOS Keychain. The Linux Secret Service entry is not read; it
 //!   needs the system D-Bus library, and the file store covers the CLI there.
-//! - The desktop IDE (`~/.gemini/antigravity`) keeps it in its VS Code state
-//!   database, `<user data>/Antigravity/User/globalStorage/state.vscdb`, key
+//! - The current desktop IDE (`~/.gemini/antigravity-ide`) and classic IDE
+//!   (`~/.gemini/antigravity`) keep it in their own VS Code state
+//!   databases under `Antigravity IDE` and `Antigravity`, respectively, at
+//!   `User/globalStorage/state.vscdb`, key
 //!   `antigravityUnifiedStateSync.oauthToken`: base64 of a protobuf whose
 //!   token message holds the access token and its expiry.
 //!
@@ -50,7 +52,7 @@ pub enum Owner {
 pub fn owner(profile_home: &Path) -> Option<Owner> {
     match profile_home.file_name()?.to_str()? {
         "antigravity-cli" => Some(Owner::Cli),
-        "antigravity" => Some(Owner::Ide),
+        "antigravity" | "antigravity-ide" => Some(Owner::Ide),
         key if key.len() == 64
             && key.bytes().all(|byte| byte.is_ascii_hexdigit())
             && profile_home
@@ -63,8 +65,14 @@ pub fn owner(profile_home: &Path) -> Option<Owner> {
     }
 }
 
-/// Read the IDE login for a home using the OS-specific state directory.
-pub fn ide_login_for_home(home: &Path) -> Option<Login> {
+/// Read only the state database belonging to this IDE profile.
+pub fn ide_login_for_profile(profile: &Path) -> Option<Login> {
+    let app = match profile.file_name()?.to_str()? {
+        "antigravity" => "Antigravity",
+        "antigravity-ide" => "Antigravity IDE",
+        _ => return None,
+    };
+    let home = profile.parent()?.parent()?;
     let app_data = std::env::var_os("APPDATA").map(PathBuf::from);
     let config_home = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from);
     ide_login(&ide_state_database(
@@ -72,6 +80,7 @@ pub fn ide_login_for_home(home: &Path) -> Option<Login> {
         home,
         app_data.as_deref(),
         config_home.as_deref(),
+        app,
     ))
 }
 
@@ -83,8 +92,11 @@ pub fn has_direct_login(home: &Path, now: i64) -> bool {
         .unwrap_or_else(|| home.join(".gemini"));
     let cli = gemini_home.join("antigravity-cli");
     (cli.is_dir() && cli_login(&cli).is_some_and(|login| !login.expired(now)))
-        || (home.join(".gemini/antigravity").is_dir()
-            && ide_login_for_home(home).is_some_and(|login| !login.expired(now)))
+        || ["antigravity-ide", "antigravity"].into_iter().any(|name| {
+            let profile = home.join(".gemini").join(name);
+            profile.is_dir()
+                && ide_login_for_profile(&profile).is_some_and(|login| !login.expired(now))
+        })
 }
 
 /// T3's Google account profiles bypass the shared OS credential store.
@@ -119,11 +131,12 @@ impl Os {
 /// The IDE's state database. `app_data` is `%APPDATA%` on Windows and
 /// `config_home` is `$XDG_CONFIG_HOME` on Linux; each falls back to its
 /// platform default under `home`.
-pub fn ide_state_database(
+fn ide_state_database(
     os: Os,
     home: &Path,
     app_data: Option<&Path>,
     config_home: Option<&Path>,
+    app: &str,
 ) -> PathBuf {
     let user_data = match os {
         Os::Windows => app_data
@@ -136,7 +149,7 @@ pub fn ide_state_database(
             .unwrap_or_else(|| home.join(".config")),
     };
     user_data
-        .join("Antigravity")
+        .join(app)
         .join("User")
         .join("globalStorage")
         .join("state.vscdb")
@@ -421,34 +434,65 @@ mod tests {
     }
 
     #[test]
+    fn current_windows_ide_uses_its_own_database() {
+        let home = std::env::temp_dir().join("u");
+        assert_eq!(
+            ide_state_database(Os::Windows, &home, None, None, "Antigravity IDE"),
+            home.join("AppData/Roaming/Antigravity IDE/User/globalStorage/state.vscdb")
+        );
+        assert_eq!(
+            owner(Path::new("/h/.gemini/antigravity-ide")),
+            Some(Owner::Ide)
+        );
+    }
+
+    #[test]
     fn ide_state_database_per_os() {
         // Absolute on every host, so XDG_CONFIG_HOME is accepted in the test.
         let base = std::env::temp_dir();
         let home = base.join("u");
         let tail = |root: PathBuf| root.join("Antigravity/User/globalStorage/state.vscdb");
         assert_eq!(
-            ide_state_database(Os::Linux, &home, None, None),
+            ide_state_database(Os::Linux, &home, None, None, "Antigravity"),
             tail(home.join(".config"))
         );
         assert_eq!(
-            ide_state_database(Os::Linux, &home, None, Some(&base.join("conf"))),
+            ide_state_database(
+                Os::Linux,
+                &home,
+                None,
+                Some(&base.join("conf")),
+                "Antigravity"
+            ),
             tail(base.join("conf"))
         );
         // A relative XDG_CONFIG_HOME is invalid by the spec and ignored.
         assert_eq!(
-            ide_state_database(Os::Linux, &home, None, Some(Path::new("conf"))),
+            ide_state_database(
+                Os::Linux,
+                &home,
+                None,
+                Some(Path::new("conf")),
+                "Antigravity"
+            ),
             tail(home.join(".config"))
         );
         assert_eq!(
-            ide_state_database(Os::Macos, &home, None, None),
+            ide_state_database(Os::Macos, &home, None, None, "Antigravity"),
             tail(home.join("Library/Application Support"))
         );
         assert_eq!(
-            ide_state_database(Os::Windows, &home, Some(&base.join("AD")), None),
+            ide_state_database(
+                Os::Windows,
+                &home,
+                Some(&base.join("AD")),
+                None,
+                "Antigravity"
+            ),
             tail(base.join("AD"))
         );
         assert_eq!(
-            ide_state_database(Os::Windows, &home, None, None),
+            ide_state_database(Os::Windows, &home, None, None, "Antigravity"),
             tail(home.join("AppData/Roaming"))
         );
     }

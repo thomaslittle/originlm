@@ -656,8 +656,10 @@ fn antigravity_native_usage_profiles_are_distinct_from_windows_acp_installations
     fs::create_dir_all(&bin).unwrap();
     fs::write(bin.join("agy.exe"), b"AGY_CLI").unwrap();
     let cli = tmp.path().join(".gemini/antigravity-cli");
-    let ide = tmp.path().join(".gemini/antigravity");
+    let classic = tmp.path().join(".gemini/antigravity");
+    let ide = tmp.path().join(".gemini/antigravity-ide");
     fs::create_dir_all(&cli).unwrap();
+    fs::create_dir_all(&classic).unwrap();
     fs::create_dir_all(&ide).unwrap();
     let acp = tmp.path().join(".gemini/antigravity-acp");
     fs::create_dir_all(&acp).unwrap();
@@ -666,7 +668,11 @@ fn antigravity_native_usage_profiles_are_distinct_from_windows_acp_installations
     assert!(result.locations.values().any(|location| {
         location.profile_home == acp && location.executable.as_deref() == Some(&bin.join("agy.exe"))
     }));
-    for (profile, label) in [(cli, "agy CLI"), (ide, "IDE · Default profile")] {
+    for (profile, label) in [
+        (cli, "agy CLI"),
+        (classic, "Classic IDE · Default profile"),
+        (ide, "IDE · Default profile"),
+    ] {
         let profiles: Vec<_> = result
             .locations
             .iter()

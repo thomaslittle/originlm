@@ -39,7 +39,8 @@ function fromPlatformPackage(platform, arch) {
   try {
     const manifestPath = require.resolve(`${name}/package.json`);
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    const relative = typeof manifest?.bin === 'string' ? manifest.bin : manifest?.bin?.['originlm'];
+    const relative = manifest.originlmBinary
+      ?? (typeof manifest?.bin === 'string' ? manifest.bin : manifest?.bin?.['originlm']);
     if (typeof relative !== 'string' || !relative || relative.includes('\0')) return undefined;
     const binary = join(manifestPath, '..', relative);
     // Electron's spawn cannot execute inside a virtual ASAR filesystem, even

@@ -403,8 +403,7 @@ async fn code_assist_at(
 }
 
 /// Antigravity quota for the Google account a profile's own client is signed
-/// in to: the `agy` CLI for `~/.gemini/antigravity-cli`, the desktop IDE for
-/// `~/.gemini/antigravity`. See [`crate::antigravity_login`] for where each
+/// in to: the `agy` CLI, current desktop IDE, or classic desktop IDE. See [`crate::antigravity_login`] for where each
 /// keeps its login on each operating system.
 pub async fn antigravity(
     profile_home: &Path,
@@ -425,10 +424,7 @@ pub async fn antigravity(
         let unavailable = "ANTIGRAVITY_CREDENTIAL_NOT_FOUND";
         let credential = match owner {
             Owner::Cli => login::cli_login(&profile),
-            Owner::Ide => profile
-                .parent()
-                .and_then(Path::parent)
-                .and_then(login::ide_login_for_home),
+            Owner::Ide => login::ide_login_for_profile(&profile),
             Owner::T3 => {
                 let home = profile.ancestors().nth(5).ok_or(unavailable)?;
                 if login::has_direct_login(home, now) {

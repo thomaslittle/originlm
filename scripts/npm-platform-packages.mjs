@@ -63,6 +63,7 @@ const manifest = {
   description: `OriginLM helper for ${spec.os}/${spec.cpu}`,
   os: [spec.os],
   cpu: [spec.cpu],
+  originlmBinary: `bin/${executable}`,
   files: ['bin', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'sbom.cdx.json', 'licenses'],
   license: 'MIT',
   repository: 'https://github.com/thomaslittle/originlm',

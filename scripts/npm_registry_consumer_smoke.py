@@ -226,7 +226,7 @@ def smoke(release_dir, version, source_commit=None, timeout=240):
         node = shutil.which('node')
         if not node:
             raise RegistryError('missing executable: node')
-        shim_env['PATH'] = str(pathlib.Path(node).parent)
+        shim_env['PATH'] = shim_env['Path'] = str(pathlib.Path(node).parent)
         for alias in ('originlm', 'olm'):
             shim = shim_dir / (f'{alias}.cmd' if sys.platform == 'win32' else alias)
             if not shim.is_file():

@@ -42,7 +42,8 @@ function packagedBinary() {
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const relative = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.originlm;
+  const relative = manifest.originlmBinary
+    ?? (typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.originlm);
   if (typeof relative !== 'string' || !relative) fail(`${name} declares no originlm binary`);
   const binary = join(dirname(manifestPath), relative);
   if (!existsSync(binary)) fail(`${name} is installed but its binary is missing: ${binary}`);
