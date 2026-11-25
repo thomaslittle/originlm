@@ -102,7 +102,7 @@ pub fn inject_managed_codex(scan: &mut ScanResult, state_dir: &Path) {
     let home = state_dir.join("chatgpt-codex-home");
     let executable_key = executable_identity
         .as_ref()
-        .map(|identity| format!("{identity:?}"))
+        .map(|identity| identity.stable_key())
         .unwrap_or_else(|| executable.to_string_lossy().into_owned());
     let connection = stable_id(
         "managed-codex-connection",
