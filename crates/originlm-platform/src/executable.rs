@@ -33,6 +33,39 @@ fn unavailable() -> DomainError {
 }
 
 impl ExecutableIdentity {
+    /// Text for deriving stable record IDs from this executable binding.
+    ///
+    /// It keeps the link chain and the target's file ID, size, mode and
+    /// times, so replacing or updating the executable still yields a new
+    /// key. It leaves out the device number: Linux assigns some devices at
+    /// mount time (btrfs subvolumes, for one), so the same unchanged file
+    /// reports a different `st_dev` after a reboot. [`Self::validate`] still
+    /// compares the complete identity, device included, before use.
+    pub fn stable_key(&self) -> String {
+        #[cfg(unix)]
+        {
+            let stamp = &self.stamp;
+            format!(
+                "{:?}",
+                (
+                    &self.command,
+                    &self.resolved,
+                    &self.links,
+                    stamp.identity.file,
+                    stamp.identity.created,
+                    stamp.length,
+                    stamp.modified,
+                    stamp.mode,
+                    stamp.changed,
+                )
+            )
+        }
+        #[cfg(not(unix))]
+        {
+            format!("{:?}", (&self.command, &self.resolved, &self.links))
+        }
+    }
+
     /// Recheck the complete link binding and target metadata immediately before use.
     pub fn validate(&self) -> Result<()> {
         if NativeFilesystem.resolve_executable(&self.command)? == *self {
@@ -148,4 +181,46 @@ pub fn resolve_executable(command: &Path) -> Result<ExecutableIdentity> {
         }
     }
     Err(unavailable())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    fn identity(volume: u128, length: u64) -> ExecutableIdentity {
+        ExecutableIdentity {
+            command: PathBuf::from("/virtual/bin/client"),
+            resolved: PathBuf::from("/virtual/versions/1.0.0"),
+            links: vec![(
+                PathBuf::from("/virtual/bin/client"),
+                PathBuf::from("../versions/1.0.0"),
+            )],
+            stamp: Stamp {
+                identity: FileIdentity {
+                    volume,
+                    file: 42,
+                    created: None,
+                },
+                length,
+                modified: None,
+                mode: 0o100755,
+                changed: (1, 0),
+            },
+        }
+    }
+
+    #[test]
+    fn stable_key_survives_a_renumbered_device_but_not_a_changed_file() {
+        // The same file after a reboot that renumbered its device.
+        assert_ne!(identity(59, 100), identity(61, 100));
+        assert_eq!(
+            identity(59, 100).stable_key(),
+            identity(61, 100).stable_key()
+        );
+        // An updated executable still gets a new key.
+        assert_ne!(
+            identity(59, 100).stable_key(),
+            identity(59, 200).stable_key()
+        );
+    }
 }

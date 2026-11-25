@@ -519,7 +519,7 @@ impl<F: LocalFilesystem> Scanner<F> {
                                 .map(|identity| {
                                     stable_id(
                                         "executable-binding",
-                                        &[&logical, &format!("{identity:?}")],
+                                        &[&logical, &identity.stable_key()],
                                     )
                                 })
                                 .unwrap_or(logical)
